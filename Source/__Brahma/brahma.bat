@@ -64,21 +64,43 @@ for %%O in ("%OUTPUT%") do (
     if not exist "%%~dpO" mkdir "%%~dpO"
 )
 
-rem Clear output file
-> "%OUTPUT%.c" echo // Generated file; do not edit!
-echo #define BRAHMA_EXEC 1 >> "%OUTPUT%.c"
+rem Clear output file(s)
+> "%OUTPUT%.c" echo #define BRAHMA_EXEC
+> "%OUTPUT%.libraries.tmp" echo BRAHMA_BEGIN_LISTING_LIBRARIES^(^)
+> "%OUTPUT%.packages.tmp" echo BRAHMA_BEGIN_LISTING_PACKAGES^(^)
 
 for %%D in (%SEARCH_DIRS%) do (
     for /d %%M in ("%%~D\*") do (
-        for %%F in ("%%~M\*.module.h") do (
+        for %%F in ("%%~M\*._lib.h") do (
             if exist "%%~F" (
                 set "FILE=%%~fF"
                 set "FILE=!FILE:\=/!"
                 echo #include "!FILE!" >> "%OUTPUT%.c"
+
+                set "LIBRARY_NAME=%%~nF"
+                set "LIBRARY_NAME=!LIBRARY_NAME:._lib=!"
+                echo BRAHMA_ADD_LIBRARY^("!FILE!", !LIBRARY_NAME!^) >> "%OUTPUT%.libraries.tmp"
             )
         )
     )
+
+    for %%F in ("%%~D\*._pkg.h") do (
+        if exist "%%~F" (
+            set "FILE=%%~fF"
+            set "FILE=!FILE:\=/!"
+            echo #include "!FILE!" >> "%OUTPUT%.c"
+
+            set "PACKAGE_NAME=%%~nF"
+            set "PACKAGE_NAME=!PACKAGE_NAME:._pkg=!"
+            echo BRAHMA_ADD_PACKAGE^("!FILE!", !PACKAGE_NAME!^) >> "%OUTPUT%.packages.tmp"
+        )
+    )
 )
+
+echo BRAHMA_END_LISTING_LIBRARIES^(^) >> "%OUTPUT%.libraries.tmp"
+echo BRAHMA_END_LISTING_PACKAGES^(^) >> "%OUTPUT%.packages.tmp"
+echo #include "%OUTPUT:\=/%.libraries.tmp" >> "%OUTPUT%.c"
+echo #include "%OUTPUT:\=/%.packages.tmp" >> "%OUTPUT%.c"
 
 echo Brahma build-file written to `%OUTPUT%.c`.
 
@@ -94,7 +116,7 @@ if errorlevel 1 (
     )
 )
 
-cl /Brepro /nologo /Wall /WX /Zc:preprocessor /std:c11 /O2 /MT /DNDEBUG /GS- /fp:fast "%OUTPUT%.c" "/Fe:%OUTPUT%.exe" "/Fo:%OUTPUT%.obj"
+cl /nologo /Wall /WX /Zc:preprocessor /std:c11 /O2 /MT /DNDEBUG /GS- /fp:fast "%OUTPUT%.c" "/Fe:%OUTPUT%.exe" "/Fo:%OUTPUT%.obj"
 if %ERRORLEVEL% neq 0 (
     echo Brahma build-file failed to compile. Press any key to exit...
     pause >nul
