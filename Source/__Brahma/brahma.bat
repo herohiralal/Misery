@@ -6,7 +6,6 @@ rem Variables
 
 set OUTPUT=
 set SEARCH_DIRS=
-set SHOW_HELP=0
 
 rem ============================================================================================================================
 rem Parse Args
@@ -15,24 +14,14 @@ rem Parse Args
 
 if "%~1"=="" goto SECTION_DoneParsing
 
-if /I "%~1"=="-H" (
-    set SHOW_HELP=1
-    goto SECTION_DoneParsing
-)
-
-if /I "%~1"=="-h" (
-    set SHOW_HELP=1
-    goto SECTION_DoneParsing
-)
-
-if "%~1"=="-O" (
+if "%~1"=="-build_tool_path" (
     set OUTPUT=%~2
     shift
     shift
     goto SECTION_ParseArgs
 )
 
-if "%~1"=="-D" (
+if "%~1"=="-modules_search_dir" (
     set SEARCH_DIRS=!SEARCH_DIRS! "%~2"
     shift
     shift
@@ -48,13 +37,13 @@ rem Process Parsed Args
 :SECTION_DoneParsing
 
 if "%OUTPUT%"=="" (
-    echo ERROR: No output file specified with -O. Press any key to exit...
+    echo ERROR: No output file specified with -build_tool_path. Use as: *.bat -build_tool_path ^<file^> ^(no extension needed^). Press any key to exit...
     pause >nul
     exit /b 1
 )
 
 if "%SEARCH_DIRS%"=="" (
-    echo ERROR: No search directories specified with -D. Press any key to exit...
+    echo ERROR: No search directories specified with -modules_search_dir. Use as: *.bat -modules_search_dir ^<dir^> ^(can be specified multiple times^). Press any key to exit...
     pause >nul
     exit /b 1
 )
@@ -128,7 +117,7 @@ echo Brahma build-file compiled to `%OUTPUT%.exe`.
 rem ============================================================================================================================
 rem Build
 
-"%OUTPUT%.exe"
+"%OUTPUT%.exe" %*
 if %ERRORLEVEL% neq 0 (
     echo Brahma build-process failed. Press any key to exit...
     pause >nul

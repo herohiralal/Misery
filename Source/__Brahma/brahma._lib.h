@@ -68,10 +68,31 @@
 
 // =============================================================================================================================
 // Includes
+#if 1
+
+#ifdef _WIN32
+    #define WIN32_LEAN_AND_MEAN
+    #define VC_EXTRALEAN
+    #define NOMINMAX
+#endif
+
+#ifdef __linux__
+    #define _GNU_SOURCE
+    #define _POSIX_C_SOURCE 200809L
+    #define _XOPEN_SOURCE 700
+#endif
+
+#ifdef __APPLE__
+    #define _DARWIN_C_SOURCE
+#endif
+
 BRAHMA_SUPPRESS_WARN
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 BRAHMA_UNSUPPRESS_WARN
+
+#endif
 
 // =============================================================================================================================
 // Main header file.
@@ -90,7 +111,7 @@ BRAHMA_UNSUPPRESS_WARN
  * will be compiled to build the package. The output will also be linked against the static libraries that that library (and its
  * dependencies) might contain.
  */
-typedef struct Brahma_Package
+typedef struct
 {
     void* _;
 } Brahma_Package;
@@ -104,7 +125,7 @@ typedef struct Brahma_Package
  * Libraries can also declare dependencies on other libraries. In this case, they will be able to `#include` the headers of the
  * libraries that they are dependent on.
  */
-typedef struct Brahma_Library
+typedef struct
 {
     void* _;
 } Brahma_Library;
@@ -152,12 +173,42 @@ BRAHMA_IMPLEMENT_LIBRARY(brahma)
 // Execution code (used when CLI is executed).
 #ifdef  BRAHMA_EXEC
 
+typedef enum
+{
+    BRAHMA_INPUT_ARG_FLAGS_NONE      =      0,
+    BRAHMA_INPUT_ARG_FLAGS_DEBUG     = 1 << 0,
+    BRAHMA_INPUT_ARG_FLAGS_OPTIMISED = 1 << 1,
+} Brahma_Input_Args_Flags_Bits;
+
+typedef uint64_t Brahma_Input_Args_Flags;
+
+typedef struct
+{
+    Brahma_Input_Args_Flags flags;
+} Brahma_Input_Args;
+
 void brahma_add_package(char* name, char* owningFile, Brahma_Package package) { /* TODO */ }
 void brahma_add_library(char* name, char* owningFile, Brahma_Library library) { /* TODO */ }
 
 int main(int argc, char* argv[])
 {
-    printf("Hello, world!");
+    Brahma_Input_Args inputArgs = {0};
+    inputArgs.flags |= BRAHMA_INPUT_ARG_FLAGS_DEBUG; // default to debug mode
+
+    for (int i = 1; i < argc; i++) // skipping first arg because it's gonna be the executable name
+    {
+        // intermediate stuff - not relevant once this tool has begun executing
+        if (!strcmp("-modules_search_dir", argv[i])) { i++; continue; } // module search dirs
+        if (!strcmp("-build_tool_path",    argv[i])) { i++; continue; } // the path where the build tool was compiled
+
+        // flags
+        if (!strcmp("-nodebuginfo", argv[i])) { inputArgs.flags &= ~BRAHMA_INPUT_ARG_FLAGS_DEBUG;     continue; }
+        if (!strcmp("-optimised",   argv[i])) { inputArgs.flags |=  BRAHMA_INPUT_ARG_FLAGS_OPTIMISED; continue; }
+    }
+
+    printf("Debug mode %senabled.\n",     (inputArgs.flags & BRAHMA_INPUT_ARG_FLAGS_DEBUG)     ? "" : "not ");
+    printf("Optimised mode %senabled.\n", (inputArgs.flags & BRAHMA_INPUT_ARG_FLAGS_OPTIMISED) ? "" : "not ");
+
     return 0;
 }
 

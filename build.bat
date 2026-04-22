@@ -1,3 +1,3 @@
 @echo off
 
-call "%~dp0Source\__Brahma\brahma.bat" -D "%~dp0Source" -O "%~dp0Intermediate\__Brahma\brahma"
+call "%~dp0Source\__Brahma\brahma.bat" -modules_search_dir "%~dp0Source" -build_tool_path "%~dp0Intermediate\__Brahma\brahma"
