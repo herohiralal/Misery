@@ -6,6 +6,8 @@ rem Variables
 
 set OUTPUT=
 set SEARCH_DIRS=
+set PACKAGE_COUNT=0
+set LIBRARY_COUNT=0
 
 rem ============================================================================================================================
 rem Parse Args
@@ -55,8 +57,13 @@ for %%O in ("%OUTPUT%") do (
 
 rem Clear output file(s)
 > "%OUTPUT%.c" echo #define BRAHMA_EXEC
-> "%OUTPUT%.libraries.tmp" echo BRAHMA_BEGIN_LISTING_LIBRARIES^(^)
-> "%OUTPUT%.packages.tmp" echo BRAHMA_BEGIN_LISTING_PACKAGES^(^)
+> "%OUTPUT%.libs.tmp" echo BRAHMA_BEGIN_LISTING_LIBRARIES^(^)
+> "%OUTPUT%.pkgs.tmp" echo BRAHMA_BEGIN_LISTING_PACKAGES^(^)
+> "%OUTPUT%.pkgCnt.tmp" echo.
+> "%OUTPUT%.libCnt.tmp" echo.
+
+echo #include "%OUTPUT:\=/%.pkgCnt.tmp" >> "%OUTPUT%.c"
+echo #include "%OUTPUT:\=/%.libCnt.tmp" >> "%OUTPUT%.c"
 
 for %%D in (%SEARCH_DIRS%) do (
     for /d %%M in ("%%~D\*") do (
@@ -68,7 +75,9 @@ for %%D in (%SEARCH_DIRS%) do (
 
                 set "LIBRARY_NAME=%%~nF"
                 set "LIBRARY_NAME=!LIBRARY_NAME:._lib=!"
-                echo BRAHMA_ADD_LIBRARY^("!FILE!", !LIBRARY_NAME!^) >> "%OUTPUT%.libraries.tmp"
+                echo BRAHMA_ADD_LIBRARY^(!LIBRARY_COUNT!, "!FILE!", !LIBRARY_NAME!^) >> "%OUTPUT%.libs.tmp"
+
+                set /a LIBRARY_COUNT+=1
             )
         )
     )
@@ -81,15 +90,20 @@ for %%D in (%SEARCH_DIRS%) do (
 
             set "PACKAGE_NAME=%%~nF"
             set "PACKAGE_NAME=!PACKAGE_NAME:._pkg=!"
-            echo BRAHMA_ADD_PACKAGE^("!FILE!", !PACKAGE_NAME!^) >> "%OUTPUT%.packages.tmp"
+            echo BRAHMA_ADD_PACKAGE^(!PACKAGE_COUNT!, "!FILE!", !PACKAGE_NAME!^) >> "%OUTPUT%.pkgs.tmp"
+
+            set /a PACKAGE_COUNT+=1
         )
     )
 )
 
-echo BRAHMA_END_LISTING_LIBRARIES^(^) >> "%OUTPUT%.libraries.tmp"
-echo BRAHMA_END_LISTING_PACKAGES^(^) >> "%OUTPUT%.packages.tmp"
-echo #include "%OUTPUT:\=/%.libraries.tmp" >> "%OUTPUT%.c"
-echo #include "%OUTPUT:\=/%.packages.tmp" >> "%OUTPUT%.c"
+echo #define BRAHMA_PACKAGE_COUNT !PACKAGE_COUNT! >> "%OUTPUT%.pkgCnt.tmp"
+echo #define BRAHMA_LIBRARY_COUNT !LIBRARY_COUNT! >> "%OUTPUT%.libCnt.tmp"
+echo BRAHMA_END_LISTING_LIBRARIES^(^) >> "%OUTPUT%.libs.tmp"
+echo BRAHMA_END_LISTING_PACKAGES^(^) >> "%OUTPUT%.pkgs.tmp"
+
+echo #include "%OUTPUT:\=/%.libs.tmp" >> "%OUTPUT%.c"
+echo #include "%OUTPUT:\=/%.pkgs.tmp" >> "%OUTPUT%.c"
 
 echo Brahma build-file written to `%OUTPUT%.c`.
 

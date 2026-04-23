@@ -164,7 +164,7 @@ typedef struct
 #define BRAHMA_IMPLEMENT_LIBRARY(libraryName) \
     Brahma_Library brahma_implement_library_##libraryName(const Brahma_Package* package)
 
-BRAHMA_IMPLEMENT_LIBRARY(brahma)
+BRAHMA_IMPLEMENT_LIBRARY(Brahma)
 {
     return (Brahma_Library) {0};
 }
@@ -185,10 +185,55 @@ typedef uint64_t Brahma_Input_Args_Flags;
 typedef struct
 {
     Brahma_Input_Args_Flags flags;
+    char*                   packageToBuild;
 } Brahma_Input_Args;
 
-void brahma_add_package(char* name, char* owningFile, Brahma_Package package) { /* TODO */ }
-void brahma_add_library(char* name, char* owningFile, Brahma_Library library) { /* TODO */ }
+#if !defined(BRAHMA_PACKAGE_COUNT)
+#error "Package count not defined. Brahma build tool has not been built correctly."
+#define BRAHMA_PACKAGE_COUNT 1
+#elif !BRAHMA_PACKAGE_COUNT
+#error "No packages defined."
+#undef BRAHMA_PACKAGE_COUNT
+#define BRAHMA_PACKAGE_COUNT 1
+#endif
+
+#if !defined(BRAHMA_LIBRARY_COUNT)
+#error "Library count not defined. Brahma build tool has not been built correctly."
+#define BRAHMA_LIBRARY_COUNT 1
+#elif !BRAHMA_LIBRARY_COUNT
+#error "No libraries defined."
+#undef BRAHMA_LIBRARY_COUNT
+#define BRAHMA_LIBRARY_COUNT 1
+#endif
+
+typedef struct
+{
+    char*          names      [BRAHMA_PACKAGE_COUNT];
+    char*          owningFiles[BRAHMA_PACKAGE_COUNT];
+    Brahma_Package info       [BRAHMA_PACKAGE_COUNT];
+} Brahma_Packages;
+
+typedef struct
+{
+    char*          names      [BRAHMA_LIBRARY_COUNT];
+    char*          owningFiles[BRAHMA_LIBRARY_COUNT];
+    Brahma_Library info       [BRAHMA_LIBRARY_COUNT];
+} Brahma_Libraries;
+
+// global variable that holds all the package definitions
+Brahma_Packages g_BrahmaPkgDefs;
+
+// implemented by the generated code via helper macro
+void brahma_create_all_packages(void);
+
+// implemented by the generated code via helper macro
+void brahma_create_all_libraries(const Brahma_Package* package);
+
+// add a package, used by the generated code via helper macro
+void brahma_add_package(int idx, char* name, char* owningFile, Brahma_Package package);
+
+// add a library, used by the generated code via helper macro
+void brahma_add_library(int idx, char* name, char* owningFile, Brahma_Library library);
 
 int main(int argc, char* argv[])
 {
@@ -204,21 +249,96 @@ int main(int argc, char* argv[])
         // flags
         if (!strcmp("-nodebuginfo", argv[i])) { inputArgs.flags &= ~BRAHMA_INPUT_ARG_FLAGS_DEBUG;     continue; }
         if (!strcmp("-optimised",   argv[i])) { inputArgs.flags |=  BRAHMA_INPUT_ARG_FLAGS_OPTIMISED; continue; }
+
+        if (!strcmp("-package", argv[i]))
+        {
+            if (inputArgs.packageToBuild)
+            {
+                printf("ERROR: Multiple packages specified with -package. Use as: *.exe -package packageName. Press any key to exit...");
+                getchar();
+                return 1;
+            }
+
+            if (++i >= argc)
+            {
+                printf("ERROR: No package specified after -package. Use as: *.exe -package packageName. Press any key to exit...");
+                getchar();
+                return 1;
+            }
+
+            inputArgs.packageToBuild = argv[i];
+        }
     }
 
-    printf("Debug mode %senabled.\n",     (inputArgs.flags & BRAHMA_INPUT_ARG_FLAGS_DEBUG)     ? "" : "not ");
-    printf("Optimised mode %senabled.\n", (inputArgs.flags & BRAHMA_INPUT_ARG_FLAGS_OPTIMISED) ? "" : "not ");
+    brahma_create_all_packages();
+
+    // find the package to build
+    int selectedPkgIdx = -1;
+    {
+        if (!inputArgs.packageToBuild)
+        {
+            printf("No package specified. Defaulting to the first package!\n");
+            selectedPkgIdx = 0;
+        }
+        else
+        {
+            for (int i = 0; i < BRAHMA_PACKAGE_COUNT; i++)
+            {
+                if (!strcmp(inputArgs.packageToBuild, g_BrahmaPkgDefs.names[i]))
+                {
+                    selectedPkgIdx = i;
+                    break;
+                }
+            }
+
+            if (selectedPkgIdx == -1)
+            {
+                printf("ERROR: No package found with the name '%s'. Press any key to exit...", inputArgs.packageToBuild);
+                getchar();
+                return 1;
+            }
+        }
+    }
+
+    printf("-----------------------------------------\n");
+    printf("Brahma Configuration:\n");
+    printf("\tSelected package: %s.\n", g_BrahmaPkgDefs.names[selectedPkgIdx]);
+    printf("\tDebug info:       %s.\n", (inputArgs.flags & BRAHMA_INPUT_ARG_FLAGS_DEBUG)     ? "on" : "off");
+    printf("\tOptimised:        %s.\n", (inputArgs.flags & BRAHMA_INPUT_ARG_FLAGS_OPTIMISED) ? "on" : "off");
+    printf("-----------------------------------------\n");
 
     return 0;
 }
 
-#define BRAHMA_BEGIN_LISTING_PACKAGES()        void brahma_create_all_packages(void) {
-#define BRAHMA_ADD_PACKAGE(path, packageName)      brahma_add_package(#packageName, path, brahma_implement_package_##packageName());
-#define BRAHMA_END_LISTING_PACKAGES()          }
+#define BRAHMA_BEGIN_LISTING_PACKAGES() \
+    void brahma_create_all_packages(void) {
 
-#define BRAHMA_BEGIN_LISTING_LIBRARIES()       void brahma_create_all_libraries(const Brahma_Package* package) {
-#define BRAHMA_ADD_LIBRARY(path, libraryName)      brahma_add_library(#libraryName, path, brahma_implement_library_##libraryName(package));
-#define BRAHMA_END_LISTING_LIBRARIES()         }
+#define BRAHMA_END_LISTING_PACKAGES() \
+    }
+
+#define BRAHMA_BEGIN_LISTING_LIBRARIES() \
+    void brahma_create_all_libraries(const Brahma_Package* package) {
+
+#define BRAHMA_END_LISTING_LIBRARIES() \
+    }
+
+#define BRAHMA_ADD_PACKAGE(idx, path, packageName) \
+    brahma_add_package(idx, #packageName, path, brahma_implement_package_##packageName());
+
+#define BRAHMA_ADD_LIBRARY(idx, path, libraryName) \
+    brahma_add_library(idx, #libraryName, path, brahma_implement_library_##libraryName(package));
+
+void brahma_add_package(int idx, char* name, char* owningFile, Brahma_Package package)
+{
+    g_BrahmaPkgDefs.names[idx]       = name;
+    g_BrahmaPkgDefs.owningFiles[idx] = owningFile;
+    g_BrahmaPkgDefs.info[idx]        = package;
+}
+
+void brahma_add_library(int idx, char* name, char* owningFile, Brahma_Library library)
+{
+    // TOOD
+}
 
 #endif//BRAHMA_EXEC
 
