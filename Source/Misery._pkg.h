@@ -4,7 +4,9 @@
 
 BRAHMA_IMPLEMENT_PACKAGE(Misery)
 {
-    return (Brahma_Package) {0};
+    Brahma_Package pkg;
+    pkg._ = NULL;
+    return pkg;
 }
 
 #endif//MISERY_PACKAGE_H

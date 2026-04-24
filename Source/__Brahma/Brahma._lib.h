@@ -229,15 +229,14 @@ typedef struct
  * Implement a package.
  *
  * Usage:
- * ```
- * BRAHMA_IMPLEMENT_PACKAGE(packageName)
- * {
- *     return (Brahma_Package)
- *     {
- *         // package data...
- *     };
- * }
- * ```
+ ```
+ BRAHMA_IMPLEMENT_PACKAGE(packageName)
+ {
+     Brahma_Package pkg;
+     // set up package data...
+     return pkg;
+ }
+ ```
  */
 #define BRAHMA_IMPLEMENT_PACKAGE(packageName) \
     Brahma_Package brahma_implement_package_##packageName(void)
@@ -246,22 +245,23 @@ typedef struct
  * Implement a library.
  *
  * Usage:
- * ```
- * BRAHMA_IMPLEMENT_LIBRARY(libraryName)
- * {
- *     return (Brahma_Library)
- *     {
- *         // library data...
- *     };
- * }
- * ```
+ ```
+ BRAHMA_IMPLEMENT_LIBRARY(libraryName)
+ {
+     Brahma_Library lib;
+     // set up library data...
+     return lib;
+ }
+ ```
  */
 #define BRAHMA_IMPLEMENT_LIBRARY(libraryName) \
     Brahma_Library brahma_implement_library_##libraryName(const Brahma_Package* package)
 
 BRAHMA_IMPLEMENT_LIBRARY(Brahma)
 {
-    return (Brahma_Library) {0};
+    Brahma_Library lib;
+    lib._ = NULL;
+    return lib;
 }
 
 // =============================================================================================================================
@@ -447,18 +447,18 @@ void brahma_initialise_internal_allocator(void)
 {
     #if defined(_WIN32)
     {
-        InitializeCriticalSection(&g_brahmaInternalAllocator.mutex);
+        InitializeCriticalSection((LPCRITICAL_SECTION) &g_brahmaInternalAllocator.mutex);
 
         // spin for 15 cycles before sleeping, to improve performance when the lock
         // is only held for a short time (which is the case for our allocator)
-        SetCriticalSectionSpinCount(&g_brahmaInternalAllocator.mutex, 0x0000000F);
+        SetCriticalSectionSpinCount((LPCRITICAL_SECTION) &g_brahmaInternalAllocator.mutex, 0x0000000F);
     }
     #elif defined(__linux__) || defined(__APPLE__)
     {
         pthread_mutexattr_t attr;
         pthread_mutexattr_init(&attr);
         pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-        pthread_mutex_init(&g_brahmaInternalAllocator.mutex, &attr);
+        pthread_mutex_init((pthread_mutex_t*) &g_brahmaInternalAllocator.mutex, &attr);
         pthread_mutexattr_destroy(&attr);
     }
     #endif
@@ -491,9 +491,9 @@ void* brahma_push_memory(size_t size, size_t alignment)
     size_t alignedSize = (size + alignment - 1) & ~(alignment - 1);
 
     #if defined(_WIN32)
-        EnterCriticalSection(&g_brahmaInternalAllocator.mutex);
+        EnterCriticalSection((LPCRITICAL_SECTION) &g_brahmaInternalAllocator.mutex);
     #elif defined(__linux__) || defined(__APPLE__)
-        pthread_mutex_lock(&g_brahmaInternalAllocator.mutex);
+        pthread_mutex_lock((pthread_mutex_t*) &g_brahmaInternalAllocator.mutex);
     #endif
 
     // align the offset to the required alignment
@@ -543,9 +543,9 @@ void* brahma_push_memory(size_t size, size_t alignment)
     g_brahmaInternalAllocator.offset = alignedOffset + alignedSize;
 
     #if defined(_WIN32)
-        LeaveCriticalSection(&g_brahmaInternalAllocator.mutex);
+        LeaveCriticalSection((LPCRITICAL_SECTION) &g_brahmaInternalAllocator.mutex);
     #elif defined(__linux__) || defined(__APPLE__)
-        pthread_mutex_unlock(&g_brahmaInternalAllocator.mutex);
+        pthread_mutex_unlock((pthread_mutex_t*) &g_brahmaInternalAllocator.mutex);
     #endif
 
     return result;
@@ -560,19 +560,21 @@ char* brahma_sprintf(const char* format, ...)
     int requiredSize = vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
 
-    char* output = (char*) brahma_push_memory(requiredSize + 1, 1); // +1 for null terminator
+    size_t requiredBufferSize = (size_t) requiredSize + 1; // +1 for null terminator
+
+    char* output = (char*) brahma_push_memory(requiredBufferSize, 1); // +1 for null terminator
 
     if (requiredSize < (int) sizeof(buffer))
     {
         // fast path, the formatted string fits in the buffer
-        memcpy(output, buffer, requiredSize + 1);
+        memcpy(output, buffer, requiredBufferSize);
     }
     else
     {
         // slow path, the formatted string doesn't fit in the buffer, we need to format it again
         va_list args2;
         va_start(args2, format);
-        vsnprintf(output, requiredSize + 1, format, args2);
+        vsnprintf(output, requiredBufferSize, format, args2);
         va_end(args2);
     }
 
