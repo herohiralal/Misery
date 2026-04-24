@@ -105,6 +105,10 @@ BRAHMA_UNSUPPRESS_WARN
 #ifndef BRAHMA_LIBRARY_H
 #define BRAHMA_LIBRARY_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // some important macros
 #ifndef __cplusplus
     #define static_assert _Static_assert
@@ -320,10 +324,12 @@ typedef struct
     Brahma_Library info       [BRAHMA_LIBRARY_COUNT];
 } Brahma_Libraries;
 
+void brahma_initialise_internal_allocator(void);
+void brahma_create_all_packages(void);
+
 int main(int argc, char* argv[])
 {
     // initialise the internal allocator
-    void brahma_initialise_internal_allocator(void);
     brahma_initialise_internal_allocator();
 
     Brahma_Input_Args inputArgs = {0};
@@ -359,7 +365,6 @@ int main(int argc, char* argv[])
         }
     }
 
-    void brahma_create_all_packages(void);
     brahma_create_all_packages();
 
     // find the package to build
@@ -582,5 +587,9 @@ char* brahma_sprintf(const char* format, ...)
 }
 
 #endif//BRAHMA_EXEC
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif//BRAHMA_LIBRARY_H

@@ -56,14 +56,14 @@ for %%O in ("%OUTPUT%") do (
 )
 
 rem Clear output file(s)
-> "%OUTPUT%.cpp" echo #define BRAHMA_EXEC
+> "%OUTPUT%.c" echo #define BRAHMA_EXEC
 > "%OUTPUT%.libs.tmp" echo BRAHMA_BEGIN_LISTING_LIBRARIES^(^)
 > "%OUTPUT%.pkgs.tmp" echo BRAHMA_BEGIN_LISTING_PACKAGES^(^)
 > "%OUTPUT%.pkgCnt.tmp" echo.
 > "%OUTPUT%.libCnt.tmp" echo.
 
-echo #include "%OUTPUT:\=/%.pkgCnt.tmp" >> "%OUTPUT%.cpp"
-echo #include "%OUTPUT:\=/%.libCnt.tmp" >> "%OUTPUT%.cpp"
+echo #include "%OUTPUT:\=/%.pkgCnt.tmp" >> "%OUTPUT%.c"
+echo #include "%OUTPUT:\=/%.libCnt.tmp" >> "%OUTPUT%.c"
 
 for %%D in (%SEARCH_DIRS%) do (
     for /d %%M in ("%%~D\*") do (
@@ -71,7 +71,7 @@ for %%D in (%SEARCH_DIRS%) do (
             if exist "%%~F" (
                 set "FILE=%%~fF"
                 set "FILE=!FILE:\=/!"
-                echo #include "!FILE!" >> "%OUTPUT%.cpp"
+                echo #include "!FILE!" >> "%OUTPUT%.c"
 
                 set "LIBRARY_NAME=%%~nF"
                 set "LIBRARY_NAME=!LIBRARY_NAME:._lib=!"
@@ -86,7 +86,7 @@ for %%D in (%SEARCH_DIRS%) do (
         if exist "%%~F" (
             set "FILE=%%~fF"
             set "FILE=!FILE:\=/!"
-            echo #include "!FILE!" >> "%OUTPUT%.cpp"
+            echo #include "!FILE!" >> "%OUTPUT%.c"
 
             set "PACKAGE_NAME=%%~nF"
             set "PACKAGE_NAME=!PACKAGE_NAME:._pkg=!"
@@ -102,10 +102,10 @@ echo #define BRAHMA_LIBRARY_COUNT !LIBRARY_COUNT! >> "%OUTPUT%.libCnt.tmp"
 echo BRAHMA_END_LISTING_LIBRARIES^(^) >> "%OUTPUT%.libs.tmp"
 echo BRAHMA_END_LISTING_PACKAGES^(^) >> "%OUTPUT%.pkgs.tmp"
 
-echo #include "%OUTPUT:\=/%.libs.tmp" >> "%OUTPUT%.cpp"
-echo #include "%OUTPUT:\=/%.pkgs.tmp" >> "%OUTPUT%.cpp"
+echo #include "%OUTPUT:\=/%.libs.tmp" >> "%OUTPUT%.c"
+echo #include "%OUTPUT:\=/%.pkgs.tmp" >> "%OUTPUT%.c"
 
-echo Brahma build-file written to `%OUTPUT%.cpp`.
+echo Brahma build-file written to `%OUTPUT%.c`.
 
 rem ============================================================================================================================
 rem Build
@@ -119,7 +119,7 @@ if errorlevel 1 (
     )
 )
 
-cl /nologo /Wall /WX /Zc:preprocessor /std:c++14 /O2 /MT /DNDEBUG /GS- /fp:fast "%OUTPUT%.cpp" "/Fe:%OUTPUT%.exe" "/Fo:%OUTPUT%.obj"
+cl /nologo /Wall /WX /Zc:preprocessor /std:c11 /O2 /MT /DNDEBUG /GS- /fp:fast "%OUTPUT%.c" "/Fe:%OUTPUT%.exe" "/Fo:%OUTPUT%.obj"
 if %ERRORLEVEL% neq 0 (
     echo Brahma build-file failed to compile. Press any key to exit...
     pause >nul
