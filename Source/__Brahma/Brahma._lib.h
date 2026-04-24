@@ -186,11 +186,11 @@ BRAHMA_DECLARE_PAGED_LIST(str, char*)
 
 /**
  * Helper function to format a string using the internal allocator.
- * It uses an intermediate thread-local buffer to format the string, and then pushes the copy of the formatted string
- * to the internal allocator.
  *
- * Note that the internal buffer has a limited capacity of a few kilobytes, so this should not be used to format
- * very large strings.
+ * A small thread-local buffer of a few kilobytes is used as an intermediate to format the string.
+ * If the formatted string fits in the buffer, it takes a fast path and copies the formatted string to the internal allocator.
+ * If the formatted string does not fit in the buffer, it takes a slow path and has to format the string a second time, directly
+ * into the internal allocator.
  */
 char* brahma_sprintf(const char* format, ...);
 
@@ -549,6 +549,34 @@ void* brahma_push_memory(size_t size, size_t alignment)
     #endif
 
     return result;
+}
+
+char* brahma_sprintf(const char* format, ...)
+{
+    char buffer[4096]; // 4 KiB buffer for formatting strings
+
+    va_list args;
+    va_start(args, format);
+    int requiredSize = vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+
+    char* output = (char*) brahma_push_memory(requiredSize + 1, 1); // +1 for null terminator
+
+    if (requiredSize < (int) sizeof(buffer))
+    {
+        // fast path, the formatted string fits in the buffer
+        memcpy(output, buffer, requiredSize + 1);
+    }
+    else
+    {
+        // slow path, the formatted string doesn't fit in the buffer, we need to format it again
+        va_list args2;
+        va_start(args2, format);
+        vsnprintf(output, requiredSize + 1, format, args2);
+        va_end(args2);
+    }
+
+    return output;
 }
 
 #endif//BRAHMA_EXEC
