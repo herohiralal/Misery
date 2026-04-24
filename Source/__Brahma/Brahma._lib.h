@@ -90,6 +90,12 @@ BRAHMA_SUPPRESS_WARN
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#ifdef _WIN32
+    #include <windows.h>
+    #include <malloc.h>
+#elif defined(__linux__) || defined(__APPLE__)
+    #include <pthread.h>
+#endif
 BRAHMA_UNSUPPRESS_WARN
 
 #endif
@@ -98,6 +104,95 @@ BRAHMA_UNSUPPRESS_WARN
 // Main header file.
 #ifndef BRAHMA_LIBRARY_H
 #define BRAHMA_LIBRARY_H
+
+// some important macros
+#ifndef __cplusplus
+    #define static_assert _Static_assert
+
+    #if defined(_MSC_VER)
+        #define alignas(x) __declspec(align(x))
+        #define alignof(x) __alignof(x)
+        #define thread_local __declspec(thread)
+        #define inline __inline
+    #elif defined(__GNUC__) || defined(__clang__)
+        #define alignas(x) __attribute__((aligned(x)))
+        #define alignof(x) __alignof__(x)
+        #define thread_local __thread
+        #define inline __inline__
+    #else
+        #error "Unsupported compiler."
+    #endif
+#endif
+
+/**
+ * Internally, Brahma uses a custom memory allocator, which is a simple linear allocator, that never frees memory.
+ * This function is thread-safe to use, but it'll lock the allocator's mutex while it's being used.
+ */
+void* brahma_push_memory(size_t size, size_t alignment);
+
+/**
+ * Helper macro to push a struct of a given type to the internal allocator, and return a pointer to it.
+ */
+#define BRAHMA_PUSH_STRUCT(type) ((type*) brahma_push_memory(sizeof(type), alignof(type)))
+
+/**
+ * Declare a paged list type.
+ * A paged list provides a way to allocate a list of items without needing to reallocate the entire list when it grows.
+ * It does this by allocating fixed-size pages of items, and linking them together using a linked-list.
+ * The size and alignment of the pages are chosen to be 64 bytes, which is a common cache line size on modern CPUs.
+ * This provides good cache performance when iterating, and it also allows for different threads to freely write to different
+ * pages, without causing false sharing.
+ */
+#define BRAHMA_DECLARE_PAGED_LIST(convenientName, type) \
+    typedef struct alignas(64) Brahma_Paged_List_Page__##convenientName Brahma_Paged_List_Page__##convenientName; \
+    struct Brahma_Paged_List_Page__##convenientName \
+    { \
+        Brahma_Paged_List_Page__##convenientName* nextPage; \
+        type                                 items[(64 - sizeof(void*)) / sizeof(type)]; \
+    }; \
+    static_assert(sizeof(Brahma_Paged_List_Page__##convenientName) == 64, \
+        "Brahma_Paged_List_Page__" #convenientName " must be exactly 64 bytes in size."); \
+    typedef struct \
+    { \
+        Brahma_Paged_List_Page__##convenientName* pages; \
+        uint64_t                            count; \
+    } Brahma_Paged_List__##convenientName; \
+    void brahma_append_to_list__##convenientName(Brahma_Paged_List__##convenientName* list, type item) \
+    { \
+        /* if no pages, or the current page is full, allocate a new one */ \
+        if (!list->pages || list->count % (sizeof(Brahma_Paged_List_Page__##convenientName) / sizeof(type)) == 0) \
+        { \
+            Brahma_Paged_List_Page__##convenientName* newPage = BRAHMA_PUSH_STRUCT(Brahma_Paged_List_Page__##convenientName); \
+            newPage->nextPage = list->pages; \
+            list->pages = newPage; \
+        } \
+        list->pages->items[list->count % (sizeof(Brahma_Paged_List_Page__##convenientName) / sizeof(type))] = item; \
+        list->count++; \
+    } \
+    type* brahma_index_list__##convenientName(Brahma_Paged_List__##convenientName* list, uint64_t index) \
+    { \
+        if (index >= list->count) return NULL; \
+        uint64_t pageIndex = index / (sizeof(Brahma_Paged_List_Page__##convenientName) / sizeof(type)); \
+        uint64_t itemIndex = index % (sizeof(Brahma_Paged_List_Page__##convenientName) / sizeof(type)); \
+        Brahma_Paged_List_Page__##convenientName* page = list->pages; \
+        for (uint64_t i = 0; i < pageIndex; i++) \
+        { \
+            page = page->nextPage; \
+        } \
+        return &page->items[itemIndex]; \
+    }
+
+BRAHMA_DECLARE_PAGED_LIST(str, char*)
+
+/**
+ * Helper function to format a string using the internal allocator.
+ * It uses an intermediate thread-local buffer to format the string, and then pushes the copy of the formatted string
+ * to the internal allocator.
+ *
+ * Note that the internal buffer has a limited capacity of a few kilobytes, so this should not be used to format
+ * very large strings.
+ */
+char* brahma_sprintf(const char* format, ...);
 
 /**
  * Package definition.
@@ -206,6 +301,7 @@ typedef struct
 #define BRAHMA_LIBRARY_COUNT 1
 #endif
 
+// structure storing all the package definitions
 typedef struct
 {
     char*          names      [BRAHMA_PACKAGE_COUNT];
@@ -213,6 +309,10 @@ typedef struct
     Brahma_Package info       [BRAHMA_PACKAGE_COUNT];
 } Brahma_Packages;
 
+// global variable that holds all the package definitions
+Brahma_Packages g_BrahmaPkgDefs;
+
+// structure storing all the library definitions
 typedef struct
 {
     char*          names      [BRAHMA_LIBRARY_COUNT];
@@ -220,23 +320,12 @@ typedef struct
     Brahma_Library info       [BRAHMA_LIBRARY_COUNT];
 } Brahma_Libraries;
 
-// global variable that holds all the package definitions
-Brahma_Packages g_BrahmaPkgDefs;
-
-// implemented by the generated code via helper macro
-void brahma_create_all_packages(void);
-
-// implemented by the generated code via helper macro
-void brahma_create_all_libraries(const Brahma_Package* package);
-
-// add a package, used by the generated code via helper macro
-void brahma_add_package(int idx, char* name, char* owningFile, Brahma_Package package);
-
-// add a library, used by the generated code via helper macro
-void brahma_add_library(int idx, char* name, char* owningFile, Brahma_Library library);
-
 int main(int argc, char* argv[])
 {
+    // initialise the internal allocator
+    void brahma_initialise_internal_allocator(void);
+    brahma_initialise_internal_allocator();
+
     Brahma_Input_Args inputArgs = {0};
     inputArgs.flags |= BRAHMA_INPUT_ARG_FLAGS_DEBUG; // default to debug mode
 
@@ -270,6 +359,7 @@ int main(int argc, char* argv[])
         }
     }
 
+    void brahma_create_all_packages(void);
     brahma_create_all_packages();
 
     // find the package to build
@@ -338,6 +428,127 @@ void brahma_add_package(int idx, char* name, char* owningFile, Brahma_Package pa
 void brahma_add_library(int idx, char* name, char* owningFile, Brahma_Library library)
 {
     // TOOD
+}
+
+static volatile struct
+{
+    #if defined(_WIN32)
+        CRITICAL_SECTION mutex;
+    #elif defined(__linux__) || defined(__APPLE__)
+        pthread_mutex_t mutex;
+    #endif
+
+    uint8_t* currentMemoryPage;
+    size_t   capacity;
+    size_t   offset;
+} g_brahmaInternalAllocator;
+
+void brahma_initialise_internal_allocator(void)
+{
+    #if defined(_WIN32)
+    {
+        InitializeCriticalSection(&g_brahmaInternalAllocator.mutex);
+
+        // spin for 15 cycles before sleeping, to improve performance when the lock
+        // is only held for a short time (which is the case for our allocator)
+        SetCriticalSectionSpinCount(&g_brahmaInternalAllocator.mutex, 0x0000000F);
+    }
+    #elif defined(__linux__) || defined(__APPLE__)
+    {
+        pthread_mutexattr_t attr;
+        pthread_mutexattr_init(&attr);
+        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+        pthread_mutex_init(&g_brahmaInternalAllocator.mutex, &attr);
+        pthread_mutexattr_destroy(&attr);
+    }
+    #endif
+}
+
+void* brahma_push_memory(size_t size, size_t alignment)
+{
+    // make sure that the alignment is at least 64 bytes
+    // this way, this allocator can be used from multiple threads without causing false sharing
+    // since each allocation will be at least 64 bytes apart
+    if (alignment < 64) alignment = 64;
+
+    // if alignment is not a power of 2, find the next power of 2 that is greater than or equal to the alignment
+    if (alignment & (alignment - 1))
+    {
+        #if defined(_MSC_VER)
+        {
+            unsigned long index;
+            _BitScanReverse64(&index, alignment);
+            alignment = 1ULL << (index + 1);
+        }
+        #elif defined(__GNUC__) || defined(__clang__)
+        {
+            alignment = 1ULL << (64 - __builtin_clzll(alignment));
+        }
+        #endif
+    }
+
+    // make sure the size is aligned by the alignment, to avoid fragmentation
+    size_t alignedSize = (size + alignment - 1) & ~(alignment - 1);
+
+    #if defined(_WIN32)
+        EnterCriticalSection(&g_brahmaInternalAllocator.mutex);
+    #elif defined(__linux__) || defined(__APPLE__)
+        pthread_mutex_lock(&g_brahmaInternalAllocator.mutex);
+    #endif
+
+    // align the offset to the required alignment
+    size_t alignedPtr = ((size_t) g_brahmaInternalAllocator.currentMemoryPage) + g_brahmaInternalAllocator.offset;
+    alignedPtr = (alignedPtr + alignment - 1) & ~(alignment - 1);
+    size_t alignedOffset = alignedPtr - (size_t) g_brahmaInternalAllocator.currentMemoryPage;
+
+    // check if we have enough capacity, if not, allocate a new page
+    // no need to worry about keeping links to the old pages, since we never free memory
+    if (alignedOffset + alignedSize > g_brahmaInternalAllocator.capacity)
+    {
+        size_t newPageSize = 4 * 1024 * 1024; // 4 MiB
+        size_t newPageAlignment = 64; // 64 bytes, which is a common cache line size on modern CPUs
+
+        // if the requested size is larger than the default page size, allocate a page that can fit it
+        if (alignedSize > newPageSize)
+            newPageSize = alignedSize;
+
+        // allocate the new page with the required alignment
+        void* newPage = NULL;
+        #if defined(_WIN32)
+        {
+            newPage = _aligned_malloc(newPageSize, newPageAlignment);
+        }
+        #elif defined(__linux__) || defined(__APPLE__)
+        {
+            newPage = aligned_alloc(newPageAlignment, newPageSize);
+        }
+        #endif
+
+        // out of memory, trap
+        if (!newPage)
+        {
+            #if defined(_MSC_VER)
+                __debugbreak();
+            #elif defined(__GNUC__) || defined(__clang__)
+                __builtin_trap();
+            #endif
+        }
+
+        g_brahmaInternalAllocator.currentMemoryPage = (uint8_t*) newPage;
+        g_brahmaInternalAllocator.capacity          = newPageSize;
+        g_brahmaInternalAllocator.offset            = 0;
+    }
+
+    void* result = g_brahmaInternalAllocator.currentMemoryPage + alignedOffset;
+    g_brahmaInternalAllocator.offset = alignedOffset + alignedSize;
+
+    #if defined(_WIN32)
+        LeaveCriticalSection(&g_brahmaInternalAllocator.mutex);
+    #elif defined(__linux__) || defined(__APPLE__)
+        pthread_mutex_unlock(&g_brahmaInternalAllocator.mutex);
+    #endif
+
+    return result;
 }
 
 #endif//BRAHMA_EXEC
