@@ -155,38 +155,38 @@ void* brahma_push_memory(size_t size, size_t alignment);
  * This provides good cache performance when iterating, and it also allows for different threads to freely write to different
  * pages, without causing false sharing.
  */
-#define BRAHMA_DECLARE_PAGED_LIST(convenientName, type) \
-    typedef struct alignas(64) Brahma_Paged_List_Page__##convenientName Brahma_Paged_List_Page__##convenientName; \
-    struct Brahma_Paged_List_Page__##convenientName \
+#define BRAHMA_DECLARE_PAGED_LIST(typeConvenientNameForStruct, typeConvenientNameForFunction, type) \
+    typedef struct Brahma_##typeConvenientNameForStruct##_Paged_List_Page Brahma_##typeConvenientNameForStruct##_Paged_List_Page; \
+    struct alignas(64) Brahma_##typeConvenientNameForStruct##_Paged_List_Page \
     { \
-        Brahma_Paged_List_Page__##convenientName* nextPage; \
-        type                                 items[(64 - sizeof(void*)) / sizeof(type)]; \
+        Brahma_##typeConvenientNameForStruct##_Paged_List_Page* nextPage; \
+        type                                                    items[(64 - sizeof(void*)) / sizeof(type)]; \
     }; \
-    static_assert(sizeof(Brahma_Paged_List_Page__##convenientName) == 64, \
-        "Brahma_Paged_List_Page__" #convenientName " must be exactly 64 bytes in size."); \
+    static_assert(sizeof(Brahma_##typeConvenientNameForStruct##_Paged_List_Page) == 64, \
+        "Brahma_" #typeConvenientNameForStruct "_Paged_List_Page must be exactly 64 bytes in size."); \
     typedef struct \
     { \
-        Brahma_Paged_List_Page__##convenientName* pages; \
-        uint64_t                            count; \
-    } Brahma_Paged_List__##convenientName; \
-    static inline void brahma_append__##convenientName(Brahma_Paged_List__##convenientName* list, type item) \
+        Brahma_##typeConvenientNameForStruct##_Paged_List_Page* pages; \
+        uint64_t                                                count; \
+    } Brahma_##typeConvenientNameForStruct##_Paged_List; \
+    static inline void brahma_append_##typeConvenientNameForFunction##_to_paged_list(Brahma_##typeConvenientNameForStruct##_Paged_List* list, type item) \
     { \
         /* if no pages, or the current page is full, allocate a new one */ \
-        if (!list->pages || list->count % (sizeof(Brahma_Paged_List_Page__##convenientName) / sizeof(type)) == 0) \
+        if (!list->pages || list->count % (sizeof(Brahma_##typeConvenientNameForStruct##_Paged_List_Page) / sizeof(type)) == 0) \
         { \
-            Brahma_Paged_List_Page__##convenientName* newPage = BRAHMA_PUSH_STRUCT(Brahma_Paged_List_Page__##convenientName); \
+            Brahma_##typeConvenientNameForStruct##_Paged_List_Page* newPage = BRAHMA_PUSH_STRUCT(Brahma_##typeConvenientNameForStruct##_Paged_List_Page); \
             newPage->nextPage = list->pages; \
             list->pages = newPage; \
         } \
-        list->pages->items[list->count % (sizeof(Brahma_Paged_List_Page__##convenientName) / sizeof(type))] = item; \
+        list->pages->items[list->count % (sizeof(Brahma_##typeConvenientNameForStruct##_Paged_List_Page) / sizeof(type))] = item; \
         list->count++; \
     } \
-    static inline type* brahma_index__##convenientName(Brahma_Paged_List__##convenientName* list, uint64_t index) \
+    static inline type* brahma_index_##typeConvenientNameForFunction##_in_paged_list(Brahma_##typeConvenientNameForStruct##_Paged_List* list, uint64_t index) \
     { \
         if (index >= list->count) return NULL; \
-        uint64_t pageIndex = index / (sizeof(Brahma_Paged_List_Page__##convenientName) / sizeof(type)); \
-        uint64_t itemIndex = index % (sizeof(Brahma_Paged_List_Page__##convenientName) / sizeof(type)); \
-        Brahma_Paged_List_Page__##convenientName* page = list->pages; \
+        uint64_t pageIndex = index / (sizeof(Brahma_##typeConvenientNameForStruct##_Paged_List_Page) / sizeof(type)); \
+        uint64_t itemIndex = index % (sizeof(Brahma_##typeConvenientNameForStruct##_Paged_List_Page) / sizeof(type)); \
+        Brahma_##typeConvenientNameForStruct##_Paged_List_Page* page = list->pages; \
         for (uint64_t i = 0; i < pageIndex; i++) \
         { \
             page = page->nextPage; \
@@ -194,7 +194,7 @@ void* brahma_push_memory(size_t size, size_t alignment);
         return &page->items[itemIndex]; \
     }
 
-BRAHMA_DECLARE_PAGED_LIST(str, char*)
+BRAHMA_DECLARE_PAGED_LIST(String, string, char*)
 
 /**
  * Helper function to format a string using the internal allocator.
@@ -205,6 +205,20 @@ BRAHMA_DECLARE_PAGED_LIST(str, char*)
  * into the internal allocator.
  */
 char* brahma_sprintf(const char* format, ...);
+
+/**
+ * Key-value pair of a definition.
+ * This is used to store the definitions that a library (or a package) declares.
+ * The key is the name of the definition, and the value is the value.
+ * The value can include new lines, but will need to add backslashes for escaping, since the value is stored as a single string.
+ */
+typedef struct
+{
+    const char* key;
+    const char* value;
+} Brahma_Define;
+
+BRAHMA_DECLARE_PAGED_LIST(Define, define, Brahma_Define)
 
 /**
  * Package definition.
@@ -220,7 +234,16 @@ char* brahma_sprintf(const char* format, ...);
  */
 typedef struct
 {
-    void* _;
+    /**
+     * Package-level definitions to use for compilation.
+     */
+    Brahma_Define_Paged_List defines;
+
+    /**
+     * The primary library that this package depends on. All the source files in this library (and its dependencies) will be compiled
+     * to build the package.
+     */
+    const char* primaryLibrary;
 } Brahma_Package;
 
 /**
@@ -234,7 +257,27 @@ typedef struct
  */
 typedef struct
 {
-    void* _;
+    /**
+     * The libraries that this library depends on for its implementation, as well as its interface (headers).
+     */
+    Brahma_String_Paged_List interfaceDependencies;
+
+    /**
+     * The libraries that this library depends on for its implementation, and not its interface (headers).
+     */
+    Brahma_String_Paged_List internalDependencies;
+
+    /**
+     * Library-level definitions to use for compilation. These definitions will be used when compiling the source files in this
+     * library, as well as the source files in the libraries that depend on this library (recursively).
+     */
+    Brahma_Define_Paged_List interfaceDefines;
+
+    /**
+     * Library-level definitions to use for compilation. These definitions will be used when compiling the source files in this
+     * library, but not the source files in the libraries that depend on this library.
+     */
+    Brahma_Define_Paged_List internalDefines;
 } Brahma_Library;
 
 /**
@@ -314,9 +357,6 @@ typedef struct
     Brahma_Package info       [BRAHMA_PACKAGE_COUNT];
 } Brahma_Packages;
 
-// global variable that holds all the package definitions
-Brahma_Packages g_BrahmaPkgDefs;
-
 // structure storing all the library definitions
 typedef struct
 {
@@ -329,8 +369,11 @@ typedef bool (*Brahma_Directory_Visitor_Delegate)(void* payload, const char* pat
 
 void brahma_initialise_internal_allocator(void);
 void brahma_shutdown_internal_allocator(void);
-void brahma_create_all_packages(void);
+void brahma_create_all_packages(Brahma_Packages* packages);
 void brahma_iterate_directory(const char* path, bool recursive, void* visitorPayload, Brahma_Directory_Visitor_Delegate visitor);
+
+int brahma_find_package_by_name(const Brahma_Packages* packages, const char* name);
+int brahma_find_library_by_name(const Brahma_Libraries* libraries, const char* name);
 
 int main(int argc, char* argv[])
 {
@@ -369,10 +412,16 @@ int main(int argc, char* argv[])
             }
 
             inputArgs.packageToBuild = argv[i];
+            continue;
         }
+
+        // unknown arg
+        error = brahma_sprintf("Unknown argument '%s'.", argv[i]);
+        goto exit;
     }
 
-    brahma_create_all_packages();
+    Brahma_Packages* pkgDefs = BRAHMA_PUSH_STRUCT(Brahma_Packages);
+    brahma_create_all_packages(pkgDefs);
 
     // find the package to build
     int selectedPkgIdx = -1;
@@ -386,7 +435,7 @@ int main(int argc, char* argv[])
         {
             for (int i = 0; i < BRAHMA_PACKAGE_COUNT; i++)
             {
-                if (!strcmp(inputArgs.packageToBuild, g_BrahmaPkgDefs.names[i]))
+                if (!strcmp(inputArgs.packageToBuild, pkgDefs->names[i]))
                 {
                     selectedPkgIdx = i;
                     break;
@@ -403,7 +452,7 @@ int main(int argc, char* argv[])
 
     printf("-----------------------------------------\n");
     printf("Brahma Configuration:\n");
-    printf("\tSelected package: %s.\n", g_BrahmaPkgDefs.names[selectedPkgIdx]);
+    printf("\tSelected package: %s.\n", pkgDefs->names[selectedPkgIdx]);
     printf("\tDebug info:       %s.\n", (inputArgs.flags & BRAHMA_INPUT_ARG_FLAGS_DEBUG)     ? "on" : "off");
     printf("\tOptimised:        %s.\n", (inputArgs.flags & BRAHMA_INPUT_ARG_FLAGS_OPTIMISED) ? "on" : "off");
     printf("-----------------------------------------\n");
@@ -427,33 +476,35 @@ exit:
 }
 
 #define BRAHMA_BEGIN_LISTING_PACKAGES() \
-    void brahma_create_all_packages(void) {
+    void brahma_create_all_packages(Brahma_Packages* packages) {
 
 #define BRAHMA_END_LISTING_PACKAGES() \
     }
 
 #define BRAHMA_BEGIN_LISTING_LIBRARIES() \
-    void brahma_create_all_libraries(const Brahma_Package* package) {
+    void brahma_create_all_libraries(Brahma_Libraries* libraries, const Brahma_Package* package) {
 
 #define BRAHMA_END_LISTING_LIBRARIES() \
     }
 
 #define BRAHMA_ADD_PACKAGE(idx, path, packageName) \
-    brahma_add_package(idx, #packageName, path, brahma_implement_package_##packageName());
+    brahma_add_package(packages, idx, #packageName, path, brahma_implement_package_##packageName());
 
 #define BRAHMA_ADD_LIBRARY(idx, path, libraryName) \
-    brahma_add_library(idx, #libraryName, path, brahma_implement_library_##libraryName(package));
+    brahma_add_library(libraries, idx, #libraryName, path, brahma_implement_library_##libraryName(package));
 
-void brahma_add_package(int idx, char* name, char* owningFile, Brahma_Package package)
+void brahma_add_package(Brahma_Packages* packages, int idx, char* name, char* owningFile, Brahma_Package package)
 {
-    g_BrahmaPkgDefs.names[idx]       = name;
-    g_BrahmaPkgDefs.owningFiles[idx] = owningFile;
-    g_BrahmaPkgDefs.info[idx]        = package;
+    packages->names[idx]       = name;
+    packages->owningFiles[idx] = owningFile;
+    packages->info[idx]        = package;
 }
 
-void brahma_add_library(int idx, char* name, char* owningFile, Brahma_Library library)
+void brahma_add_library(Brahma_Libraries* libraries, int idx, char* name, char* owningFile, Brahma_Library library)
 {
-    // TOOD
+    libraries->names[idx]       = name;
+    libraries->owningFiles[idx] = owningFile;
+    libraries->info[idx]        = library;
 }
 
 static volatile struct
@@ -770,6 +821,36 @@ void brahma_iterate_directory(const char* path, bool recursive, void* visitorPay
         }
 
     #endif
+}
+
+int brahma_find_package_by_name(const Brahma_Packages* packages, const char* name)
+{
+    int selectedPkgIdx = -1;
+    for (int i = 0; i < BRAHMA_PACKAGE_COUNT; i++)
+    {
+        if (!strcmp(name, packages->names[i]))
+        {
+            selectedPkgIdx = i;
+            break;
+        }
+    }
+
+    return selectedPkgIdx;
+}
+
+int brahma_find_library_by_name(const Brahma_Libraries* libraries, const char* name)
+{
+    int selectedLibIdx = -1;
+    for (int i = 0; i < BRAHMA_LIBRARY_COUNT; i++)
+    {
+        if (!strcmp(name, libraries->names[i]))
+        {
+            selectedLibIdx = i;
+            break;
+        }
+    }
+
+    return selectedLibIdx;
 }
 
 #endif//BRAHMA_EXEC
