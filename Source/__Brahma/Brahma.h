@@ -126,6 +126,14 @@ extern "C" {
     #else
         #error "Unsupported compiler."
     #endif
+
+    typedef _Bool bool;
+    #ifndef true
+        #define true ((bool) 1)
+    #endif
+    #ifndef false
+        #define false ((bool) 0)
+    #endif
 #endif
 
 /**
@@ -161,7 +169,7 @@ void* brahma_push_memory(size_t size, size_t alignment);
         Brahma_Paged_List_Page__##convenientName* pages; \
         uint64_t                            count; \
     } Brahma_Paged_List__##convenientName; \
-    void brahma_append_to_list__##convenientName(Brahma_Paged_List__##convenientName* list, type item) \
+    static inline void brahma_append__##convenientName(Brahma_Paged_List__##convenientName* list, type item) \
     { \
         /* if no pages, or the current page is full, allocate a new one */ \
         if (!list->pages || list->count % (sizeof(Brahma_Paged_List_Page__##convenientName) / sizeof(type)) == 0) \
@@ -173,7 +181,7 @@ void* brahma_push_memory(size_t size, size_t alignment);
         list->pages->items[list->count % (sizeof(Brahma_Paged_List_Page__##convenientName) / sizeof(type))] = item; \
         list->count++; \
     } \
-    type* brahma_index_list__##convenientName(Brahma_Paged_List__##convenientName* list, uint64_t index) \
+    static inline type* brahma_index__##convenientName(Brahma_Paged_List__##convenientName* list, uint64_t index) \
     { \
         if (index >= list->count) return NULL; \
         uint64_t pageIndex = index / (sizeof(Brahma_Paged_List_Page__##convenientName) / sizeof(type)); \
@@ -261,13 +269,6 @@ typedef struct
 #define BRAHMA_IMPLEMENT_LIBRARY(libraryName) \
     Brahma_Library brahma_implement_library_##libraryName(const Brahma_Package* package)
 
-BRAHMA_IMPLEMENT_LIBRARY(Brahma)
-{
-    Brahma_Library lib;
-    lib._ = NULL;
-    return lib;
-}
-
 // =============================================================================================================================
 // Execution code (used when CLI is executed).
 #ifdef  BRAHMA_EXEC
@@ -324,13 +325,20 @@ typedef struct
     Brahma_Library info       [BRAHMA_LIBRARY_COUNT];
 } Brahma_Libraries;
 
+typedef bool (*Brahma_Directory_Visitor_Delegate)(void* payload, const char* path, bool isDirectory, bool* exploreCurrentDirectory);
+
 void brahma_initialise_internal_allocator(void);
+void brahma_shutdown_internal_allocator(void);
 void brahma_create_all_packages(void);
+void brahma_iterate_directory(const char* path, bool recursive, void* visitorPayload, Brahma_Directory_Visitor_Delegate visitor);
 
 int main(int argc, char* argv[])
 {
+    char* error = NULL;
+    int deferredLevel = 0;
+
     // initialise the internal allocator
-    brahma_initialise_internal_allocator();
+    brahma_initialise_internal_allocator(); deferredLevel++;
 
     Brahma_Input_Args inputArgs = {0};
     inputArgs.flags |= BRAHMA_INPUT_ARG_FLAGS_DEBUG; // default to debug mode
@@ -340,6 +348,7 @@ int main(int argc, char* argv[])
         // intermediate stuff - not relevant once this tool has begun executing
         if (!strcmp("-modules_search_dir", argv[i])) { i++; continue; } // module search dirs
         if (!strcmp("-build_tool_path",    argv[i])) { i++; continue; } // the path where the build tool was compiled
+        if (!strcmp("-debug_build_tool",   argv[i])) {      continue; } // whether the build tool itself is a debug build
 
         // flags
         if (!strcmp("-nodebuginfo", argv[i])) { inputArgs.flags &= ~BRAHMA_INPUT_ARG_FLAGS_DEBUG;     continue; }
@@ -349,16 +358,14 @@ int main(int argc, char* argv[])
         {
             if (inputArgs.packageToBuild)
             {
-                printf("ERROR: Multiple packages specified with -package. Use as: *.exe -package packageName. Press any key to exit...");
-                getchar();
-                return 1;
+                error = "Multiple packages specified with -package. Use as: *.exe -package packageName.";
+                goto exit;
             }
 
             if (++i >= argc)
             {
-                printf("ERROR: No package specified after -package. Use as: *.exe -package packageName. Press any key to exit...");
-                getchar();
-                return 1;
+                error = "No package specified after -package. Use as: *.exe -package packageName.";
+                goto exit;
             }
 
             inputArgs.packageToBuild = argv[i];
@@ -388,9 +395,8 @@ int main(int argc, char* argv[])
 
             if (selectedPkgIdx == -1)
             {
-                printf("ERROR: No package found with the name '%s'. Press any key to exit...", inputArgs.packageToBuild);
-                getchar();
-                return 1;
+                error = brahma_sprintf("No package found with the name '%s'.", inputArgs.packageToBuild);
+                goto exit;
             }
         }
     }
@@ -402,7 +408,22 @@ int main(int argc, char* argv[])
     printf("\tOptimised:        %s.\n", (inputArgs.flags & BRAHMA_INPUT_ARG_FLAGS_OPTIMISED) ? "on" : "off");
     printf("-----------------------------------------\n");
 
-    return 0;
+exit:
+
+    if (error)
+    {
+        printf("ERROR: %s\n", error);
+    }
+
+    switch (deferredLevel)
+    {
+        case 3: // fall through
+        case 2: // fall through
+        case 1: brahma_shutdown_internal_allocator();
+        case 0: break;
+    }
+
+    return !!error ? 1 : 0;
 }
 
 #define BRAHMA_BEGIN_LISTING_PACKAGES() \
@@ -446,6 +467,10 @@ static volatile struct
     uint8_t* currentMemoryPage;
     size_t   capacity;
     size_t   offset;
+
+    uint8_t** previousMemoryPages;
+    size_t    previousMemoryPagesCount;
+    size_t    previousMemoryPagesCapacity;
 } g_brahmaInternalAllocator;
 
 void brahma_initialise_internal_allocator(void)
@@ -467,6 +492,58 @@ void brahma_initialise_internal_allocator(void)
         pthread_mutexattr_destroy(&attr);
     }
     #endif
+
+    brahma_push_memory(1, 1); // ready the allocator for use
+}
+
+void brahma_shutdown_internal_allocator(void)
+{
+    #if defined(_WIN32)
+    {
+        DeleteCriticalSection((LPCRITICAL_SECTION) &g_brahmaInternalAllocator.mutex);
+    }
+    #elif defined(__linux__) || defined(__APPLE__)
+    {
+        pthread_mutex_destroy((pthread_mutex_t*) &g_brahmaInternalAllocator.mutex);
+    }
+    #endif
+
+    // free all the allocated pages
+    for (size_t i = 0; i < g_brahmaInternalAllocator.previousMemoryPagesCount; i++)
+    {
+        #if defined(_WIN32)
+        {
+            _aligned_free(g_brahmaInternalAllocator.previousMemoryPages[i]);
+        }
+        #elif defined(__linux__) || defined(__APPLE__)
+        {
+            free(g_brahmaInternalAllocator.previousMemoryPages[i]);
+        }
+        #endif
+    }
+
+    if (g_brahmaInternalAllocator.currentMemoryPage)
+    {
+        #if defined(_WIN32)
+        {
+            _aligned_free(g_brahmaInternalAllocator.currentMemoryPage);
+        }
+        #elif defined(__linux__) || defined(__APPLE__)
+        {
+            free(g_brahmaInternalAllocator.currentMemoryPage);
+        }
+        #endif
+    }
+
+    free(g_brahmaInternalAllocator.previousMemoryPages);
+
+    g_brahmaInternalAllocator.currentMemoryPage = NULL;
+    g_brahmaInternalAllocator.capacity          = 0;
+    g_brahmaInternalAllocator.offset            = 0;
+
+    g_brahmaInternalAllocator.previousMemoryPages         = NULL;
+    g_brahmaInternalAllocator.previousMemoryPagesCount    = 0;
+    g_brahmaInternalAllocator.previousMemoryPagesCapacity = 0;
 }
 
 void* brahma_push_memory(size_t size, size_t alignment)
@@ -539,6 +616,24 @@ void* brahma_push_memory(size_t size, size_t alignment)
             #endif
         }
 
+        // append current page to previous pages list
+        if (g_brahmaInternalAllocator.currentMemoryPage)
+        {
+            if (g_brahmaInternalAllocator.previousMemoryPagesCount >= g_brahmaInternalAllocator.previousMemoryPagesCapacity)
+            {
+                size_t newCapacity = g_brahmaInternalAllocator.previousMemoryPagesCapacity * 2;
+                if (!newCapacity) newCapacity = 16; // start with a capacity of 16 if it was 0
+                uint8_t** newPreviousPages = (uint8_t**) malloc(newCapacity * sizeof(uint8_t*));
+                memcpy(newPreviousPages, g_brahmaInternalAllocator.previousMemoryPages, g_brahmaInternalAllocator.previousMemoryPagesCount * sizeof(uint8_t*));
+                free(g_brahmaInternalAllocator.previousMemoryPages);
+
+                g_brahmaInternalAllocator.previousMemoryPages = newPreviousPages;
+                g_brahmaInternalAllocator.previousMemoryPagesCapacity = newCapacity;
+            }
+
+            g_brahmaInternalAllocator.previousMemoryPages[g_brahmaInternalAllocator.previousMemoryPagesCount++] = g_brahmaInternalAllocator.currentMemoryPage;
+        }
+
         g_brahmaInternalAllocator.currentMemoryPage = (uint8_t*) newPage;
         g_brahmaInternalAllocator.capacity          = newPageSize;
         g_brahmaInternalAllocator.offset            = 0;
@@ -584,6 +679,97 @@ char* brahma_sprintf(const char* format, ...)
     }
 
     return output;
+}
+
+void brahma_iterate_directory(const char* path, bool recursive, void* visitorPayload, Brahma_Directory_Visitor_Delegate visitor)
+{
+    #if defined(__linux__) || defined(__APPLE__)
+
+        DIR* dir = opendir(path);
+
+        if (dir != NULL)
+        {
+            struct dirent* entry;
+            while ((entry = readdir(dir)) != NULL)
+            {
+                const char* nextName = entry->d_name;
+
+    #elif defined(_WIN32)
+
+        char* searchPath = brahma_sprintf("%s\\*", path);
+        WIN32_FIND_DATAA findData;
+        HANDLE findHandle = FindFirstFileA(searchPath, &findData);
+
+        if (findHandle != INVALID_HANDLE_VALUE)
+        {
+            do
+            {
+                const char* nextName = findData.cFileName;
+
+    #endif
+
+                if (!nextName
+                    || nextName[0] == '\0'
+                    || !strcmp(nextName, ".")
+                    || !strcmp(nextName, ".."))
+                {
+                    continue;
+                }
+
+                char* nextFilePath = brahma_sprintf("%s/%s", path, nextName);
+                #ifdef _WIN32
+                {
+                    for (char* p = nextFilePath; *p; p++) { if (*p == '\\') *p = '/'; }
+                }
+                #endif
+
+                bool isDirectory = false;
+                #if defined(_WIN32)
+                {
+                    isDirectory = (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+                }
+                #elif defined(__linux__) || defined(__APPLE__)
+                {
+                    if (entry->d_type == DT_UNKNOWN)
+                    {
+                        struct stat st;
+                        if (stat(nextFilePath, &st) == 0)
+                        {
+                            isDirectory = S_ISDIR(st.st_mode);
+                        }
+                    }
+                    else
+                    {
+                        isDirectory = entry->d_type == DT_DIR;
+                    }
+                }
+                #endif
+
+                bool exploreCurrentDirectory = recursive;
+                bool iterateFurther = visitor(visitorPayload, nextFilePath, isDirectory, &exploreCurrentDirectory);
+
+                if (iterateFurther && isDirectory && exploreCurrentDirectory)
+                {
+                    brahma_iterate_directory(nextFilePath, recursive, visitorPayload, visitor);
+                }
+
+                if (!iterateFurther) break; // visitor function returned false
+
+    #if defined(_WIN32)
+
+            } while (FindNextFileA(findHandle, &findData));
+
+            FindClose(findHandle);
+        }
+
+    #elif defined(__linux__) || defined(__APPLE__)
+
+            }
+
+            closedir(dir);
+        }
+
+    #endif
 }
 
 #endif//BRAHMA_EXEC

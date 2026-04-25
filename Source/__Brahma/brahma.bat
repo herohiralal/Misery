@@ -4,6 +4,8 @@ setlocal enabledelayedexpansion
 rem ============================================================================================================================
 rem Variables
 
+set BRAHMA_ROOT=%~dp0
+set BRAHMA_ROOT=%BRAHMA_ROOT:\=/%
 set OUTPUT=
 set SEARCH_DIRS=
 set PACKAGE_COUNT=0
@@ -64,6 +66,7 @@ rem Clear output file(s)
 
 echo #include "%OUTPUT:\=/%.pkgCnt.tmp" >> "%OUTPUT%.c"
 echo #include "%OUTPUT:\=/%.libCnt.tmp" >> "%OUTPUT%.c"
+echo #include "%BRAHMA_ROOT%Brahma.h" >> "%OUTPUT%.c"
 
 for %%D in (%SEARCH_DIRS%) do (
     for /d %%M in ("%%~D\*") do (
