@@ -420,7 +420,7 @@ int brahma_find_library_by_name(const Brahma_Libraries* libraries, const char* n
 
 int main(int argc, char* argv[])
 {
-    char* error = NULL;
+    const char* error = NULL;
     int deferredLevel = 0;
 
     // initialise the internal allocator
@@ -432,6 +432,7 @@ int main(int argc, char* argv[])
     for (int i = 1; i < argc; i++) // skipping first arg because it's gonna be the executable name
     {
         // intermediate stuff - not relevant once this tool has begun executing
+        if (!strcmp("-cxx",                argv[i])) { i++; continue; } // make build tool in cxx mode
         if (!strcmp("-modules_search_dir", argv[i])) { i++; continue; } // module search dirs
         if (!strcmp("-build_tool_path",    argv[i])) { i++; continue; } // the path where the build tool was compiled
         if (!strcmp("-debug_build_tool",   argv[i])) {      continue; } // whether the build tool itself is a debug build

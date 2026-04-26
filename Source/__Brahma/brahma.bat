@@ -10,6 +10,8 @@ set OUTPUT=
 set SEARCH_DIRS=
 set PACKAGE_COUNT=0
 set LIBRARY_COUNT=0
+set CXX_MODE=0
+set SELF_DEBUG=0
 
 rem ============================================================================================================================
 rem Parse Args
@@ -17,6 +19,18 @@ rem Parse Args
 :SECTION_ParseArgs
 
 if "%~1"=="" goto SECTION_DoneParsing
+
+if "%~1"=="-cxx" (
+    set CXX_MODE=1
+    shift
+    goto SECTION_ParseArgs
+)
+
+if "%~1"=="-debug_build_tool" (
+    set SELF_DEBUG=1
+    shift
+    goto SECTION_ParseArgs
+)
 
 if "%~1"=="-build_tool_path" (
     set OUTPUT=%~2
@@ -52,21 +66,27 @@ if "%SEARCH_DIRS%"=="" (
     exit /b 1
 )
 
+if %CXX_MODE% equ 1 (
+    set OUTPUT_EXT=cpp
+) else (
+    set OUTPUT_EXT=c
+)
+
 rem Ensure output directory exists
 for %%O in ("%OUTPUT%") do (
     if not exist "%%~dpO" mkdir "%%~dpO"
 )
 
 rem Clear output file(s)
-> "%OUTPUT%.c" echo #define BRAHMA_EXEC
+> "%OUTPUT%.%OUTPUT_EXT%" echo #define BRAHMA_EXEC
 > "%OUTPUT%.libs.tmp" echo BRAHMA_BEGIN_LISTING_LIBRARIES^(^)
 > "%OUTPUT%.pkgs.tmp" echo BRAHMA_BEGIN_LISTING_PACKAGES^(^)
 > "%OUTPUT%.pkgCnt.tmp" echo.
 > "%OUTPUT%.libCnt.tmp" echo.
 
-echo #include "%OUTPUT:\=/%.pkgCnt.tmp" >> "%OUTPUT%.c"
-echo #include "%OUTPUT:\=/%.libCnt.tmp" >> "%OUTPUT%.c"
-echo #include "%BRAHMA_ROOT%Brahma.h" >> "%OUTPUT%.c"
+echo #include "%OUTPUT:\=/%.pkgCnt.tmp" >> "%OUTPUT%.%OUTPUT_EXT%"
+echo #include "%OUTPUT:\=/%.libCnt.tmp" >> "%OUTPUT%.%OUTPUT_EXT%"
+echo #include "%BRAHMA_ROOT%Brahma.h" >> "%OUTPUT%.%OUTPUT_EXT%"
 
 for %%D in (%SEARCH_DIRS%) do (
     for /d %%M in ("%%~D\*") do (
@@ -74,7 +94,7 @@ for %%D in (%SEARCH_DIRS%) do (
             if exist "%%~F" (
                 set "FILE=%%~fF"
                 set "FILE=!FILE:\=/!"
-                echo #include "!FILE!" >> "%OUTPUT%.c"
+                echo #include "!FILE!" >> "%OUTPUT%.%OUTPUT_EXT%"
 
                 set "LIBRARY_NAME=%%~nF"
                 set "LIBRARY_NAME=!LIBRARY_NAME:._lib=!"
@@ -89,7 +109,7 @@ for %%D in (%SEARCH_DIRS%) do (
         if exist "%%~F" (
             set "FILE=%%~fF"
             set "FILE=!FILE:\=/!"
-            echo #include "!FILE!" >> "%OUTPUT%.c"
+            echo #include "!FILE!" >> "%OUTPUT%.%OUTPUT_EXT%"
 
             set "PACKAGE_NAME=%%~nF"
             set "PACKAGE_NAME=!PACKAGE_NAME:._pkg=!"
@@ -105,10 +125,10 @@ echo #define BRAHMA_LIBRARY_COUNT !LIBRARY_COUNT! >> "%OUTPUT%.libCnt.tmp"
 echo BRAHMA_END_LISTING_LIBRARIES^(^) >> "%OUTPUT%.libs.tmp"
 echo BRAHMA_END_LISTING_PACKAGES^(^) >> "%OUTPUT%.pkgs.tmp"
 
-echo #include "%OUTPUT:\=/%.libs.tmp" >> "%OUTPUT%.c"
-echo #include "%OUTPUT:\=/%.pkgs.tmp" >> "%OUTPUT%.c"
+echo #include "%OUTPUT:\=/%.libs.tmp" >> "%OUTPUT%.%OUTPUT_EXT%"
+echo #include "%OUTPUT:\=/%.pkgs.tmp" >> "%OUTPUT%.%OUTPUT_EXT%"
 
-echo Brahma build-file written to `%OUTPUT%.c`.
+echo Brahma build-file written to `%OUTPUT%.%OUTPUT_EXT%`.
 
 rem ============================================================================================================================
 rem Build
@@ -122,7 +142,19 @@ if errorlevel 1 (
     )
 )
 
-cl /nologo /Wall /WX /Zc:preprocessor /std:c11 /O2 /MT /DNDEBUG /GS- /fp:fast "%OUTPUT%.c" "/Fe:%OUTPUT%.exe" "/Fo:%OUTPUT%.obj"
+if %CXX_MODE% equ 1 (
+    set CL_FLAGS=/std:c++14
+) else (
+    set CL_FLAGS=/std:c17 /experimental:c11atomics
+)
+
+if %SELF_DEBUG% equ 1 (
+    set CL_FLAGS=!CL_FLAGS! /DDEBUG /Zi /Od /MTd /PDB:FULL "/Fd%OUTPUT%.pdb"
+) else (
+    set CL_FLAGS=!CL_FLAGS! /DNDEBUG /O2 /MT
+)
+
+cl /nologo /Wall /WX /Zc:preprocessor !CL_FLAGS! /GS- /fp:fast "%OUTPUT%.%OUTPUT_EXT%" "/Fe:%OUTPUT%.exe" "/Fo:%OUTPUT%.obj"
 if %ERRORLEVEL% neq 0 (
     echo Brahma build-file failed to compile. Press any key to exit...
     pause >nul
