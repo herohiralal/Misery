@@ -84,6 +84,7 @@ rem Clear output file(s)
 > "%OUTPUT%.pkgCnt.tmp" echo.
 > "%OUTPUT%.libCnt.tmp" echo.
 
+echo #define BRAHMA_LIBRARY_IMPL >> "%OUTPUT%.%OUTPUT_EXT%"
 echo #include "%OUTPUT:\=/%.pkgCnt.tmp" >> "%OUTPUT%.%OUTPUT_EXT%"
 echo #include "%OUTPUT:\=/%.libCnt.tmp" >> "%OUTPUT%.%OUTPUT_EXT%"
 echo #include "%BRAHMA_ROOT%Brahma.h" >> "%OUTPUT%.%OUTPUT_EXT%"

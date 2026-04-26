@@ -66,6 +66,7 @@ echo "BRAHMA_BEGIN_LISTING_PACKAGES()"      > "${OUTPUT}.pkgs.tmp"
 echo ""                                     > "${OUTPUT}.pkgCnt.tmp"
 echo ""                                     > "${OUTPUT}.libCnt.tmp"
 
+echo "#define BRAHMA_LIBRARY_IMPL"         >> "${OUTPUT}.${OUTPUT_EXT}"
 echo "#include \"${OUTPUT}.pkgCnt.tmp\""   >> "${OUTPUT}.${OUTPUT_EXT}"
 echo "#include \"${OUTPUT}.libCnt.tmp\""   >> "${OUTPUT}.${OUTPUT_EXT}"
 echo "#include \"${BRAHMA_ROOT}Brahma.h\"" >> "${OUTPUT}.${OUTPUT_EXT}"

@@ -116,8 +116,8 @@ BRAHMA_UNSUPPRESS_WARN
 
 // =============================================================================================================================
 // Main header file.
-#ifndef BRAHMA_LIBRARY_H
-#define BRAHMA_LIBRARY_H
+#ifndef BRAHMA_H
+#define BRAHMA_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -377,42 +377,10 @@ typedef struct
     Brahma_Library_Definition brahma_implement_library_##libraryName(const Brahma_Package_Definition* package)
 
 // =============================================================================================================================
-// Execution code (used when CLI is executed).
-#ifdef  BRAHMA_EXEC
+// Library code (used when this header is included as a library).
+#if defined(BRAHMA_LIBRARY) || defined(BRAHMA_EXEC)
 
-typedef enum
-{
-    BRAHMA_INPUT_ARG_FLAGS_NONE      =      0,
-    BRAHMA_INPUT_ARG_FLAGS_DEBUG     = 1 << 0,
-    BRAHMA_INPUT_ARG_FLAGS_OPTIMISED = 1 << 1,
-} Brahma_Input_Args_Flags_Bits;
-
-typedef uint64_t Brahma_Input_Args_Flags;
-
-typedef struct
-{
-    Brahma_Input_Args_Flags flags;
-    char*                   packageToBuild;
-} Brahma_Input_Args;
-
-#if !defined(BRAHMA_PACKAGE_COUNT)
-#error "Package count not defined. Brahma build tool has not been built correctly."
-#define BRAHMA_PACKAGE_COUNT 1
-#elif !BRAHMA_PACKAGE_COUNT
-#error "No packages defined."
-#undef BRAHMA_PACKAGE_COUNT
-#define BRAHMA_PACKAGE_COUNT 1
-#endif
-
-#if !defined(BRAHMA_LIBRARY_COUNT)
-#error "Library count not defined. Brahma build tool has not been built correctly."
-#define BRAHMA_LIBRARY_COUNT 1
-#elif !BRAHMA_LIBRARY_COUNT
-#error "No libraries defined."
-#undef BRAHMA_LIBRARY_COUNT
-#define BRAHMA_LIBRARY_COUNT 1
-#endif
-
+// all the data pertaining to a package, including its definition
 typedef struct
 {
     const char* name;
@@ -422,6 +390,7 @@ typedef struct
 
 BRAHMA_DECLARE_ARRAY_LIST(Package, package, Brahma_Package)
 
+// all the data pertaining to a library, including its definition
 typedef struct
 {
     const char* name;
@@ -431,137 +400,55 @@ typedef struct
 
 BRAHMA_DECLARE_ARRAY_LIST(Library, library, Brahma_Library)
 
+// NOTE: this function will need to be implemented by the user of the library
+// it is automatically implemented when in exec mode, based on module search paths
+void brahma_create_all_packages(Brahma_Package_Array_List* packages);
+
+// NOTE: this function will need to be implemented by the user of the library
+// it is automatically implemented when in exec mode, based on module search paths
+void brahma_create_all_libraries(Brahma_Library_Array_List* libraries, const Brahma_Package_Definition* package);
+
+// flags for input args; see also: Brahma_Input_Args_Flags_Bits
+typedef uint64_t Brahma_Input_Args_Flags;
+
+// input arguments for the build tool, can be provided via exec mode or manually
+typedef struct
+{
+    Brahma_Input_Args_Flags flags;
+    char*                   packageToBuild;
+} Brahma_Input_Args;
+
+// flags for input args
+typedef enum
+{
+    BRAHMA_INPUT_ARG_FLAGS_NONE      =      0,
+    BRAHMA_INPUT_ARG_FLAGS_DEBUG     = 1 << 0,
+    BRAHMA_INPUT_ARG_FLAGS_OPTIMISED = 1 << 1,
+} Brahma_Input_Args_Flags_Bits;
+
+// initialise the internal allocator
+void brahma_initialise_internal_allocator(void);
+
+// shutdown the internal allocator
+void brahma_shutdown_internal_allocator(void);
+
+// visitor function to use for iterating a directory
 typedef bool (*Brahma_Directory_Visitor_Delegate)(void* payload, const char* path, bool isDirectory, bool* exploreCurrentDirectory);
 
-void brahma_initialise_internal_allocator(void);
-void brahma_shutdown_internal_allocator(void);
-void brahma_create_all_packages(Brahma_Package_Array_List* packages);
+// iterate a directory, calling the visitor function for each child file and subdirectory
 void brahma_iterate_directory(const char* path, bool recursive, void* visitorPayload, Brahma_Directory_Visitor_Delegate visitor);
 
+// find a package index by its name; -1 if not found
 int brahma_find_package_by_name(const Brahma_Package_Array_List* packages, const char* name);
+
+// find a library index by its name; -1 if not found
 int brahma_find_library_by_name(const Brahma_Library_Array_List* libraries, const char* name);
 
-int main(int argc, char* argv[])
-{
-    const char* error = NULL;
-    int deferredLevel = 0;
-    Brahma_Package_Array_List pkgDefs = { NULL, 0, 0 };
-    int selectedPkgIdx = -1;
+#endif//defined(BRAHMA_LIBRARY) || defined(BRAHMA_EXEC)
 
-    // initialise the internal allocator
-    brahma_initialise_internal_allocator(); deferredLevel++;
-
-    Brahma_Input_Args inputArgs;
-    memset(&inputArgs, 0, sizeof(inputArgs));
-
-    inputArgs.flags |= BRAHMA_INPUT_ARG_FLAGS_DEBUG; // default to debug mode
-
-    for (int i = 1; i < argc; i++) // skipping first arg because it's gonna be the executable name
-    {
-        // intermediate stuff - not relevant once this tool has begun executing
-        if (!strcmp("-cxx",                argv[i])) { i++; continue; } // make build tool in cxx mode
-        if (!strcmp("-modules_search_dir", argv[i])) { i++; continue; } // module search dirs
-        if (!strcmp("-build_tool_path",    argv[i])) { i++; continue; } // the path where the build tool was compiled
-        if (!strcmp("-debug_build_tool",   argv[i])) {      continue; } // whether the build tool itself is a debug build
-
-        // flags
-        if (!strcmp("-nodebuginfo", argv[i])) { inputArgs.flags &= ~(Brahma_Input_Args_Flags) BRAHMA_INPUT_ARG_FLAGS_DEBUG;     continue; }
-        if (!strcmp("-optimised",   argv[i])) { inputArgs.flags |=  (Brahma_Input_Args_Flags) BRAHMA_INPUT_ARG_FLAGS_OPTIMISED; continue; }
-
-        if (!strcmp("-package", argv[i]))
-        {
-            if (inputArgs.packageToBuild)
-            {
-                error = "Multiple packages specified with -package. Use as: *.exe -package packageName.";
-                goto exit;
-            }
-
-            if (++i >= argc)
-            {
-                error = "No package specified after -package. Use as: *.exe -package packageName.";
-                goto exit;
-            }
-
-            inputArgs.packageToBuild = argv[i];
-            continue;
-        }
-
-        // unknown arg
-        error = brahma_sprintf("Unknown argument '%s'.", argv[i]);
-        goto exit;
-    }
-
-    brahma_reserve_package_array_list_capacity(&pkgDefs, BRAHMA_PACKAGE_COUNT);
-    brahma_create_all_packages(&pkgDefs);
-
-    // find the package to build
-    {
-        if (!inputArgs.packageToBuild)
-        {
-            printf("No package specified. Defaulting to the first package!\n");
-            selectedPkgIdx = 0;
-        }
-        else
-        {
-            for (int i = 0; i < BRAHMA_PACKAGE_COUNT; i++)
-            {
-                if (!strcmp(inputArgs.packageToBuild, pkgDefs.data[i].name))
-                {
-                    selectedPkgIdx = i;
-                    break;
-                }
-            }
-
-            if (selectedPkgIdx == -1)
-            {
-                error = brahma_sprintf("No package found with the name '%s'.", inputArgs.packageToBuild);
-                goto exit;
-            }
-        }
-    }
-
-    printf("-----------------------------------------\n");
-    printf("Brahma Configuration:\n");
-    printf("\tSelected package: %s.\n", pkgDefs.data[selectedPkgIdx].name);
-    printf("\tDebug info:       %s.\n", (inputArgs.flags & BRAHMA_INPUT_ARG_FLAGS_DEBUG)     ? "on" : "off");
-    printf("\tOptimised:        %s.\n", (inputArgs.flags & BRAHMA_INPUT_ARG_FLAGS_OPTIMISED) ? "on" : "off");
-    printf("-----------------------------------------\n");
-
-exit:
-
-    if (error)
-    {
-        printf("ERROR: %s\n", error);
-    }
-
-    switch (deferredLevel)
-    {
-        case 3: // fall through
-        case 2: // fall through
-        case 1: brahma_shutdown_internal_allocator();
-        case 0: break;
-    }
-
-    return !!error ? 1 : 0;
-}
-
-#define BRAHMA_BEGIN_LISTING_PACKAGES() \
-    void brahma_create_all_packages(Brahma_Package_Array_List* packages) {
-
-#define BRAHMA_END_LISTING_PACKAGES() \
-    }
-
-#define BRAHMA_BEGIN_LISTING_LIBRARIES() \
-    void brahma_create_all_libraries(Brahma_Library_Array_List* libraries, const Brahma_Package_Definition* package) {
-
-#define BRAHMA_END_LISTING_LIBRARIES() \
-    }
-
-#define BRAHMA_ADD_PACKAGE(idx, path, packageName) \
-    brahma_add_package(packages, idx, #packageName, path, brahma_implement_package_##packageName());
-
-#define BRAHMA_ADD_LIBRARY(idx, path, libraryName) \
-    brahma_add_library(libraries, idx, #libraryName, path, brahma_implement_library_##libraryName(package));
+// =============================================================================================================================
+// Library code (used when this header is included as a library).
+#ifdef  BRAHMA_LIBRARY_IMPL
 
 void brahma_add_package(Brahma_Package_Array_List* packages, int idx, const char* name, const char* owningFile, Brahma_Package_Definition def)
 {
@@ -927,10 +814,156 @@ int brahma_find_library_by_name(const Brahma_Library_Array_List* libraries, cons
     return selectedLibIdx;
 }
 
+#endif//BRAHMA_LIBRARY_IMPL
+
+// =============================================================================================================================
+// Execution code (used when CLI is executed).
+#ifdef  BRAHMA_EXEC
+
+#if !defined(BRAHMA_PACKAGE_COUNT)
+#error "Package count not defined. Brahma build tool has not been built correctly."
+#define BRAHMA_PACKAGE_COUNT 1
+#elif !BRAHMA_PACKAGE_COUNT
+#error "No packages defined."
+#undef BRAHMA_PACKAGE_COUNT
+#define BRAHMA_PACKAGE_COUNT 1
+#endif
+
+#if !defined(BRAHMA_LIBRARY_COUNT)
+#error "Library count not defined. Brahma build tool has not been built correctly."
+#define BRAHMA_LIBRARY_COUNT 1
+#elif !BRAHMA_LIBRARY_COUNT
+#error "No libraries defined."
+#undef BRAHMA_LIBRARY_COUNT
+#define BRAHMA_LIBRARY_COUNT 1
+#endif
+
+int main(int argc, char* argv[])
+{
+    const char* error = NULL;
+    int deferredLevel = 0;
+    Brahma_Package_Array_List pkgDefs = { NULL, 0, 0 };
+    int selectedPkgIdx = -1;
+
+    // initialise the internal allocator
+    brahma_initialise_internal_allocator(); deferredLevel++;
+
+    Brahma_Input_Args inputArgs;
+    memset(&inputArgs, 0, sizeof(inputArgs));
+
+    inputArgs.flags |= BRAHMA_INPUT_ARG_FLAGS_DEBUG; // default to debug mode
+
+    for (int i = 1; i < argc; i++) // skipping first arg because it's gonna be the executable name
+    {
+        // intermediate stuff - not relevant once this tool has begun executing
+        if (!strcmp("-cxx",                argv[i])) { i++; continue; } // make build tool in cxx mode
+        if (!strcmp("-modules_search_dir", argv[i])) { i++; continue; } // module search dirs
+        if (!strcmp("-build_tool_path",    argv[i])) { i++; continue; } // the path where the build tool was compiled
+        if (!strcmp("-debug_build_tool",   argv[i])) {      continue; } // whether the build tool itself is a debug build
+
+        // flags
+        if (!strcmp("-nodebuginfo", argv[i])) { inputArgs.flags &= ~(Brahma_Input_Args_Flags) BRAHMA_INPUT_ARG_FLAGS_DEBUG;     continue; }
+        if (!strcmp("-optimised",   argv[i])) { inputArgs.flags |=  (Brahma_Input_Args_Flags) BRAHMA_INPUT_ARG_FLAGS_OPTIMISED; continue; }
+
+        if (!strcmp("-package", argv[i]))
+        {
+            if (inputArgs.packageToBuild)
+            {
+                error = "Multiple packages specified with -package. Use as: *.exe -package packageName.";
+                goto exit;
+            }
+
+            if (++i >= argc)
+            {
+                error = "No package specified after -package. Use as: *.exe -package packageName.";
+                goto exit;
+            }
+
+            inputArgs.packageToBuild = argv[i];
+            continue;
+        }
+
+        // unknown arg
+        error = brahma_sprintf("Unknown argument '%s'.", argv[i]);
+        goto exit;
+    }
+
+    brahma_reserve_package_array_list_capacity(&pkgDefs, BRAHMA_PACKAGE_COUNT);
+    brahma_create_all_packages(&pkgDefs);
+
+    // find the package to build
+    {
+        if (!inputArgs.packageToBuild)
+        {
+            printf("No package specified. Defaulting to the first package!\n");
+            selectedPkgIdx = 0;
+        }
+        else
+        {
+            for (int i = 0; i < BRAHMA_PACKAGE_COUNT; i++)
+            {
+                if (!strcmp(inputArgs.packageToBuild, pkgDefs.data[i].name))
+                {
+                    selectedPkgIdx = i;
+                    break;
+                }
+            }
+
+            if (selectedPkgIdx == -1)
+            {
+                error = brahma_sprintf("No package found with the name '%s'.", inputArgs.packageToBuild);
+                goto exit;
+            }
+        }
+    }
+
+    printf("-----------------------------------------\n");
+    printf("Brahma Configuration:\n");
+    printf("\tSelected package: %s.\n", pkgDefs.data[selectedPkgIdx].name);
+    printf("\tDebug info:       %s.\n", (inputArgs.flags & BRAHMA_INPUT_ARG_FLAGS_DEBUG)     ? "on" : "off");
+    printf("\tOptimised:        %s.\n", (inputArgs.flags & BRAHMA_INPUT_ARG_FLAGS_OPTIMISED) ? "on" : "off");
+    printf("-----------------------------------------\n");
+
+exit:
+
+    if (error)
+    {
+        printf("ERROR: %s\n", error);
+    }
+
+    switch (deferredLevel)
+    {
+        case 3: // fall through
+        case 2: // fall through
+        case 1: brahma_shutdown_internal_allocator();
+        case 0: break;
+    }
+
+    return !!error ? 1 : 0;
+}
+
+#define BRAHMA_BEGIN_LISTING_PACKAGES() \
+    void brahma_create_all_packages(Brahma_Package_Array_List* packages) {
+
+#define BRAHMA_END_LISTING_PACKAGES() \
+    }
+
+#define BRAHMA_BEGIN_LISTING_LIBRARIES() \
+    void brahma_create_all_libraries(Brahma_Library_Array_List* libraries, const Brahma_Package_Definition* package) {
+
+#define BRAHMA_END_LISTING_LIBRARIES() \
+    }
+
+#define BRAHMA_ADD_PACKAGE(idx, path, packageName) \
+    brahma_add_package(packages, idx, #packageName, path, brahma_implement_package_##packageName());
+
+#define BRAHMA_ADD_LIBRARY(idx, path, libraryName) \
+    brahma_add_library(libraries, idx, #libraryName, path, brahma_implement_library_##libraryName(package));
+
 #endif//BRAHMA_EXEC
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif//BRAHMA_LIBRARY_H
+#endif//BRAHMA_H
