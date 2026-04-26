@@ -148,53 +148,96 @@ void* brahma_push_memory(size_t size, size_t alignment);
 #define BRAHMA_PUSH_STRUCT(type) ((type*) brahma_push_memory(sizeof(type), alignof(type)))
 
 /**
+ * Declare an array list type.
+ * An array list is a simple dynamic array that can grow in size. It has a pointer to the data, the count of items,
+ * and the capacity of the list.
+ * It starts out with a small capacity (64 bytes worth of items), and doubles its capacity as it needs to grow.
+ */
+#define BRAHMA_DECLARE_ARRAY_LIST(convNameSt, convNameFn, type) \
+    typedef struct \
+    { \
+        type*  data; \
+        size_t count; \
+        size_t capacity; \
+    } Brahma_##convNameSt##_Array_List; \
+    static inline type* brahma_index_##convNameFn##_array_list(Brahma_##convNameSt##_Array_List* list, size_t index) \
+    { \
+        if (index >= list->count) return NULL; \
+        return &(list->data[index]); \
+    } \
+    static inline void brahma_reserve_##convNameFn##_array_list_capacity(Brahma_##convNameSt##_Array_List* list, size_t requiredCapacity) \
+    { \
+        if (requiredCapacity <= list->capacity) return; \
+        /* the internal allocator allocates in blocks of at least 64 bytes, this ensures we don't waste space */ \
+        size_t newCapacity = list->capacity ? list->capacity : (64 / sizeof(type)); \
+        while (newCapacity < requiredCapacity) newCapacity *= 2; \
+        type* newData = (type*) brahma_push_memory(sizeof(type) * newCapacity, alignof(type)); \
+        if (list->data) { memcpy(newData, list->data, sizeof(type) * list->count); } \
+        list->data = newData; \
+        list->capacity = newCapacity; \
+    } \
+    static inline void brahma_append_##convNameFn##_to_array_list(Brahma_##convNameSt##_Array_List* list, type item) \
+    { \
+        brahma_reserve_##convNameFn##_array_list_capacity(list, list->count + 1); \
+        list->data[list->count] = item; \
+        list->count++; \
+    }
+
+/**
  * Declare a paged list type.
  * A paged list provides a way to allocate a list of items without needing to reallocate the entire list when it grows.
  * It does this by allocating fixed-size pages of items, and linking them together using a linked-list.
- * The size and alignment of the pages are chosen to be 64 bytes, which is a common cache line size on modern CPUs.
- * This provides good cache performance when iterating, and it also allows for different threads to freely write to different
- * pages, without causing false sharing.
+ * The items per page are configurable, but the first variable in each page is always a pointer to the next page.
+ * The alignment of each page is hardcoded to be 64 bytes, which provides good cache performance when iterating, and it
+ * also allows for different threads to freely write to different pages, without causing false sharing.
  */
-#define BRAHMA_DECLARE_PAGED_LIST(typeConvenientNameForStruct, typeConvenientNameForFunction, type) \
-    typedef struct Brahma_##typeConvenientNameForStruct##_Paged_List_Page Brahma_##typeConvenientNameForStruct##_Paged_List_Page; \
-    struct alignas(64) Brahma_##typeConvenientNameForStruct##_Paged_List_Page \
+#define BRAHMA_DECLARE_PAGED_LIST(convNameSt, convNameFn, type, itemsPerPage) \
+    typedef struct Brahma_##convNameSt##_Paged_List_Page Brahma_##convNameSt##_Paged_List_Page; \
+    struct alignas(64) Brahma_##convNameSt##_Paged_List_Page \
     { \
-        Brahma_##typeConvenientNameForStruct##_Paged_List_Page* nextPage; \
-        type                                                    items[(64 - sizeof(void*)) / sizeof(type)]; \
+        Brahma_##convNameSt##_Paged_List_Page* nextPage; \
+        type                                   items[itemsPerPage]; \
     }; \
-    static_assert(sizeof(Brahma_##typeConvenientNameForStruct##_Paged_List_Page) == 64, \
-        "Brahma_" #typeConvenientNameForStruct "_Paged_List_Page must be exactly 64 bytes in size."); \
     typedef struct \
     { \
-        Brahma_##typeConvenientNameForStruct##_Paged_List_Page* pages; \
-        uint64_t                                                count; \
-    } Brahma_##typeConvenientNameForStruct##_Paged_List; \
-    static inline void brahma_append_##typeConvenientNameForFunction##_to_paged_list(Brahma_##typeConvenientNameForStruct##_Paged_List* list, type item) \
-    { \
-        /* if no pages, or the current page is full, allocate a new one */ \
-        if (!list->pages || list->count % (sizeof(Brahma_##typeConvenientNameForStruct##_Paged_List_Page) / sizeof(type)) == 0) \
-        { \
-            Brahma_##typeConvenientNameForStruct##_Paged_List_Page* newPage = BRAHMA_PUSH_STRUCT(Brahma_##typeConvenientNameForStruct##_Paged_List_Page); \
-            newPage->nextPage = list->pages; \
-            list->pages = newPage; \
-        } \
-        list->pages->items[list->count % (sizeof(Brahma_##typeConvenientNameForStruct##_Paged_List_Page) / sizeof(type))] = item; \
-        list->count++; \
-    } \
-    static inline type* brahma_index_##typeConvenientNameForFunction##_in_paged_list(Brahma_##typeConvenientNameForStruct##_Paged_List* list, uint64_t index) \
+        Brahma_##convNameSt##_Paged_List_Page* firstPage; \
+        size_t                                 count; \
+        size_t                                 numPages; \
+    } Brahma_##convNameSt##_Paged_List; \
+    static inline type* brahma_index_##convNameFn##_paged_list(Brahma_##convNameSt##_Paged_List* list, size_t index) \
     { \
         if (index >= list->count) return NULL; \
-        uint64_t pageIndex = index / (sizeof(Brahma_##typeConvenientNameForStruct##_Paged_List_Page) / sizeof(type)); \
-        uint64_t itemIndex = index % (sizeof(Brahma_##typeConvenientNameForStruct##_Paged_List_Page) / sizeof(type)); \
-        Brahma_##typeConvenientNameForStruct##_Paged_List_Page* page = list->pages; \
-        for (uint64_t i = 0; i < pageIndex; i++) \
+        size_t pageIndex = index / itemsPerPage; \
+        size_t itemIndex = index % itemsPerPage; \
+        Brahma_##convNameSt##_Paged_List_Page* page = list->firstPage; \
+        for (size_t i = 0; i < pageIndex; i++) { page = page->nextPage; } \
+        return &(page->items[itemIndex]); \
+    } \
+    static inline void brahma_reserve_##convNameFn##_paged_list_capacity(Brahma_##convNameSt##_Paged_List* list, size_t capacity) \
+    { \
+        size_t requiredPages = (capacity + itemsPerPage - 1) / itemsPerPage; \
+        if (requiredPages <= list->numPages) return; \
+        Brahma_##convNameSt##_Paged_List_Page* pageIt = NULL; \
+        for (pageIt = list->firstPage; pageIt && pageIt->nextPage; pageIt = pageIt->nextPage) { } \
+        /* pageIt is now at the last page (or NULL if there are no pages) */ \
+        size_t pagesToCreate = requiredPages - list->numPages; \
+        for (size_t i = 0; i < pagesToCreate; i++) \
         { \
-            page = page->nextPage; \
+            Brahma_##convNameSt##_Paged_List_Page* newPage = BRAHMA_PUSH_STRUCT(Brahma_##convNameSt##_Paged_List_Page); \
+            *(pageIt ? &(pageIt->nextPage) : &(list->firstPage)) = newPage; \
+            pageIt = newPage; \
+            pageIt->nextPage = NULL; \
         } \
-        return &page->items[itemIndex]; \
+        list->numPages += pagesToCreate; \
+    } \
+    static inline void brahma_append_##convNameFn##_to_paged_list(Brahma_##convNameSt##_Paged_List* list, type item) \
+    { \
+        brahma_reserve_##convNameFn##_paged_list_capacity(list, list->count + 1); \
+        *(brahma_index_##convNameFn##_paged_list(list, list->count)) = item; \
+        list->count++; \
     }
 
-BRAHMA_DECLARE_PAGED_LIST(String, string, char*)
+BRAHMA_DECLARE_PAGED_LIST(String, string, char*, 15)
 
 /**
  * Helper function to format a string using the internal allocator.
@@ -218,7 +261,7 @@ typedef struct
     const char* value;
 } Brahma_Define;
 
-BRAHMA_DECLARE_PAGED_LIST(Define, define, Brahma_Define)
+BRAHMA_DECLARE_PAGED_LIST(Define, define, Brahma_Define, 7)
 
 /**
  * Package definition.
