@@ -120,9 +120,18 @@ else
     OPT_FLAGS="-DNDEBUG -O2"
 fi
 
-CC_CMD="gcc"
-if [[ $CXX_MODE -eq 1 ]]; then
-    CC_CMD="g++"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    if [[ $CXX_MODE -eq 0 ]]; then
+        CC_CMD="clang"
+    else
+        CC_CMD="clang++"
+    fi
+else
+    if [[ $CXX_MODE -eq 0 ]]; then
+        CC_CMD="gcc"
+    else
+        CC_CMD="g++"
+    fi
 fi
 
 if ! $CC_CMD -Wall -Werror $STD_FLAG $OPT_FLAGS -ffast-math "${OUTPUT}.${OUTPUT_EXT}" -o "${OUTPUT}"; then

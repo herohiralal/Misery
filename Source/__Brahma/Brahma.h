@@ -413,37 +413,39 @@ typedef struct
 #define BRAHMA_LIBRARY_COUNT 1
 #endif
 
-// structure storing all the package definitions
 typedef struct
 {
-    const char*               names      [BRAHMA_PACKAGE_COUNT];
-    const char*               owningFiles[BRAHMA_PACKAGE_COUNT];
-    Brahma_Package_Definition info       [BRAHMA_PACKAGE_COUNT];
-} Brahma_Packages;
+    const char* name;
+    const char* owningFile;
+    Brahma_Package_Definition def;
+} Brahma_Package;
 
-// structure storing all the library definitions
+BRAHMA_DECLARE_ARRAY_LIST(Package, package, Brahma_Package)
+
 typedef struct
 {
-    const char*               names      [BRAHMA_LIBRARY_COUNT];
-    const char*               owningFiles[BRAHMA_LIBRARY_COUNT];
-    Brahma_Library_Definition info       [BRAHMA_LIBRARY_COUNT];
-} Brahma_Libraries;
+    const char* name;
+    const char* owningFile;
+    Brahma_Library_Definition def;
+} Brahma_Library;
+
+BRAHMA_DECLARE_ARRAY_LIST(Library, library, Brahma_Library)
 
 typedef bool (*Brahma_Directory_Visitor_Delegate)(void* payload, const char* path, bool isDirectory, bool* exploreCurrentDirectory);
 
 void brahma_initialise_internal_allocator(void);
 void brahma_shutdown_internal_allocator(void);
-void brahma_create_all_packages(Brahma_Packages* packages);
+void brahma_create_all_packages(Brahma_Package_Array_List* packages);
 void brahma_iterate_directory(const char* path, bool recursive, void* visitorPayload, Brahma_Directory_Visitor_Delegate visitor);
 
-int brahma_find_package_by_name(const Brahma_Packages* packages, const char* name);
-int brahma_find_library_by_name(const Brahma_Libraries* libraries, const char* name);
+int brahma_find_package_by_name(const Brahma_Package_Array_List* packages, const char* name);
+int brahma_find_library_by_name(const Brahma_Library_Array_List* libraries, const char* name);
 
 int main(int argc, char* argv[])
 {
     const char* error = NULL;
     int deferredLevel = 0;
-    Brahma_Packages* pkgDefs = NULL;
+    Brahma_Package_Array_List pkgDefs = { NULL, 0, 0 };
     int selectedPkgIdx = -1;
 
     // initialise the internal allocator
@@ -489,8 +491,8 @@ int main(int argc, char* argv[])
         goto exit;
     }
 
-    pkgDefs = BRAHMA_PUSH_STRUCT(Brahma_Packages);
-    brahma_create_all_packages(pkgDefs);
+    brahma_reserve_package_array_list_capacity(&pkgDefs, BRAHMA_PACKAGE_COUNT);
+    brahma_create_all_packages(&pkgDefs);
 
     // find the package to build
     {
@@ -503,7 +505,7 @@ int main(int argc, char* argv[])
         {
             for (int i = 0; i < BRAHMA_PACKAGE_COUNT; i++)
             {
-                if (!strcmp(inputArgs.packageToBuild, pkgDefs->names[i]))
+                if (!strcmp(inputArgs.packageToBuild, pkgDefs.data[i].name))
                 {
                     selectedPkgIdx = i;
                     break;
@@ -520,7 +522,7 @@ int main(int argc, char* argv[])
 
     printf("-----------------------------------------\n");
     printf("Brahma Configuration:\n");
-    printf("\tSelected package: %s.\n", pkgDefs->names[selectedPkgIdx]);
+    printf("\tSelected package: %s.\n", pkgDefs.data[selectedPkgIdx].name);
     printf("\tDebug info:       %s.\n", (inputArgs.flags & BRAHMA_INPUT_ARG_FLAGS_DEBUG)     ? "on" : "off");
     printf("\tOptimised:        %s.\n", (inputArgs.flags & BRAHMA_INPUT_ARG_FLAGS_OPTIMISED) ? "on" : "off");
     printf("-----------------------------------------\n");
@@ -544,13 +546,13 @@ exit:
 }
 
 #define BRAHMA_BEGIN_LISTING_PACKAGES() \
-    void brahma_create_all_packages(Brahma_Packages* packages) {
+    void brahma_create_all_packages(Brahma_Package_Array_List* packages) {
 
 #define BRAHMA_END_LISTING_PACKAGES() \
     }
 
 #define BRAHMA_BEGIN_LISTING_LIBRARIES() \
-    void brahma_create_all_libraries(Brahma_Libraries* libraries, const Brahma_Package_Definition* package) {
+    void brahma_create_all_libraries(Brahma_Library_Array_List* libraries, const Brahma_Package_Definition* package) {
 
 #define BRAHMA_END_LISTING_LIBRARIES() \
     }
@@ -561,18 +563,22 @@ exit:
 #define BRAHMA_ADD_LIBRARY(idx, path, libraryName) \
     brahma_add_library(libraries, idx, #libraryName, path, brahma_implement_library_##libraryName(package));
 
-void brahma_add_package(Brahma_Packages* packages, int idx, const char* name, const char* owningFile, Brahma_Package_Definition package)
+void brahma_add_package(Brahma_Package_Array_List* packages, int idx, const char* name, const char* owningFile, Brahma_Package_Definition def)
 {
-    packages->names[idx]       = name;
-    packages->owningFiles[idx] = owningFile;
-    packages->info[idx]        = package;
+    Brahma_Package pkg;
+    pkg.name = name;
+    pkg.owningFile = owningFile;
+    pkg.def = def;
+    brahma_append_package_to_array_list(packages, pkg);
 }
 
-void brahma_add_library(Brahma_Libraries* libraries, int idx, const char* name, const char* owningFile, Brahma_Library_Definition library)
+void brahma_add_library(Brahma_Library_Array_List* libraries, int idx, const char* name, const char* owningFile, Brahma_Library_Definition def)
 {
-    libraries->names[idx]       = name;
-    libraries->owningFiles[idx] = owningFile;
-    libraries->info[idx]        = library;
+    Brahma_Library lib;
+    lib.name = name;
+    lib.owningFile = owningFile;
+    lib.def = def;
+    brahma_append_library_to_array_list(libraries, lib);
 }
 
 static volatile struct
@@ -891,12 +897,12 @@ void brahma_iterate_directory(const char* path, bool recursive, void* visitorPay
     #endif
 }
 
-int brahma_find_package_by_name(const Brahma_Packages* packages, const char* name)
+int brahma_find_package_by_name(const Brahma_Package_Array_List* packages, const char* name)
 {
     int selectedPkgIdx = -1;
     for (int i = 0; i < BRAHMA_PACKAGE_COUNT; i++)
     {
-        if (!strcmp(name, packages->names[i]))
+        if (!strcmp(name, packages->data[i].name))
         {
             selectedPkgIdx = i;
             break;
@@ -906,12 +912,12 @@ int brahma_find_package_by_name(const Brahma_Packages* packages, const char* nam
     return selectedPkgIdx;
 }
 
-int brahma_find_library_by_name(const Brahma_Libraries* libraries, const char* name)
+int brahma_find_library_by_name(const Brahma_Library_Array_List* libraries, const char* name)
 {
     int selectedLibIdx = -1;
     for (int i = 0; i < BRAHMA_LIBRARY_COUNT; i++)
     {
-        if (!strcmp(name, libraries->names[i]))
+        if (!strcmp(name, libraries->data[i].name))
         {
             selectedLibIdx = i;
             break;
