@@ -162,6 +162,12 @@ void* brahma_push_memory(size_t size, size_t alignment);
 #define BRAHMA_PUSH_STRUCT(type) ((type*) brahma_push_memory(sizeof(type), alignof(type)))
 
 /**
+ * Helper macro to push an array of a given type and count to the internal allocator, and return a
+ * pointer to the first item.
+ */
+#define BRAHMA_PUSH_STRUCT_ARRAY(type, count) ((type*) brahma_push_memory(sizeof(type) * (count), alignof(type)))
+
+/**
  * Declare an array list type.
  * An array list is a simple dynamic array that can grow in size. It has a pointer to the data, the count of items,
  * and the capacity of the list.
@@ -185,7 +191,7 @@ void* brahma_push_memory(size_t size, size_t alignment);
         /* the internal allocator allocates in blocks of at least 64 bytes, this ensures we don't waste space */ \
         size_t newCapacity = list->capacity ? list->capacity : (64 / sizeof(type)); \
         while (newCapacity < requiredCapacity) newCapacity *= 2; \
-        type* newData = (type*) brahma_push_memory(sizeof(type) * newCapacity, alignof(type)); \
+        type* newData = BRAHMA_PUSH_STRUCT_ARRAY(type, newCapacity); \
         if (list->data) { memcpy(newData, list->data, sizeof(type) * list->count); } \
         list->data = newData; \
         list->capacity = newCapacity; \
@@ -235,9 +241,10 @@ void* brahma_push_memory(size_t size, size_t alignment);
         for (pageIt = list->firstPage; pageIt && pageIt->nextPage; pageIt = pageIt->nextPage) { } \
         /* pageIt is now at the last page (or NULL if there are no pages) */ \
         size_t pagesToCreate = requiredPages - list->numPages; \
+        Brahma_##convNameSt##_Paged_List_Page* createdPages = BRAHMA_PUSH_STRUCT_ARRAY(Brahma_##convNameSt##_Paged_List_Page, pagesToCreate); \
         for (size_t i = 0; i < pagesToCreate; i++) \
         { \
-            Brahma_##convNameSt##_Paged_List_Page* newPage = BRAHMA_PUSH_STRUCT(Brahma_##convNameSt##_Paged_List_Page); \
+            Brahma_##convNameSt##_Paged_List_Page* newPage = &(createdPages[i]); \
             *(pageIt ? &(pageIt->nextPage) : &(list->firstPage)) = newPage; \
             pageIt = newPage; \
             pageIt->nextPage = NULL; \
