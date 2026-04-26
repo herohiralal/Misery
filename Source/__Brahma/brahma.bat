@@ -149,12 +149,12 @@ if %CXX_MODE% equ 1 (
 )
 
 if %SELF_DEBUG% equ 1 (
-    set CL_FLAGS=!CL_FLAGS! /DDEBUG /Zi /Od /MTd /PDB:FULL "/Fd%OUTPUT%.pdb"
+    set CL_FLAGS=!CL_FLAGS! /D_DEBUG /Zi /Od /MTd /PDB:FULL "/Fd%OUTPUT%.pdb"
 ) else (
     set CL_FLAGS=!CL_FLAGS! /DNDEBUG /O2 /MT
 )
 
-cl /nologo /Wall /WX /Zc:preprocessor !CL_FLAGS! /GS- /fp:fast "%OUTPUT%.%OUTPUT_EXT%" "/Fe:%OUTPUT%.exe" "/Fo:%OUTPUT%.obj"
+cl /nologo /Wall /WX /Zc:preprocessor !CL_FLAGS! /fp:fast "%OUTPUT%.%OUTPUT_EXT%" "/Fe:%OUTPUT%.exe" "/Fo:%OUTPUT%.obj"
 if %ERRORLEVEL% neq 0 (
     echo Brahma build-file failed to compile. Press any key to exit...
     pause >nul

@@ -32,12 +32,17 @@
     #pragma GCC diagnostic error   "-Wfloat-equal"
     #pragma GCC diagnostic error   "-Wundef"
     #pragma GCC diagnostic error   "-Wswitch-enum"
-    #pragma GCC diagnostic error   "-Wstrict-prototypes"
+    #ifndef __cplusplus
+        #pragma GCC diagnostic error   "-Wstrict-prototypes"
+    #endif
     #pragma GCC diagnostic ignored "-Wunused-parameter"
+    #pragma GCC diagnostic ignored "-Wuninitialized"
 
     #define BRAHMA_SUPPRESS_WARN \
         _Pragma("GCC diagnostic push")  \
-        _Pragma("GCC diagnostic ignored \"-Weverything\"")
+        _Pragma("GCC diagnostic ignored \"-Wall\"") \
+        _Pragma("GCC diagnostic ignored \"-Wextra\"") \
+        _Pragma("GCC diagnostic ignored \"-Wpedantic\"") \
 
     #define BRAHMA_UNSUPPRESS_WARN \
         _Pragma("GCC diagnostic pop")
@@ -53,8 +58,11 @@
     #pragma clang diagnostic error   "-Wfloat-equal"
     #pragma clang diagnostic error   "-Wundef"
     #pragma clang diagnostic error   "-Wswitch-enum"
-    #pragma clang diagnostic error   "-Wstrict-prototypes"
+    #ifndef __cplusplus
+        #pragma clang diagnostic error   "-Wstrict-prototypes"
+    #endif
     #pragma clang diagnostic ignored "-Wunused-parameter"
+    #pragma clang diagnostic ignored "-Wuninitialized"
 
     #define BRAHMA_SUPPRESS_WARN \
         _Pragma("clang diagnostic push")  \
@@ -77,7 +85,9 @@
 #endif
 
 #ifdef __linux__
-    #define _GNU_SOURCE
+    #ifndef __cplusplus
+        #define _GNU_SOURCE
+    #endif
     #define _POSIX_C_SOURCE 200809L
     #define _XOPEN_SOURCE 700
 #endif
@@ -90,11 +100,15 @@ BRAHMA_SUPPRESS_WARN
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdarg.h>
 #ifdef _WIN32
     #include <windows.h>
     #include <malloc.h>
 #elif defined(__linux__) || defined(__APPLE__)
     #include <pthread.h>
+    #include <stdlib.h>
+    #include <dirent.h>
+    #include <sys/stat.h>
 #endif
 BRAHMA_UNSUPPRESS_WARN
 
@@ -395,16 +409,16 @@ typedef struct
 // structure storing all the package definitions
 typedef struct
 {
-    char*                     names      [BRAHMA_PACKAGE_COUNT];
-    char*                     owningFiles[BRAHMA_PACKAGE_COUNT];
+    const char*               names      [BRAHMA_PACKAGE_COUNT];
+    const char*               owningFiles[BRAHMA_PACKAGE_COUNT];
     Brahma_Package_Definition info       [BRAHMA_PACKAGE_COUNT];
 } Brahma_Packages;
 
 // structure storing all the library definitions
 typedef struct
 {
-    char*                     names      [BRAHMA_LIBRARY_COUNT];
-    char*                     owningFiles[BRAHMA_LIBRARY_COUNT];
+    const char*               names      [BRAHMA_LIBRARY_COUNT];
+    const char*               owningFiles[BRAHMA_LIBRARY_COUNT];
     Brahma_Library_Definition info       [BRAHMA_LIBRARY_COUNT];
 } Brahma_Libraries;
 
@@ -422,11 +436,15 @@ int main(int argc, char* argv[])
 {
     const char* error = NULL;
     int deferredLevel = 0;
+    Brahma_Packages* pkgDefs = NULL;
+    int selectedPkgIdx = -1;
 
     // initialise the internal allocator
     brahma_initialise_internal_allocator(); deferredLevel++;
 
-    Brahma_Input_Args inputArgs = {0};
+    Brahma_Input_Args inputArgs;
+    memset(&inputArgs, 0, sizeof(inputArgs));
+
     inputArgs.flags |= BRAHMA_INPUT_ARG_FLAGS_DEBUG; // default to debug mode
 
     for (int i = 1; i < argc; i++) // skipping first arg because it's gonna be the executable name
@@ -438,8 +456,8 @@ int main(int argc, char* argv[])
         if (!strcmp("-debug_build_tool",   argv[i])) {      continue; } // whether the build tool itself is a debug build
 
         // flags
-        if (!strcmp("-nodebuginfo", argv[i])) { inputArgs.flags &= ~BRAHMA_INPUT_ARG_FLAGS_DEBUG;     continue; }
-        if (!strcmp("-optimised",   argv[i])) { inputArgs.flags |=  BRAHMA_INPUT_ARG_FLAGS_OPTIMISED; continue; }
+        if (!strcmp("-nodebuginfo", argv[i])) { inputArgs.flags &= ~(Brahma_Input_Args_Flags) BRAHMA_INPUT_ARG_FLAGS_DEBUG;     continue; }
+        if (!strcmp("-optimised",   argv[i])) { inputArgs.flags |=  (Brahma_Input_Args_Flags) BRAHMA_INPUT_ARG_FLAGS_OPTIMISED; continue; }
 
         if (!strcmp("-package", argv[i]))
         {
@@ -464,11 +482,10 @@ int main(int argc, char* argv[])
         goto exit;
     }
 
-    Brahma_Packages* pkgDefs = BRAHMA_PUSH_STRUCT(Brahma_Packages);
+    pkgDefs = BRAHMA_PUSH_STRUCT(Brahma_Packages);
     brahma_create_all_packages(pkgDefs);
 
     // find the package to build
-    int selectedPkgIdx = -1;
     {
         if (!inputArgs.packageToBuild)
         {
@@ -537,14 +554,14 @@ exit:
 #define BRAHMA_ADD_LIBRARY(idx, path, libraryName) \
     brahma_add_library(libraries, idx, #libraryName, path, brahma_implement_library_##libraryName(package));
 
-void brahma_add_package(Brahma_Packages* packages, int idx, char* name, char* owningFile, Brahma_Package_Definition package)
+void brahma_add_package(Brahma_Packages* packages, int idx, const char* name, const char* owningFile, Brahma_Package_Definition package)
 {
     packages->names[idx]       = name;
     packages->owningFiles[idx] = owningFile;
     packages->info[idx]        = package;
 }
 
-void brahma_add_library(Brahma_Libraries* libraries, int idx, char* name, char* owningFile, Brahma_Library_Definition library)
+void brahma_add_library(Brahma_Libraries* libraries, int idx, const char* name, const char* owningFile, Brahma_Library_Definition library)
 {
     libraries->names[idx]       = name;
     libraries->owningFiles[idx] = owningFile;
