@@ -287,7 +287,7 @@ typedef struct
      * to build the package.
      */
     const char* primaryLibrary;
-} Brahma_Package;
+} Brahma_Package_Definition;
 
 /**
  * Library definition.
@@ -321,39 +321,39 @@ typedef struct
      * library, but not the source files in the libraries that depend on this library.
      */
     Brahma_Define_Paged_List internalDefines;
-} Brahma_Library;
+} Brahma_Library_Definition;
 
 /**
  * Implement a package.
  *
  * Usage:
  ```
- BRAHMA_IMPLEMENT_PACKAGE(packageName)
+ BRAHMA_IMPLEMENT_PACKAGE_DEF(packageName)
  {
-     Brahma_Package pkg;
+     Brahma_Package_Definition pkg;
      // set up package data...
      return pkg;
  }
  ```
  */
-#define BRAHMA_IMPLEMENT_PACKAGE(packageName) \
-    Brahma_Package brahma_implement_package_##packageName(void)
+#define BRAHMA_IMPLEMENT_PACKAGE_DEF(packageName) \
+    Brahma_Package_Definition brahma_implement_package_##packageName(void)
 
 /**
  * Implement a library.
  *
  * Usage:
  ```
- BRAHMA_IMPLEMENT_LIBRARY(libraryName)
+ BRAHMA_IMPLEMENT_LIBRARY_DEF(libraryName)
  {
-     Brahma_Library lib;
+     Brahma_Library_Definition lib;
      // set up library data...
      return lib;
  }
  ```
  */
-#define BRAHMA_IMPLEMENT_LIBRARY(libraryName) \
-    Brahma_Library brahma_implement_library_##libraryName(const Brahma_Package* package)
+#define BRAHMA_IMPLEMENT_LIBRARY_DEF(libraryName) \
+    Brahma_Library_Definition brahma_implement_library_##libraryName(const Brahma_Package_Definition* package)
 
 // =============================================================================================================================
 // Execution code (used when CLI is executed).
@@ -395,17 +395,17 @@ typedef struct
 // structure storing all the package definitions
 typedef struct
 {
-    char*          names      [BRAHMA_PACKAGE_COUNT];
-    char*          owningFiles[BRAHMA_PACKAGE_COUNT];
-    Brahma_Package info       [BRAHMA_PACKAGE_COUNT];
+    char*                     names      [BRAHMA_PACKAGE_COUNT];
+    char*                     owningFiles[BRAHMA_PACKAGE_COUNT];
+    Brahma_Package_Definition info       [BRAHMA_PACKAGE_COUNT];
 } Brahma_Packages;
 
 // structure storing all the library definitions
 typedef struct
 {
-    char*          names      [BRAHMA_LIBRARY_COUNT];
-    char*          owningFiles[BRAHMA_LIBRARY_COUNT];
-    Brahma_Library info       [BRAHMA_LIBRARY_COUNT];
+    char*                     names      [BRAHMA_LIBRARY_COUNT];
+    char*                     owningFiles[BRAHMA_LIBRARY_COUNT];
+    Brahma_Library_Definition info       [BRAHMA_LIBRARY_COUNT];
 } Brahma_Libraries;
 
 typedef bool (*Brahma_Directory_Visitor_Delegate)(void* payload, const char* path, bool isDirectory, bool* exploreCurrentDirectory);
@@ -525,7 +525,7 @@ exit:
     }
 
 #define BRAHMA_BEGIN_LISTING_LIBRARIES() \
-    void brahma_create_all_libraries(Brahma_Libraries* libraries, const Brahma_Package* package) {
+    void brahma_create_all_libraries(Brahma_Libraries* libraries, const Brahma_Package_Definition* package) {
 
 #define BRAHMA_END_LISTING_LIBRARIES() \
     }
@@ -536,14 +536,14 @@ exit:
 #define BRAHMA_ADD_LIBRARY(idx, path, libraryName) \
     brahma_add_library(libraries, idx, #libraryName, path, brahma_implement_library_##libraryName(package));
 
-void brahma_add_package(Brahma_Packages* packages, int idx, char* name, char* owningFile, Brahma_Package package)
+void brahma_add_package(Brahma_Packages* packages, int idx, char* name, char* owningFile, Brahma_Package_Definition package)
 {
     packages->names[idx]       = name;
     packages->owningFiles[idx] = owningFile;
     packages->info[idx]        = package;
 }
 
-void brahma_add_library(Brahma_Libraries* libraries, int idx, char* name, char* owningFile, Brahma_Library library)
+void brahma_add_library(Brahma_Libraries* libraries, int idx, char* name, char* owningFile, Brahma_Library_Definition library)
 {
     libraries->names[idx]       = name;
     libraries->owningFiles[idx] = owningFile;

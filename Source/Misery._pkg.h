@@ -2,10 +2,10 @@
 #define MISERY_PACKAGE_H
 #include "__Brahma/Brahma.h"
 
-BRAHMA_IMPLEMENT_PACKAGE(Misery)
+BRAHMA_IMPLEMENT_PACKAGE_DEF(Misery)
 {
-    Brahma_Package pkg;
-    pkg._ = NULL;
+    Brahma_Package_Definition pkg;
+    // pkg._ = NULL;
     return pkg;
 }
 
