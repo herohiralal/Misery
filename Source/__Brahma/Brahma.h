@@ -451,6 +451,9 @@ void brahma_initialise_internal_allocator(void);
 // shutdown the internal allocator
 void brahma_shutdown_internal_allocator(void);
 
+// ensure that a directory exists, and create it if it doesn't
+void brahma_ensure_dir(char* path);
+
 // visitor function to use for iterating a directory
 typedef bool (*Brahma_Directory_Visitor_Delegate)(void* payload, const char* path, bool isDirectory, bool* exploreCurrentDirectory);
 
@@ -764,6 +767,19 @@ char* brahma_sprintf(const char* format, ...)
     }
 
     return output;
+}
+
+void brahma_ensure_dir(char* path)
+{
+    #if defined(_WIN32)
+    {
+        CreateDirectoryA(path, NULL);
+    }
+    #elif defined(__linux__) || defined(__APPLE__)
+    {
+        mkdir(path, 0755);
+    }
+    #endif
 }
 
 void brahma_iterate_directory(const char* path, bool recursive, void* visitorPayload, Brahma_Directory_Visitor_Delegate visitor)
