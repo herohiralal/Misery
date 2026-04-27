@@ -186,7 +186,7 @@ void* brahma_push_memory(size_t size, size_t alignment);
     { \
         if (requiredCapacity <= list->capacity) return; \
         /* the internal allocator allocates in blocks of at least 64 bytes, this ensures we don't waste space */ \
-        size_t newCapacity = list->capacity ? list->capacity : (64 / sizeof(type)); \
+        size_t newCapacity = list->capacity ? list->capacity : 16; \
         while (newCapacity < requiredCapacity) newCapacity *= 2; \
         type* newData = BRAHMA_PUSH_STRUCT_ARRAY(type, newCapacity); \
         if (list->data) { memcpy(newData, list->data, sizeof(type) * list->count); } \
@@ -1297,6 +1297,8 @@ void brahma_exec_log(const char* fmt, ...)
 
 int main(int argc, char* argv[])
 {
+    setvbuf(stdout, NULL, _IONBF, 0); // unbuffered stdout for better interleaving of logs and subprocess output
+
     Brahma_Args ex;
     ex.flags           = BRAHMA_ARGS_FLAG_NONE;
     ex.packageToBuild  = NULL;
