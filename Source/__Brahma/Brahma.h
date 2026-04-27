@@ -105,12 +105,14 @@ BRAHMA_SUPPRESS_WARN
 #ifdef _WIN32
     #include <windows.h>
     #include <malloc.h>
+    #include <intrin.h>
 #elif defined(__linux__) || defined(__APPLE__)
     #include <pthread.h>
     #include <stdlib.h>
     #include <dirent.h>
     #include <sys/stat.h>
     #include <unistd.h>
+    #include <time.h>
 #endif
 BRAHMA_UNSUPPRESS_WARN
 
@@ -446,6 +448,9 @@ bool brahma_execute(Brahma_Args ex);
 // Library implementation
 #if defined(BRAHMA_LIBRARY_IMPL) || defined(BRAHMA_EXEC)
 
+// get current time in nanoseconds since unix epoch
+int64_t brahma_get_time(void);
+
 // initialise the internal allocator
 void brahma_initialise_internal_allocator(void);
 
@@ -479,11 +484,14 @@ int brahma_wait_for_process(Brahma_Process process, char** outStdOut);
 
 BRAHMA_DECLARE_PAGED_LIST(Library_Dependency_Idx, library_dependency_idx, uint16_t, ((64 - sizeof(void*)) / sizeof(uint16_t)))
 
+// a chunk of library dependencies, which represents a contiguous range of dependencies in the list of all dependencies of a library
 typedef struct { uint16_t start, count; } Brahma_Library_Dependencies_Chunk;
 BRAHMA_DECLARE_ARRAY_LIST(Library_Dependencies_Chunk, library_dependencies_chunk, Brahma_Library_Dependencies_Chunk)
 
+// the type of library dependency; either an interface dependency, or an internal dependency
 typedef enum {BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERFACE, BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERNAL, BRAHMA_LIBRARY_DEPENDENCY_TYPE__MAX} Brahma_Library_Dependency_Type;
 
+// append all recursive library dependencies to all the indices (view into this via dep chunks)
 bool brahma_append_all_library_deps(
     Brahma_Library_Dependency_Type depType,
     const Brahma_Library_Array_List* allLibs,
@@ -494,10 +502,22 @@ bool brahma_append_all_library_deps(
 
 bool brahma_execute(Brahma_Args ex)
 {
+    int64_t startTime = brahma_get_time(), time = 0, lastTime = startTime;
+
+    #define PROFILE_SECTION(sectionName) \
+        do \
+        { \
+            time = brahma_get_time(); \
+            ex.log("'" sectionName "': DONE (%.2f ms).\n", (time - lastTime) / 1000000.0); \
+            lastTime = time; \
+        } while (false)
+
     Brahma_Package_Array_List pkgDefs = { NULL, 0, 0 };
     bool failed = false;
 
     brahma_initialise_internal_allocator();
+
+    PROFILE_SECTION("initialise");
 
     brahma_reserve_package_array_list_capacity(&pkgDefs, ex.pkgCount);
     ex.createPackages(&pkgDefs);
@@ -524,6 +544,8 @@ bool brahma_execute(Brahma_Args ex)
         }
     }
 
+    PROFILE_SECTION("create packages");
+
     if (!failed)
     {
         ex.log("-----------------------------------------\n");
@@ -541,6 +563,8 @@ bool brahma_execute(Brahma_Args ex)
         brahma_reserve_library_array_list_capacity(&libDefs, ex.libCount);
         ex.createLibraries(&libDefs, selectedPkg);
     }
+
+    PROFILE_SECTION("create libraries");
 
     // dependencies of libs
     Brahma_Library_Dependencies_Chunk_Array_List interfaceDepChunks = { NULL, 0, 0 };
@@ -589,12 +613,20 @@ bool brahma_execute(Brahma_Args ex)
         }
     }
 
+    PROFILE_SECTION("resolve library dependencies");
+
     if (!failed)
     {
     }
 
     brahma_shutdown_internal_allocator();
+
+    PROFILE_SECTION("shutdown");
+
+    ex.log("Total execution time: %.2f ms.\n", (brahma_get_time() - startTime) / 1000000.0);
     return !failed;
+
+    #undef PROFILE_SECTION
 }
 
 bool brahma_append_all_library_deps(
@@ -658,6 +690,24 @@ bool brahma_append_all_library_deps(
     }
 
     return true;
+}
+
+int64_t brahma_get_time(void)
+{
+    #if defined(_WIN32)
+    {
+        FILETIME ft;
+        GetSystemTimeAsFileTime(&ft);
+        uint64_t time = ((uint64_t) ft.dwHighDateTime << 32) | ft.dwLowDateTime;
+        return (int64_t) (time * 100); // convert from 100-nanosecond intervals to nanoseconds
+    }
+    #elif defined(__linux__) || defined(__APPLE__)
+    {
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        return (int64_t) ts.tv_sec * 1000000000LL + ts.tv_nsec;
+    }
+    #endif
 }
 
 static struct
