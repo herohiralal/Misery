@@ -101,6 +101,7 @@ BRAHMA_SUPPRESS_WARN
 #include <stdint.h>
 #include <string.h>
 #include <stdarg.h>
+#include <stdio.h>
 #ifdef _WIN32
     #include <windows.h>
     #include <malloc.h>
@@ -181,11 +182,6 @@ void* brahma_push_memory(size_t size, size_t alignment);
         size_t count; \
         size_t capacity; \
     } Brahma_##convNameSt##_Array_List; \
-    static inline type* brahma_index_##convNameFn##_array_list(Brahma_##convNameSt##_Array_List* list, size_t index) \
-    { \
-        if (index >= list->count) return NULL; \
-        return &(list->data[index]); \
-    } \
     static inline void brahma_reserve_##convNameFn##_array_list_capacity(Brahma_##convNameSt##_Array_List* list, size_t requiredCapacity) \
     { \
         if (requiredCapacity <= list->capacity) return; \
@@ -225,7 +221,7 @@ void* brahma_push_memory(size_t size, size_t alignment);
         size_t                                 count; \
         size_t                                 numPages; \
     } Brahma_##convNameSt##_Paged_List; \
-    static inline type* brahma_index_##convNameFn##_paged_list(Brahma_##convNameSt##_Paged_List* list, size_t index) \
+    static inline type* brahma_index_##convNameFn##_paged_list(const Brahma_##convNameSt##_Paged_List* list, size_t index) \
     { \
         if (index >= list->count) return NULL; \
         size_t pageIndex = index / itemsPerPage; \
@@ -353,14 +349,12 @@ typedef struct
  ```
  BRAHMA_IMPLEMENT_PACKAGE_DEF(packageName)
  {
-     Brahma_Package_Definition pkg;
-     // set up package data...
-     return pkg;
+     package->someVariable = "my_package";
  }
  ```
  */
 #define BRAHMA_IMPLEMENT_PACKAGE_DEF(packageName) \
-    Brahma_Package_Definition brahma_implement_package_##packageName(void)
+    void brahma_implement_package_##packageName(Brahma_Package_Definition* package)
 
 /**
  * Implement a library.
@@ -369,14 +363,12 @@ typedef struct
  ```
  BRAHMA_IMPLEMENT_LIBRARY_DEF(libraryName)
  {
-     Brahma_Library_Definition lib;
-     // set up library data...
-     return lib;
+     library->someVariable = "my_library";
  }
  ```
  */
 #define BRAHMA_IMPLEMENT_LIBRARY_DEF(libraryName) \
-    Brahma_Library_Definition brahma_implement_library_##libraryName(const Brahma_Package_Definition* package)
+    void brahma_implement_library_##libraryName(const Brahma_Package_Definition* package, Brahma_Library_Definition* library)
 
 // =============================================================================================================================
 // Library interface
@@ -396,6 +388,7 @@ BRAHMA_DECLARE_ARRAY_LIST(Package, package, Brahma_Package)
 typedef struct
 {
     const char* name;
+    const char* owningDir; // directory of the owning file, used as the domain of the library
     const char* owningFile;
     Brahma_Library_Definition def;
 } Brahma_Library;
@@ -468,6 +461,7 @@ int brahma_find_library_by_name(const Brahma_Library_Array_List* libraries, cons
 
 // represents a running process
 typedef struct Brahma_Process_Impl* Brahma_Process;
+BRAHMA_DECLARE_ARRAY_LIST(Process, process, Brahma_Process)
 
 // start a process and return its handle
 Brahma_Process brahma_start_process(Brahma_String_Array_List args, const char* workingDir);
@@ -475,10 +469,24 @@ Brahma_Process brahma_start_process(Brahma_String_Array_List args, const char* w
 // wait for a process to finish and return its exit code; optionally, also output the process's stdout (with a null-terminator at the end)
 int brahma_wait_for_process(Brahma_Process process, char** outStdOut);
 
+BRAHMA_DECLARE_PAGED_LIST(Library_Dependency_Idx, library_dependency_idx, uint16_t, ((64 - sizeof(void*)) / sizeof(uint16_t)))
+
+typedef struct { uint16_t start, count; } Brahma_Library_Dependencies_Chunk;
+BRAHMA_DECLARE_ARRAY_LIST(Library_Dependencies_Chunk, library_dependencies_chunk, Brahma_Library_Dependencies_Chunk)
+
+typedef enum {BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERFACE, BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERNAL, BRAHMA_LIBRARY_DEPENDENCY_TYPE__MAX} Brahma_Library_Dependency_Type;
+
+bool brahma_append_all_library_deps(
+    Brahma_Library_Dependency_Type depType,
+    const Brahma_Library_Array_List* allLibs,
+    const Brahma_Library* library,
+    Brahma_Library_Dependency_Idx_Paged_List* allLibDeps,
+    uint16_t firstLibDepIdx,
+    char** error);
+
 bool brahma_execute(Brahma_Args ex)
 {
     Brahma_Package_Array_List pkgDefs = { NULL, 0, 0 };
-    int selectedPkgIdx = -1;
     bool failed = false;
 
     brahma_initialise_internal_allocator();
@@ -487,24 +495,20 @@ bool brahma_execute(Brahma_Args ex)
     ex.createPackages(&pkgDefs);
 
     // find the package to build
+    Brahma_Package* selectedPkg = NULL;
+    if (!failed)
     {
         if (!ex.packageToBuild)
         {
             ex.log("No package specified. Defaulting to the first package!\n");
-            selectedPkgIdx = 0;
+            selectedPkg = &pkgDefs.data[0];
         }
         else
         {
-            for (int i = 0; i < (int) ex.pkgCount; i++)
-            {
-                if (!strcmp(ex.packageToBuild, pkgDefs.data[i].name))
-                {
-                    selectedPkgIdx = i;
-                    break;
-                }
-            }
+            int selectedPkgIdx = brahma_find_package_by_name(&pkgDefs, ex.packageToBuild);
+            if (selectedPkgIdx >= 0) { selectedPkg = &pkgDefs.data[selectedPkgIdx]; }
 
-            if (selectedPkgIdx == -1)
+            if (!selectedPkg)
             {
                 ex.log("ERROR: No package found with the name '%s'.\n", ex.packageToBuild);
                 failed = true;
@@ -516,31 +520,156 @@ bool brahma_execute(Brahma_Args ex)
     {
         ex.log("-----------------------------------------\n");
         ex.log("Brahma Configuration:\n");
-        ex.log("\tSelected package: %s.\n", pkgDefs.data[selectedPkgIdx].name);
+        ex.log("\tSelected package: %s.\n", selectedPkg->name);
         ex.log("\tDebug info:       %s.\n", (ex.flags & BRAHMA_ARGS_FLAG_DEBUG)     ? "on" : "off");
         ex.log("\tOptimised:        %s.\n", (ex.flags & BRAHMA_ARGS_FLAG_OPTIMISED) ? "on" : "off");
         ex.log("-----------------------------------------\n");
+    }
+
+    // libs
+    Brahma_Library_Array_List libDefs = { NULL, 0, 0 };
+    if (!failed)
+    {
+        brahma_reserve_library_array_list_capacity(&libDefs, ex.libCount);
+        ex.createLibraries(&libDefs, &(selectedPkg->def));
+    }
+
+    // dependencies of libs
+    Brahma_Library_Dependencies_Chunk_Array_List interfaceDepChunks = { NULL, 0, 0 };
+    Brahma_Library_Dependency_Idx_Paged_List interfaceDepIdxs; memset(&interfaceDepIdxs, 0, sizeof(interfaceDepIdxs));
+    Brahma_Library_Dependencies_Chunk_Array_List internalDepChunks = { NULL, 0, 0 };
+    Brahma_Library_Dependency_Idx_Paged_List internalDepIdxs; memset(&internalDepIdxs, 0, sizeof(internalDepIdxs));
+    if (!failed)
+    {
+        brahma_reserve_library_dependencies_chunk_array_list_capacity(&interfaceDepChunks, libDefs.count);
+        brahma_reserve_library_dependencies_chunk_array_list_capacity( &internalDepChunks, libDefs.count);
+
+        for (size_t i = 0; i < libDefs.count; i++)
+        {
+            Brahma_Library* lib = &(libDefs.data[i]);
+
+            // performance: technically both (interface and internal) these can be done on separate threads
+            // they're technically writing to different arrays
+            for (Brahma_Library_Dependency_Type depTy = 0; depTy < BRAHMA_LIBRARY_DEPENDENCY_TYPE__MAX; depTy++)
+            {
+                Brahma_Library_Dependency_Idx_Paged_List* depIdxs = NULL;
+                Brahma_Library_Dependencies_Chunk_Array_List* depChunks = NULL;
+                switch (depTy)
+                {
+                    case BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERFACE: depIdxs = &interfaceDepIdxs; depChunks = &interfaceDepChunks; break;
+                    case BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERNAL:  depIdxs = &internalDepIdxs;  depChunks = &internalDepChunks;  break;
+                    case BRAHMA_LIBRARY_DEPENDENCY_TYPE__MAX:                                                                    break;
+                }
+
+                if (!depIdxs || !depChunks) continue;
+
+                Brahma_Library_Dependencies_Chunk chunk;
+                chunk.start = (uint16_t) depIdxs->count;
+                char* error = NULL;
+                if (!brahma_append_all_library_deps(depTy, &libDefs, lib, depIdxs, chunk.start, &error))
+                {
+                    ex.log("ERROR: Failed to resolve dependencies for library '%s'.\n\tDetails: %s.\n", lib->name, error ? error : "<unknown>");
+                    failed = true;
+                    break;
+                }
+
+                chunk.count = (uint16_t) (depIdxs->count - chunk.start);
+                brahma_append_library_dependencies_chunk_to_array_list(depChunks, chunk);
+            }
+
+            if (failed) break;
+        }
+    }
+
+    if (!failed)
+    {
     }
 
     brahma_shutdown_internal_allocator();
     return !failed;
 }
 
-void brahma_add_package(Brahma_Package_Array_List* packages, int idx, const char* name, const char* owningFile, Brahma_Package_Definition def)
+bool brahma_append_all_library_deps(
+    Brahma_Library_Dependency_Type depType,
+    const Brahma_Library_Array_List* allLibs,
+    const Brahma_Library* library,
+    Brahma_Library_Dependency_Idx_Paged_List* allLibDeps,
+    uint16_t firstLibDepIdx,
+    char** error)
 {
-    Brahma_Package pkg;
+    const Brahma_String_Paged_List* directDeps = NULL;
+    switch (depType)
+    {
+        case BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERFACE: directDeps = &(library->def.interfaceDependencies); break;
+        case BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERNAL:  directDeps = &(library->def.internalDependencies);  break;
+        case BRAHMA_LIBRARY_DEPENDENCY_TYPE__MAX:                                                          break;
+    }
+
+    for (size_t i = 0; i < directDeps->count; i++)
+    {
+        const char* const* directDependencyPtr = brahma_index_string_paged_list(directDeps, i);
+        if (!directDependencyPtr)
+        {
+            if (error) *error = brahma_sprintf("(%d: failed to index direct dependency)", (int) i);
+            return false;
+        }
+
+        const char* directDependency = *directDependencyPtr;
+        int idxOfDirectDepLib = brahma_find_library_by_name(allLibs, directDependency);
+        if (idxOfDirectDepLib < 0)
+        {
+            if (error) *error = brahma_sprintf("(%s: failed to locate)", directDependency);
+            return false;
+        }
+
+        Brahma_Library* directDepLib = &(allLibs->data[idxOfDirectDepLib]);
+        if (!brahma_append_all_library_deps(depType, allLibs, directDepLib, allLibDeps, firstLibDepIdx, error))
+        {
+            if (error) *error = brahma_sprintf("(%s) -> %s", directDependency, *error);
+            return false;
+        }
+
+        // by this point, all the dependencies of the direct dependency should have been added
+        // now we just need to add the direct dependency itself, if it's not already in the list of all dependencies
+
+        // check if the direct dependency is already in the list of all dependencies
+        bool alreadyInList = false;
+        for (size_t j = (size_t) firstLibDepIdx; j < allLibDeps->count; j++)
+        {
+            int depIdx = (int) *brahma_index_library_dependency_idx_paged_list(allLibDeps, j);
+            if (depIdx == idxOfDirectDepLib)
+            {
+                alreadyInList = true;
+                break;
+            }
+        }
+        if (alreadyInList) continue;
+
+        // add to the list of all dependencies
+        brahma_append_library_dependency_idx_to_paged_list(allLibDeps, (uint16_t) idxOfDirectDepLib);
+    }
+
+    return true;
+}
+
+void brahma_add_package(Brahma_Package_Array_List* packages, const char* name, const char* owningFile, const Brahma_Package_Definition* def)
+{
+    Brahma_Package pkg; memset(&pkg, 0, sizeof(pkg));
+
     pkg.name = name;
     pkg.owningFile = owningFile;
-    pkg.def = def;
+    pkg.def = *def;
     brahma_append_package_to_array_list(packages, pkg);
 }
 
-void brahma_add_library(Brahma_Library_Array_List* libraries, int idx, const char* name, const char* owningFile, Brahma_Library_Definition def)
+void brahma_add_library(Brahma_Library_Array_List* libraries, const char* name, const char* owningDir, const char* owningFile, const Brahma_Library_Definition* def)
 {
-    Brahma_Library lib;
+    Brahma_Library lib; memset(&lib, 0, sizeof(lib));
+
     lib.name = name;
+    lib.owningDir = owningDir;
     lib.owningFile = owningFile;
-    lib.def = def;
+    lib.def = *def;
     brahma_append_library_to_array_list(libraries, lib);
 }
 
@@ -1147,11 +1276,11 @@ int brahma_wait_for_process(Brahma_Process proc, char** outStdOut)
     return outExitCode;
 }
 
-#endif//BRAHMA_LIBRARY_IMPL
+#endif//defined(BRAHMA_LIBRARY_IMPL) || defined(BRAHMA_EXEC)
 
 // =============================================================================================================================
 // Execution code (used when CLI is executed).
-#ifdef  BRAHMA_EXEC
+#if defined(BRAHMA_EXEC)
 
 size_t brahma_get_package_count(void);
 size_t brahma_get_library_count(void);
@@ -1219,13 +1348,15 @@ int main(int argc, char* argv[])
 }
 
 #define BRAHMA_BEGIN_LISTING_PACKAGES() \
-    void brahma_create_all_packages(Brahma_Package_Array_List* packages) {
+    void brahma_create_all_packages(Brahma_Package_Array_List* packages) { \
+        Brahma_Package_Definition currentPackage;
 
 #define BRAHMA_END_LISTING_PACKAGES() \
     }
 
 #define BRAHMA_BEGIN_LISTING_LIBRARIES() \
-    void brahma_create_all_libraries(Brahma_Library_Array_List* libraries, const Brahma_Package_Definition* package) {
+    void brahma_create_all_libraries(Brahma_Library_Array_List* libraries, const Brahma_Package_Definition* package) { \
+        Brahma_Library_Definition currentLibrary;
 
 #define BRAHMA_END_LISTING_LIBRARIES() \
     }
@@ -1236,13 +1367,17 @@ int main(int argc, char* argv[])
 #define BRAHMA_LIBRARY_COUNT(x) \
     size_t brahma_get_library_count(void) { return x; }
 
-#define BRAHMA_ADD_PACKAGE(idx, path, packageName) \
-    brahma_add_package(packages, idx, #packageName, path, brahma_implement_package_##packageName());
+#define BRAHMA_ADD_PACKAGE(path, packageName) \
+    memset(&currentPackage, 0, sizeof(currentPackage)); \
+    brahma_implement_package_##packageName(&currentPackage); \
+    brahma_add_package(packages, #packageName, path, &currentPackage);
 
-#define BRAHMA_ADD_LIBRARY(idx, path, libraryName) \
-    brahma_add_library(libraries, idx, #libraryName, path, brahma_implement_library_##libraryName(package));
+#define BRAHMA_ADD_LIBRARY(dir, path, libraryName) \
+    memset(&currentLibrary, 0, sizeof(currentLibrary)); \
+    brahma_implement_library_##libraryName(package, &currentLibrary); \
+    brahma_add_library(libraries, #libraryName, dir, path, &currentLibrary);
 
-#endif//BRAHMA_EXEC
+#endif//defined(BRAHMA_EXEC)
 
 #ifdef __cplusplus
 } // extern "C"

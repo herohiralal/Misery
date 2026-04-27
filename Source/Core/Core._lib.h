@@ -4,9 +4,7 @@
 
 BRAHMA_IMPLEMENT_LIBRARY_DEF(Core)
 {
-    Brahma_Library_Definition lib;
-    // lib._ = NULL;
-    return lib;
+    // set up
 }
 
 #endif//CORE_LIBRARY_H

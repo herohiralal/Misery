@@ -95,7 +95,10 @@ for %%D in (%SEARCH_DIRS%) do (
 
                 set "LIBRARY_NAME=%%~nF"
                 set "LIBRARY_NAME=!LIBRARY_NAME:._lib=!"
-                echo BRAHMA_ADD_LIBRARY^(!LIBRARY_COUNT!, "!FILE!", !LIBRARY_NAME!^) >> "%OUTPUT%.libs.tmp"
+                set "DIR=%%~dpM"
+                set "DIR=!DIR:\=/!"
+                set "DIR=!DIR:~0,-1!"
+                echo BRAHMA_ADD_LIBRARY^("!DIR!", "!FILE!", !LIBRARY_NAME!^) >> "%OUTPUT%.libs.tmp"
 
                 set /a LIBRARY_COUNT+=1
             )
@@ -110,7 +113,7 @@ for %%D in (%SEARCH_DIRS%) do (
 
             set "PACKAGE_NAME=%%~nF"
             set "PACKAGE_NAME=!PACKAGE_NAME:._pkg=!"
-            echo BRAHMA_ADD_PACKAGE^(!PACKAGE_COUNT!, "!FILE!", !PACKAGE_NAME!^) >> "%OUTPUT%.pkgs.tmp"
+            echo BRAHMA_ADD_PACKAGE^("!FILE!", !PACKAGE_NAME!^) >> "%OUTPUT%.pkgs.tmp"
 
             set /a PACKAGE_COUNT+=1
         )

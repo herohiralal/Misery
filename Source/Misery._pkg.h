@@ -4,9 +4,7 @@
 
 BRAHMA_IMPLEMENT_PACKAGE_DEF(Misery)
 {
-    Brahma_Package_Definition pkg;
-    // pkg._ = NULL;
-    return pkg;
+    // set up
 }
 
 #endif//MISERY_PACKAGE_H

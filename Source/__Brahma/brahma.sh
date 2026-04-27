@@ -75,7 +75,8 @@ for DIR in "${SEARCH_DIRS[@]}"; do
             echo "#include \"${FILE}\"" >> "${OUTPUT}.${OUTPUT_EXT}"
 
             LIBRARY_NAME="$(basename "$FILE" ._lib.h)"
-            echo "BRAHMA_ADD_LIBRARY(${LIBRARY_COUNT}, \"${FILE}\", ${LIBRARY_NAME})" >> "${OUTPUT}.libs.tmp"
+            LIB_DIR_CLEAN="${LIB_DIR%/}"
+            echo "BRAHMA_ADD_LIBRARY(\"${LIB_DIR_CLEAN}\", \"${FILE}\", ${LIBRARY_NAME})" >> "${OUTPUT}.libs.tmp"
 
             (( LIBRARY_COUNT++ )) || true
         done
@@ -86,7 +87,7 @@ for DIR in "${SEARCH_DIRS[@]}"; do
         echo "#include \"${FILE}\"" >> "${OUTPUT}.${OUTPUT_EXT}"
 
         PACKAGE_NAME="$(basename "$FILE" ._pkg.h)"
-        echo "BRAHMA_ADD_PACKAGE(${PACKAGE_COUNT}, \"${FILE}\", ${PACKAGE_NAME})" >> "${OUTPUT}.pkgs.tmp"
+        echo "BRAHMA_ADD_PACKAGE(\"${FILE}\", ${PACKAGE_NAME})" >> "${OUTPUT}.pkgs.tmp"
 
         (( PACKAGE_COUNT++ )) || true
     done
