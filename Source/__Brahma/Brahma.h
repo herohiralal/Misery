@@ -895,6 +895,8 @@ typedef struct Brahma_Process_Impl
 #elif defined(__linux__) || defined(__APPLE__)
     pid_t  pid;
     int    stdoutReadFd;
+#else
+    void* _; // dummy on empty
 #endif
 } Brahma_Process_Impl;
 
@@ -1050,58 +1052,49 @@ int brahma_wait_for_process(Brahma_Process proc, char** outStdOut)
     char*  capturedBuffer   = NULL;
     int    outExitCode      = 0;
 
+    // drain the pipe concurrently with the child running, otherwise
+    // child blocks when pipe buffer fills up and we deadlock waiting on its exit
+    // in case the caller doesn't want the output, still drain the pipe, but
+    // keep ovverwriting to a dummy buffer instead of accumulating, to save memory and time
+    while (true)
+    {
+        // grow the buffer if needed
+        if (outStdOut && capturedCapacity < (capturedSize + 16384))
+        {
+            size_t newCapacity = capturedCapacity ? capturedCapacity * 2 : 16384;
+            char*  newBuffer   = (char*) malloc(newCapacity);
+            memcpy(newBuffer, capturedBuffer, capturedSize);
+            free(capturedBuffer);
+            capturedBuffer   = newBuffer;
+            capturedCapacity = newCapacity;
+        }
+
+        char dummyBuffer[512];
+        char* bufferToUse = outStdOut ? (capturedBuffer + capturedSize) : &(dummyBuffer[0]);
+        size_t bufferCapacity = outStdOut ? (capturedCapacity - capturedSize) : sizeof(dummyBuffer);
+
+        size_t bytesRead = 0;
+
+        #if defined(_WIN32)
+        {
+            DWORD bytesReadTemp = 0;
+            BOOL ok = ReadFile(proc->stdoutReadPipe, bufferToUse, (DWORD) bufferCapacity, &bytesReadTemp, NULL);
+            if (!ok || bytesReadTemp == 0) break; // pipe closed or error
+            bytesRead = (size_t) bytesReadTemp;
+        }
+        #elif defined(__linux__) || defined(__APPLE__)
+        {
+            ssize_t bytesReadTemp = read(proc->stdoutReadFd, bufferToUse, bufferCapacity);
+            if (bytesReadTemp <= 0) break; // pipe closed or error
+            bytesRead = (size_t) bytesReadTemp;
+        }
+        #endif
+
+        if (outStdOut) capturedSize += bytesRead;
+    }
+
     #if defined(_WIN32)
     {
-        if (outStdOut)
-        {
-            // drain the pipe concurrently with the child running, otherwise
-            // child blocks when pipe buffer fills up and we deadlock waiting on its exit
-            while (true)
-            {
-                // grow the buffer if needed
-                if (capturedSize + 16384 > capturedCapacity)
-                {
-                    size_t newCapacity = capturedCapacity ? capturedCapacity * 2 : 16384;
-                    char*  newBuffer   = (char*) malloc(newCapacity);
-                    memcpy(newBuffer, capturedBuffer, capturedSize);
-                    free(capturedBuffer);
-                    capturedBuffer   = newBuffer;
-                    capturedCapacity = newCapacity;
-                }
-
-                DWORD bytesRead = 0;
-                BOOL  ok = ReadFile(
-                    proc->stdoutReadPipe,
-                    capturedBuffer + capturedSize,
-                    (DWORD) (capturedCapacity - capturedSize),
-                    &bytesRead,
-                    NULL
-                );
-
-                if (!ok || bytesRead == 0) break; // pipe closed or error
-                capturedSize += (size_t) bytesRead;
-            }
-        }
-        else
-        {
-            // drain out the pipe, 1kb at a time, but discard the data, since the caller doesn't care
-            // this is to avoid the child process blocking when the pipe buffer fills up
-            char dummyBuffer[1024];
-            while (true)
-            {
-                DWORD bytesRead = 0;
-                BOOL  ok = ReadFile(
-                    proc->stdoutReadPipe,
-                    dummyBuffer,
-                    sizeof(dummyBuffer),
-                    &bytesRead,
-                    NULL
-                );
-
-                if (!ok || bytesRead == 0) break; // pipe closed or error
-            }
-        }
-
         CloseHandle(proc->stdoutReadPipe);
 
         WaitForSingleObject(proc->processHandle, INFINITE);
@@ -1114,35 +1107,6 @@ int brahma_wait_for_process(Brahma_Process proc, char** outStdOut)
     }
     #elif defined(__linux__) || defined(__APPLE__)
     {
-        if (outStdOut)
-        {
-            while (true)
-            {
-                if (capturedSize + 16384 > capturedCapacity)
-                {
-                    size_t newCapacity = capturedCapacity ? capturedCapacity * 2 : 16384;
-                    char*  newBuffer   = (char*) malloc(newCapacity);
-                    memcpy(newBuffer, capturedBuffer, capturedSize);
-                    free(capturedBuffer);
-                    capturedBuffer   = newBuffer;
-                    capturedCapacity = newCapacity;
-                }
-
-                ssize_t bytesRead = read(proc->stdoutReadFd, capturedBuffer + capturedSize, capturedCapacity - capturedSize);
-                if (bytesRead <= 0) break;
-                capturedSize += (size_t) bytesRead;
-            }
-        }
-        else
-        {
-            char dummyBuffer[1024];
-            while (true)
-            {
-                ssize_t bytesRead = read(proc->stdoutReadFd, dummyBuffer, sizeof(dummyBuffer));
-                if (bytesRead <= 0) break;
-            }
-        }
-
         close(proc->stdoutReadFd);
 
         int status = 0;
