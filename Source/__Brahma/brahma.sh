@@ -28,7 +28,7 @@ while [[ $# -gt 0 ]]; do
         OUTPUT="$2"
         shift 2
 
-    elif [[ "$1" == "-modules_search_dir" ]]; then
+    elif [[ "$1" == "-lib_search_dir" ]]; then
         SEARCH_DIRS+=( "$2" )
         shift 2
 
@@ -46,7 +46,7 @@ if [[ -z "$OUTPUT" ]]; then
 fi
 
 if [[ ${#SEARCH_DIRS[@]} -eq 0 ]]; then
-    echo "ERROR: No search directories specified with -modules_search_dir. Use as: *.sh -modules_search_dir <dir> (can be specified multiple times)."
+    echo "ERROR: No search directories specified with -lib_search_dir. Use as: *.sh -lib_search_dir <dir> (can be specified multiple times)."
     exit 1
 fi
 
@@ -72,9 +72,9 @@ echo "#include \"${OUTPUT}.libCnt.tmp\""   >> "${OUTPUT}.${OUTPUT_EXT}"
 echo "#include \"${BRAHMA_ROOT}Brahma.h\"" >> "${OUTPUT}.${OUTPUT_EXT}"
 
 for DIR in "${SEARCH_DIRS[@]}"; do
-    for MODULE_DIR in "${DIR}"/*/; do
-        [[ -d "$MODULE_DIR" ]] || continue
-        for FILE in "${MODULE_DIR}"*._lib.h; do
+    for LIB_DIR in "${DIR}"/*/; do
+        [[ -d "$LIB_DIR" ]] || continue
+        for FILE in "${LIB_DIR}"*._lib.h; do
             [[ -e "$FILE" ]] || continue
             echo "#include \"${FILE}\"" >> "${OUTPUT}.${OUTPUT_EXT}"
 

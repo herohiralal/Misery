@@ -934,7 +934,7 @@ int main(int argc, char* argv[])
     {
         // intermediate stuff - not relevant once this tool has begun executing
         if (!strcmp("-cxx",                argv[i])) { i++; continue; } // make build tool in cxx mode
-        if (!strcmp("-modules_search_dir", argv[i])) { i++; continue; } // module search dirs
+        if (!strcmp("-lib_search_dir", argv[i]))     { i++; continue; } // library search dirs
         if (!strcmp("-build_tool_path",    argv[i])) { i++; continue; } // the path where the build tool was compiled
         if (!strcmp("-debug_build_tool",   argv[i])) {      continue; } // whether the build tool itself is a debug build
 

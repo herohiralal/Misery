@@ -39,7 +39,7 @@ if "%~1"=="-build_tool_path" (
     goto SECTION_ParseArgs
 )
 
-if "%~1"=="-modules_search_dir" (
+if "%~1"=="-lib_search_dir" (
     set SEARCH_DIRS=!SEARCH_DIRS! "%~2"
     shift
     shift
@@ -61,7 +61,7 @@ if "%OUTPUT%"=="" (
 )
 
 if "%SEARCH_DIRS%"=="" (
-    echo ERROR: No search directories specified with -modules_search_dir. Use as: *.bat -modules_search_dir ^<dir^> ^(can be specified multiple times^). Press any key to exit...
+    echo ERROR: No search directories specified with -lib_search_dir. Use as: *.bat -lib_search_dir ^<dir^> ^(can be specified multiple times^). Press any key to exit...
     pause >nul
     exit /b 1
 )
