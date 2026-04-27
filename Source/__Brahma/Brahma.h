@@ -492,7 +492,7 @@ bool brahma_execute(Brahma_Args ex)
         }
         else
         {
-            for (int i = 0; i < BRAHMA_PACKAGE_COUNT; i++)
+            for (int i = 0; i < (int) ex.pkgCount; i++)
             {
                 if (!strcmp(ex.packageToBuild, pkgDefs.data[i].name))
                 {
@@ -860,7 +860,7 @@ void brahma_iterate_directory(const char* path, bool recursive, void* visitorPay
 int brahma_find_package_by_name(const Brahma_Package_Array_List* packages, const char* name)
 {
     int selectedPkgIdx = -1;
-    for (int i = 0; i < BRAHMA_PACKAGE_COUNT; i++)
+    for (int i = 0; i < (int) packages->count; i++)
     {
         if (!strcmp(name, packages->data[i].name))
         {
@@ -875,7 +875,7 @@ int brahma_find_package_by_name(const Brahma_Package_Array_List* packages, const
 int brahma_find_library_by_name(const Brahma_Library_Array_List* libraries, const char* name)
 {
     int selectedLibIdx = -1;
-    for (int i = 0; i < BRAHMA_LIBRARY_COUNT; i++)
+    for (int i = 0; i < (int) libraries->count; i++)
     {
         if (!strcmp(name, libraries->data[i].name))
         {
@@ -1137,24 +1137,8 @@ int brahma_wait_for_process(Brahma_Process proc, char** outStdOut)
 // Execution code (used when CLI is executed).
 #ifdef  BRAHMA_EXEC
 
-#if !defined(BRAHMA_PACKAGE_COUNT)
-#error "Package count not defined. Brahma build tool has not been built correctly."
-#define BRAHMA_PACKAGE_COUNT 1
-#elif !BRAHMA_PACKAGE_COUNT
-#error "No packages defined."
-#undef BRAHMA_PACKAGE_COUNT
-#define BRAHMA_PACKAGE_COUNT 1
-#endif
-
-#if !defined(BRAHMA_LIBRARY_COUNT)
-#error "Library count not defined. Brahma build tool has not been built correctly."
-#define BRAHMA_LIBRARY_COUNT 1
-#elif !BRAHMA_LIBRARY_COUNT
-#error "No libraries defined."
-#undef BRAHMA_LIBRARY_COUNT
-#define BRAHMA_LIBRARY_COUNT 1
-#endif
-
+size_t brahma_get_package_count(void);
+size_t brahma_get_library_count(void);
 void brahma_create_all_packages(Brahma_Package_Array_List* packages);
 void brahma_create_all_libraries(Brahma_Library_Array_List* libraries, const Brahma_Package_Definition* package);
 
@@ -1171,8 +1155,8 @@ int main(int argc, char* argv[])
     Brahma_Args ex;
     ex.flags           = BRAHMA_ARGS_FLAG_NONE;
     ex.packageToBuild  = NULL;
-    ex.pkgCount        = BRAHMA_PACKAGE_COUNT;
-    ex.libCount        = BRAHMA_LIBRARY_COUNT;
+    ex.pkgCount        = brahma_get_package_count();
+    ex.libCount        = brahma_get_library_count();
     ex.log             = brahma_exec_log;
     ex.createPackages  = brahma_create_all_packages;
     ex.createLibraries = brahma_create_all_libraries;

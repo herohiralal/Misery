@@ -96,10 +96,10 @@ for DIR in "${SEARCH_DIRS[@]}"; do
     done
 done
 
-echo "#define BRAHMA_PACKAGE_COUNT ${PACKAGE_COUNT}" >> "${OUTPUT}.pkgCnt.tmp"
-echo "#define BRAHMA_LIBRARY_COUNT ${LIBRARY_COUNT}" >> "${OUTPUT}.libCnt.tmp"
-echo "BRAHMA_END_LISTING_LIBRARIES()"                >> "${OUTPUT}.libs.tmp"
-echo "BRAHMA_END_LISTING_PACKAGES()"                 >> "${OUTPUT}.pkgs.tmp"
+echo "size_t brahma_get_package_count(void) { return ${PACKAGE_COUNT}; }" >> "${OUTPUT}.pkgCnt.tmp"
+echo "size_t brahma_get_library_count(void) { return ${LIBRARY_COUNT}; }" >> "${OUTPUT}.libCnt.tmp"
+echo "BRAHMA_END_LISTING_LIBRARIES()" >> "${OUTPUT}.libs.tmp"
+echo "BRAHMA_END_LISTING_PACKAGES()"  >> "${OUTPUT}.pkgs.tmp"
 
 echo "#include \"${OUTPUT}.libs.tmp\"" >> "${OUTPUT}.${OUTPUT_EXT}"
 echo "#include \"${OUTPUT}.pkgs.tmp\"" >> "${OUTPUT}.${OUTPUT_EXT}"
