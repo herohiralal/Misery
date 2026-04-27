@@ -521,7 +521,7 @@ bool brahma_execute(Brahma_Args ex)
 {
     int64_t startTime = brahma_get_time(), time = 0, lastTime = startTime;
 
-    #define PROFILE_SECTION(sectionName) \
+    #define PROFILE_SECTION_END(sectionName) \
         do \
         { \
             time = brahma_get_time(); \
@@ -534,7 +534,7 @@ bool brahma_execute(Brahma_Args ex)
 
     brahma_initialise_internal_allocator();
 
-    PROFILE_SECTION("initialise");
+    PROFILE_SECTION_END("initialise");
 
     brahma_reserve_package_array_list_capacity(&pkgDefs, ex.pkgCount);
     ex.createPackages(&pkgDefs);
@@ -561,7 +561,7 @@ bool brahma_execute(Brahma_Args ex)
         }
     }
 
-    PROFILE_SECTION("create packages");
+    PROFILE_SECTION_END("create packages");
 
     if (!failed)
     {
@@ -581,7 +581,7 @@ bool brahma_execute(Brahma_Args ex)
         ex.createLibraries(&libDefs, selectedPkg);
     }
 
-    PROFILE_SECTION("create libraries");
+    PROFILE_SECTION_END("create libraries");
 
     // dependencies of libs
     Brahma_Data_Chunk_Array_List interfaceDepChunks = { NULL, 0, 0 };
@@ -636,7 +636,7 @@ bool brahma_execute(Brahma_Args ex)
         }
     }
 
-    PROFILE_SECTION("resolve library dependencies");
+    PROFILE_SECTION_END("resolve library dependencies");
 
     Brahma_Data_Chunk_Array_List interfaceFileChunks = { NULL, 0, 0 };
     Brahma_String_Paged_List interfaceFilePaths; memset(&interfaceFilePaths, 0, sizeof(interfaceFilePaths));
@@ -692,16 +692,16 @@ bool brahma_execute(Brahma_Args ex)
         }
     }
 
-    PROFILE_SECTION("gather files");
+    PROFILE_SECTION_END("gather files");
 
     brahma_shutdown_internal_allocator();
 
-    PROFILE_SECTION("shutdown");
+    PROFILE_SECTION_END("shutdown");
 
     ex.log("Total execution time: %.2f ms.\n", (brahma_get_time() - startTime) / 1000000.0);
     return !failed;
 
-    #undef PROFILE_SECTION
+    #undef PROFILE_SECTION_END
 }
 
 bool brahma_append_all_library_deps(
