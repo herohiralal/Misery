@@ -379,8 +379,8 @@ typedef struct
     Brahma_Library_Definition brahma_implement_library_##libraryName(const Brahma_Package_Definition* package)
 
 // =============================================================================================================================
-// Library code (used when this header is included as a library, or if in exec mode).
-#if defined(BRAHMA_LIBRARY) || defined(BRAHMA_EXEC)
+// Library interface
+#if defined(BRAHMA_LIBRARY) || defined(BRAHMA_LIBRARY_IMPL) || defined(BRAHMA_EXEC)
 
 // all the data pertaining to a package, including its definition
 typedef struct
@@ -439,7 +439,7 @@ typedef struct
 // main entry point function
 bool brahma_execute(Brahma_Args ex);
 
-#endif//defined(BRAHMA_LIBRARY) || defined(BRAHMA_EXEC)
+#endif//defined(BRAHMA_LIBRARY) || defined(BRAHMA_LIBRARY_IMPL) || defined(BRAHMA_EXEC)
 
 // =============================================================================================================================
 // Library implementation
