@@ -149,7 +149,7 @@ if %CXX_MODE% equ 1 (
 )
 
 if %SELF_DEBUG% equ 1 (
-    set CL_FLAGS=!CL_FLAGS! /D_DEBUG /Zi /Od /MTd /PDB:FULL "/Fd%OUTPUT%.pdb"
+    set CL_FLAGS=!CL_FLAGS! /D_DEBUG /Zi /Od /MTd "/Fd%OUTPUT%.pdb"
 ) else (
     set CL_FLAGS=!CL_FLAGS! /DNDEBUG /O2 /MT
 )
@@ -165,6 +165,11 @@ echo Brahma build-file compiled to `%OUTPUT%.exe`.
 
 rem ============================================================================================================================
 rem Build
+
+if %SELF_DEBUG% equ 1 (
+    echo Brahma built in self-debug mode, please run the generated executable '%OUTPUT%.exe' in a debugger.
+    exit /b 0
+)
 
 "%OUTPUT%.exe" %*
 if %ERRORLEVEL% neq 0 (

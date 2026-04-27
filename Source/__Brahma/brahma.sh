@@ -142,6 +142,11 @@ echo "Brahma build-file compiled to \`${OUTPUT}\`."
 # ==============================================================================================================================
 # Run
 
+if [[ $SELF_DEBUG -eq 1 ]]; then
+    echo "Brahma built in self-debug mode, please run the generated executable '${OUTPUT}' in a debugger."
+    exit 0
+fi
+
 if ! "${OUTPUT}" "$@"; then
     echo "Brahma build-process failed."
     exit 1
