@@ -2,7 +2,7 @@
 #define MISERY_PACKAGE_H
 #include "__Brahma/Brahma.h"
 
-BRAHMA_IMPLEMENT_PACKAGE_DEF(Misery)
+BRAHMA_IMPLEMENT_PACKAGE(Misery)
 {
     // set up
 }

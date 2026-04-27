@@ -2,7 +2,7 @@
 #define CORE_LIBRARY_H
 #include "../__Brahma/Brahma.h"
 
-BRAHMA_IMPLEMENT_LIBRARY_DEF(Core)
+BRAHMA_IMPLEMENT_LIBRARY(Core)
 {
     // set up
 }

@@ -297,6 +297,16 @@ BRAHMA_DECLARE_PAGED_LIST(Define, define, Brahma_Define, 7)
 typedef struct
 {
     /**
+     * The name of the package. This should ideally be filled by some kind of codegen, and not manually.
+     */
+    const char* name;
+
+    /**
+     * The path to the file that declared this package. This should ideally be filled by some kind of codegen, and not manually.
+     */
+    const char* owningFile;
+
+    /**
      * Package-level definitions to use for compilation.
      */
     Brahma_Define_Paged_List defines;
@@ -306,7 +316,9 @@ typedef struct
      * to build the package.
      */
     const char* primaryLibrary;
-} Brahma_Package_Definition;
+} Brahma_Package;
+
+BRAHMA_DECLARE_ARRAY_LIST(Package, package, Brahma_Package)
 
 /**
  * Library definition.
@@ -319,6 +331,21 @@ typedef struct
  */
 typedef struct
 {
+    /**
+     * The name of the library. This should ideally be filled by some kind of codegen, and not manually.
+     */
+    const char* name;
+
+    /**
+     * The path to the file that declared this package. This should ideally be filled by some kind of codegen, and not manually.
+     */
+    const char* owningFile;
+
+    /**
+     * The owning directory of this library. All the items inside this directory will be considered as belonging to this library.
+     */
+    const char* owningDir;
+
     /**
      * The libraries that this library depends on for its implementation, as well as its interface (headers).
      */
@@ -340,7 +367,9 @@ typedef struct
      * library, but not the source files in the libraries that depend on this library.
      */
     Brahma_Define_Paged_List internalDefines;
-} Brahma_Library_Definition;
+} Brahma_Library;
+
+BRAHMA_DECLARE_ARRAY_LIST(Library, library, Brahma_Library)
 
 /**
  * Implement a package.
@@ -353,8 +382,8 @@ typedef struct
  }
  ```
  */
-#define BRAHMA_IMPLEMENT_PACKAGE_DEF(packageName) \
-    void brahma_implement_package_##packageName(Brahma_Package_Definition* package)
+#define BRAHMA_IMPLEMENT_PACKAGE(packageName) \
+    void brahma_implement_package_##packageName(Brahma_Package* package)
 
 /**
  * Implement a library.
@@ -367,39 +396,18 @@ typedef struct
  }
  ```
  */
-#define BRAHMA_IMPLEMENT_LIBRARY_DEF(libraryName) \
-    void brahma_implement_library_##libraryName(const Brahma_Package_Definition* package, Brahma_Library_Definition* library)
+#define BRAHMA_IMPLEMENT_LIBRARY(libraryName) \
+    void brahma_implement_library_##libraryName(const Brahma_Package* package, Brahma_Library* library)
 
 // =============================================================================================================================
 // Library interface
 #if defined(BRAHMA_LIBRARY) || defined(BRAHMA_LIBRARY_IMPL) || defined(BRAHMA_EXEC)
 
-// all the data pertaining to a package, including its definition
-typedef struct
-{
-    const char* name;
-    const char* owningFile;
-    Brahma_Package_Definition def;
-} Brahma_Package;
-
-BRAHMA_DECLARE_ARRAY_LIST(Package, package, Brahma_Package)
-
-// all the data pertaining to a library, including its definition
-typedef struct
-{
-    const char* name;
-    const char* owningDir; // directory of the owning file, used as the domain of the library
-    const char* owningFile;
-    Brahma_Library_Definition def;
-} Brahma_Library;
-
-BRAHMA_DECLARE_ARRAY_LIST(Library, library, Brahma_Library)
-
 // delegate signature for creating packages
 typedef void (*Brahma_Package_Creator_Delegate)(Brahma_Package_Array_List* packages);
 
 // delegate signature for creating libraries
-typedef void (*Brahma_Library_Creator_Delegate)(Brahma_Library_Array_List* libraries, const Brahma_Package_Definition* package);
+typedef void (*Brahma_Library_Creator_Delegate)(Brahma_Library_Array_List* libraries, const Brahma_Package* package);
 
 // delegate signature for logging to console
 typedef void (*Brahma_Log_Delegate)(const char* fmt, ...);
@@ -426,7 +434,7 @@ typedef struct
     void (*log)(const char* fmt, ...);
 
     void (*createPackages)(Brahma_Package_Array_List* packages);
-    void (*createLibraries)(Brahma_Library_Array_List* libraries, const Brahma_Package_Definition* package);
+    void (*createLibraries)(Brahma_Library_Array_List* libraries, const Brahma_Package* package);
 } Brahma_Args;
 
 // main entry point function
@@ -531,7 +539,7 @@ bool brahma_execute(Brahma_Args ex)
     if (!failed)
     {
         brahma_reserve_library_array_list_capacity(&libDefs, ex.libCount);
-        ex.createLibraries(&libDefs, &(selectedPkg->def));
+        ex.createLibraries(&libDefs, selectedPkg);
     }
 
     // dependencies of libs
@@ -600,9 +608,9 @@ bool brahma_append_all_library_deps(
     const Brahma_String_Paged_List* directDeps = NULL;
     switch (depType)
     {
-        case BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERFACE: directDeps = &(library->def.interfaceDependencies); break;
-        case BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERNAL:  directDeps = &(library->def.internalDependencies);  break;
-        case BRAHMA_LIBRARY_DEPENDENCY_TYPE__MAX:                                                          break;
+        case BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERFACE: directDeps = &(library->interfaceDependencies); break;
+        case BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERNAL:  directDeps = &(library->internalDependencies);  break;
+        case BRAHMA_LIBRARY_DEPENDENCY_TYPE__MAX:                                                      break;
     }
 
     for (size_t i = 0; i < directDeps->count; i++)
@@ -650,27 +658,6 @@ bool brahma_append_all_library_deps(
     }
 
     return true;
-}
-
-void brahma_add_package(Brahma_Package_Array_List* packages, const char* name, const char* owningFile, const Brahma_Package_Definition* def)
-{
-    Brahma_Package pkg; memset(&pkg, 0, sizeof(pkg));
-
-    pkg.name = name;
-    pkg.owningFile = owningFile;
-    pkg.def = *def;
-    brahma_append_package_to_array_list(packages, pkg);
-}
-
-void brahma_add_library(Brahma_Library_Array_List* libraries, const char* name, const char* owningDir, const char* owningFile, const Brahma_Library_Definition* def)
-{
-    Brahma_Library lib; memset(&lib, 0, sizeof(lib));
-
-    lib.name = name;
-    lib.owningDir = owningDir;
-    lib.owningFile = owningFile;
-    lib.def = *def;
-    brahma_append_library_to_array_list(libraries, lib);
 }
 
 static struct
@@ -1285,7 +1272,7 @@ int brahma_wait_for_process(Brahma_Process proc, char** outStdOut)
 size_t brahma_get_package_count(void);
 size_t brahma_get_library_count(void);
 void brahma_create_all_packages(Brahma_Package_Array_List* packages);
-void brahma_create_all_libraries(Brahma_Library_Array_List* libraries, const Brahma_Package_Definition* package);
+void brahma_create_all_libraries(Brahma_Library_Array_List* libraries, const Brahma_Package* package);
 
 void brahma_exec_log(const char* fmt, ...)
 {
@@ -1351,14 +1338,14 @@ int main(int argc, char* argv[])
 
 #define BRAHMA_BEGIN_LISTING_PACKAGES() \
     void brahma_create_all_packages(Brahma_Package_Array_List* packages) { \
-        Brahma_Package_Definition currentPackage;
+        Brahma_Package currentPackage;
 
 #define BRAHMA_END_LISTING_PACKAGES() \
     }
 
 #define BRAHMA_BEGIN_LISTING_LIBRARIES() \
-    void brahma_create_all_libraries(Brahma_Library_Array_List* libraries, const Brahma_Package_Definition* package) { \
-        Brahma_Library_Definition currentLibrary;
+    void brahma_create_all_libraries(Brahma_Library_Array_List* libraries, const Brahma_Package* package) { \
+        Brahma_Library currentLibrary;
 
 #define BRAHMA_END_LISTING_LIBRARIES() \
     }
@@ -1369,15 +1356,20 @@ int main(int argc, char* argv[])
 #define BRAHMA_LIBRARY_COUNT(x) \
     size_t brahma_get_library_count(void) { return x; }
 
-#define BRAHMA_ADD_PACKAGE(path, packageName) \
+#define BRAHMA_ADD_PACKAGE(owningFile_, packageName) \
     memset(&currentPackage, 0, sizeof(currentPackage)); \
+    currentPackage.name = #packageName; \
+    currentPackage.owningFile = owningFile_; \
     brahma_implement_package_##packageName(&currentPackage); \
-    brahma_add_package(packages, #packageName, path, &currentPackage);
+    brahma_append_package_to_array_list(packages, currentPackage);
 
-#define BRAHMA_ADD_LIBRARY(dir, path, libraryName) \
+#define BRAHMA_ADD_LIBRARY(owningDir_, owningFile_, libraryName) \
     memset(&currentLibrary, 0, sizeof(currentLibrary)); \
+    currentLibrary.name = #libraryName; \
+    currentLibrary.owningFile = owningFile_; \
+    currentLibrary.owningDir = owningDir_; \
     brahma_implement_library_##libraryName(package, &currentLibrary); \
-    brahma_add_library(libraries, #libraryName, dir, path, &currentLibrary);
+    brahma_append_library_to_array_list(libraries, currentLibrary);
 
 #endif//defined(BRAHMA_EXEC)
 
