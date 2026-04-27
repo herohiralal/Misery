@@ -544,7 +544,7 @@ void brahma_add_library(Brahma_Library_Array_List* libraries, int idx, const cha
     brahma_append_library_to_array_list(libraries, lib);
 }
 
-static volatile struct
+static struct
 {
     #if defined(_WIN32)
         CRITICAL_SECTION mutex;
@@ -565,18 +565,18 @@ void brahma_initialise_internal_allocator(void)
 {
     #if defined(_WIN32)
     {
-        InitializeCriticalSection((LPCRITICAL_SECTION) &g_brahmaInternalAllocator.mutex);
+        InitializeCriticalSection(&g_brahmaInternalAllocator.mutex);
 
         // spin for 15 cycles before sleeping, to improve performance when the lock
         // is only held for a short time (which is the case for our allocator)
-        SetCriticalSectionSpinCount((LPCRITICAL_SECTION) &g_brahmaInternalAllocator.mutex, 0x0000000F);
+        SetCriticalSectionSpinCount(&g_brahmaInternalAllocator.mutex, 0x0000000F);
     }
     #elif defined(__linux__) || defined(__APPLE__)
     {
         pthread_mutexattr_t attr;
         pthread_mutexattr_init(&attr);
         pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-        pthread_mutex_init((pthread_mutex_t*) &g_brahmaInternalAllocator.mutex, &attr);
+        pthread_mutex_init(&g_brahmaInternalAllocator.mutex, &attr);
         pthread_mutexattr_destroy(&attr);
     }
     #endif
@@ -588,11 +588,11 @@ void brahma_shutdown_internal_allocator(void)
 {
     #if defined(_WIN32)
     {
-        DeleteCriticalSection((LPCRITICAL_SECTION) &g_brahmaInternalAllocator.mutex);
+        DeleteCriticalSection(&g_brahmaInternalAllocator.mutex);
     }
     #elif defined(__linux__) || defined(__APPLE__)
     {
-        pthread_mutex_destroy((pthread_mutex_t*) &g_brahmaInternalAllocator.mutex);
+        pthread_mutex_destroy(&g_brahmaInternalAllocator.mutex);
     }
     #endif
 
@@ -661,9 +661,9 @@ void* brahma_push_memory(size_t size, size_t alignment)
     size_t alignedSize = (size + alignment - 1) & ~(alignment - 1);
 
     #if defined(_WIN32)
-        EnterCriticalSection((LPCRITICAL_SECTION) &g_brahmaInternalAllocator.mutex);
+        EnterCriticalSection(&g_brahmaInternalAllocator.mutex);
     #elif defined(__linux__) || defined(__APPLE__)
-        pthread_mutex_lock((pthread_mutex_t*) &g_brahmaInternalAllocator.mutex);
+        pthread_mutex_lock(&g_brahmaInternalAllocator.mutex);
     #endif
 
     // align the offset to the required alignment
@@ -731,9 +731,9 @@ void* brahma_push_memory(size_t size, size_t alignment)
     g_brahmaInternalAllocator.offset = alignedOffset + alignedSize;
 
     #if defined(_WIN32)
-        LeaveCriticalSection((LPCRITICAL_SECTION) &g_brahmaInternalAllocator.mutex);
+        LeaveCriticalSection(&g_brahmaInternalAllocator.mutex);
     #elif defined(__linux__) || defined(__APPLE__)
-        pthread_mutex_unlock((pthread_mutex_t*) &g_brahmaInternalAllocator.mutex);
+        pthread_mutex_unlock(&g_brahmaInternalAllocator.mutex);
     #endif
 
     return result;
@@ -1229,6 +1229,12 @@ int main(int argc, char* argv[])
 
 #define BRAHMA_END_LISTING_LIBRARIES() \
     }
+
+#define BRAHMA_PACKAGE_COUNT(x) \
+    size_t brahma_get_package_count(void) { return x; }
+
+#define BRAHMA_LIBRARY_COUNT(x) \
+    size_t brahma_get_library_count(void) { return x; }
 
 #define BRAHMA_ADD_PACKAGE(idx, path, packageName) \
     brahma_add_package(packages, idx, #packageName, path, brahma_implement_package_##packageName());

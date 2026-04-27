@@ -63,12 +63,8 @@ mkdir -p "$(dirname "$OUTPUT")"
 echo "#define BRAHMA_EXEC"                  > "${OUTPUT}.${OUTPUT_EXT}"
 echo "BRAHMA_BEGIN_LISTING_LIBRARIES()"     > "${OUTPUT}.libs.tmp"
 echo "BRAHMA_BEGIN_LISTING_PACKAGES()"      > "${OUTPUT}.pkgs.tmp"
-echo ""                                     > "${OUTPUT}.pkgCnt.tmp"
-echo ""                                     > "${OUTPUT}.libCnt.tmp"
 
 echo "#define BRAHMA_LIBRARY_IMPL"         >> "${OUTPUT}.${OUTPUT_EXT}"
-echo "#include \"${OUTPUT}.pkgCnt.tmp\""   >> "${OUTPUT}.${OUTPUT_EXT}"
-echo "#include \"${OUTPUT}.libCnt.tmp\""   >> "${OUTPUT}.${OUTPUT_EXT}"
 echo "#include \"${BRAHMA_ROOT}Brahma.h\"" >> "${OUTPUT}.${OUTPUT_EXT}"
 
 for DIR in "${SEARCH_DIRS[@]}"; do
@@ -96,10 +92,10 @@ for DIR in "${SEARCH_DIRS[@]}"; do
     done
 done
 
-echo "size_t brahma_get_package_count(void) { return ${PACKAGE_COUNT}; }" >> "${OUTPUT}.pkgCnt.tmp"
-echo "size_t brahma_get_library_count(void) { return ${LIBRARY_COUNT}; }" >> "${OUTPUT}.libCnt.tmp"
 echo "BRAHMA_END_LISTING_LIBRARIES()" >> "${OUTPUT}.libs.tmp"
 echo "BRAHMA_END_LISTING_PACKAGES()"  >> "${OUTPUT}.pkgs.tmp"
+echo "BRAHMA_PACKAGE_COUNT(${PACKAGE_COUNT})" >> "${OUTPUT}.pkgs.tmp"
+echo "BRAHMA_LIBRARY_COUNT(${LIBRARY_COUNT})" >> "${OUTPUT}.libs.tmp"
 
 echo "#include \"${OUTPUT}.libs.tmp\"" >> "${OUTPUT}.${OUTPUT_EXT}"
 echo "#include \"${OUTPUT}.pkgs.tmp\"" >> "${OUTPUT}.${OUTPUT_EXT}"
@@ -110,7 +106,7 @@ echo "Brahma build-file written to \`${OUTPUT}.${OUTPUT_EXT}\`."
 # Build
 
 if [[ $CXX_MODE -eq 1 ]]; then
-    STD_FLAG="-std=c++14"
+    STD_FLAG="-std=c++20"
 else
     STD_FLAG="-std=c17"
 fi

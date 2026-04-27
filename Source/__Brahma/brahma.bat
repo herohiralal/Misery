@@ -81,12 +81,8 @@ rem Clear output file(s)
 > "%OUTPUT%.%OUTPUT_EXT%" echo #define BRAHMA_EXEC
 > "%OUTPUT%.libs.tmp" echo BRAHMA_BEGIN_LISTING_LIBRARIES^(^)
 > "%OUTPUT%.pkgs.tmp" echo BRAHMA_BEGIN_LISTING_PACKAGES^(^)
-> "%OUTPUT%.pkgCnt.tmp" echo.
-> "%OUTPUT%.libCnt.tmp" echo.
 
 echo #define BRAHMA_LIBRARY_IMPL >> "%OUTPUT%.%OUTPUT_EXT%"
-echo #include "%OUTPUT:\=/%.pkgCnt.tmp" >> "%OUTPUT%.%OUTPUT_EXT%"
-echo #include "%OUTPUT:\=/%.libCnt.tmp" >> "%OUTPUT%.%OUTPUT_EXT%"
 echo #include "%BRAHMA_ROOT%Brahma.h" >> "%OUTPUT%.%OUTPUT_EXT%"
 
 for %%D in (%SEARCH_DIRS%) do (
@@ -121,10 +117,10 @@ for %%D in (%SEARCH_DIRS%) do (
     )
 )
 
-echo size_t brahma_get_package_count^(void^) { return !PACKAGE_COUNT!; } >> "%OUTPUT%.pkgCnt.tmp"
-echo size_t brahma_get_library_count^(void^) { return !LIBRARY_COUNT!; } >> "%OUTPUT%.libCnt.tmp"
 echo BRAHMA_END_LISTING_LIBRARIES^(^) >> "%OUTPUT%.libs.tmp"
 echo BRAHMA_END_LISTING_PACKAGES^(^) >> "%OUTPUT%.pkgs.tmp"
+echo BRAHMA_PACKAGE_COUNT^(!PACKAGE_COUNT!^) >> "%OUTPUT%.pkgs.tmp"
+echo BRAHMA_LIBRARY_COUNT^(!LIBRARY_COUNT!^) >> "%OUTPUT%.libs.tmp"
 
 echo #include "%OUTPUT:\=/%.libs.tmp" >> "%OUTPUT%.%OUTPUT_EXT%"
 echo #include "%OUTPUT:\=/%.pkgs.tmp" >> "%OUTPUT%.%OUTPUT_EXT%"
@@ -144,9 +140,9 @@ if errorlevel 1 (
 )
 
 if %CXX_MODE% equ 1 (
-    set CL_FLAGS=/std:c++14
+    set CL_FLAGS=/std:c++20
 ) else (
-    set CL_FLAGS=/std:c17 /experimental:c11atomics
+    set CL_FLAGS=/std:c17
 )
 
 if %SELF_DEBUG% equ 1 (
