@@ -400,24 +400,6 @@ typedef struct
 
 BRAHMA_DECLARE_ARRAY_LIST(Library, library, Brahma_Library)
 
-// flags for input args; see also: Brahma_Input_Args_Flags_Bits
-typedef uint64_t Brahma_Input_Args_Flags;
-
-// input arguments for the build tool, can be provided via exec mode or manually
-typedef struct
-{
-    Brahma_Input_Args_Flags flags;
-    char*                   packageToBuild;
-} Brahma_Input_Args;
-
-// flags for input args
-typedef enum
-{
-    BRAHMA_INPUT_ARG_FLAGS_NONE      =      0,
-    BRAHMA_INPUT_ARG_FLAGS_DEBUG     = 1 << 0,
-    BRAHMA_INPUT_ARG_FLAGS_OPTIMISED = 1 << 1,
-} Brahma_Input_Args_Flags_Bits;
-
 // delegate signature for creating packages
 typedef void (*Brahma_Package_Creator_Delegate)(Brahma_Package_Array_List* packages);
 
@@ -427,19 +409,33 @@ typedef void (*Brahma_Library_Creator_Delegate)(Brahma_Library_Array_List* libra
 // delegate signature for logging to console
 typedef void (*Brahma_Log_Delegate)(const char* fmt, ...);
 
+// flags for input args
+typedef enum
+{
+    BRAHMA_ARGS_FLAG_NONE      =      0,
+    BRAHMA_ARGS_FLAG_DEBUG     = 1 << 0,
+    BRAHMA_ARGS_FLAG_OPTIMISED = 1 << 1,
+} Brahma_Args_Flags_Bits;
+
+// flags for input args; see also: Brahma_Args_Flags_Bits
+typedef uint64_t Brahma_Args_Flags;
+
 // arguments required for executing brahma
 typedef struct
 {
+    Brahma_Args_Flags flags;
+    char*             packageToBuild;
+
     size_t pkgCount, libCount;
 
     void (*log)(const char* fmt, ...);
 
     void (*createPackages)(Brahma_Package_Array_List* packages);
     void (*createLibraries)(Brahma_Library_Array_List* libraries, const Brahma_Package_Definition* package);
-} Brahma_Execution_Args;
+} Brahma_Args;
 
 // main entry point function
-bool brahma_execute(Brahma_Input_Args inputArgs, Brahma_Execution_Args ex);
+bool brahma_execute(Brahma_Args ex);
 
 #endif//defined(BRAHMA_LIBRARY) || defined(BRAHMA_EXEC)
 
@@ -465,7 +461,7 @@ int brahma_find_package_by_name(const Brahma_Package_Array_List* packages, const
 // find a library index by its name; -1 if not found
 int brahma_find_library_by_name(const Brahma_Library_Array_List* libraries, const char* name);
 
-bool brahma_execute(Brahma_Input_Args inputArgs, Brahma_Execution_Args ex)
+bool brahma_execute(Brahma_Args ex)
 {
     Brahma_Package_Array_List pkgDefs = { NULL, 0, 0 };
     int selectedPkgIdx = -1;
@@ -478,7 +474,7 @@ bool brahma_execute(Brahma_Input_Args inputArgs, Brahma_Execution_Args ex)
 
     // find the package to build
     {
-        if (!inputArgs.packageToBuild)
+        if (!ex.packageToBuild)
         {
             ex.log("No package specified. Defaulting to the first package!\n");
             selectedPkgIdx = 0;
@@ -487,7 +483,7 @@ bool brahma_execute(Brahma_Input_Args inputArgs, Brahma_Execution_Args ex)
         {
             for (int i = 0; i < BRAHMA_PACKAGE_COUNT; i++)
             {
-                if (!strcmp(inputArgs.packageToBuild, pkgDefs.data[i].name))
+                if (!strcmp(ex.packageToBuild, pkgDefs.data[i].name))
                 {
                     selectedPkgIdx = i;
                     break;
@@ -496,7 +492,7 @@ bool brahma_execute(Brahma_Input_Args inputArgs, Brahma_Execution_Args ex)
 
             if (selectedPkgIdx == -1)
             {
-                ex.log("ERROR: No package found with the name '%s'.\n", inputArgs.packageToBuild);
+                ex.log("ERROR: No package found with the name '%s'.\n", ex.packageToBuild);
                 failed = true;
             }
         }
@@ -507,8 +503,8 @@ bool brahma_execute(Brahma_Input_Args inputArgs, Brahma_Execution_Args ex)
         ex.log("-----------------------------------------\n");
         ex.log("Brahma Configuration:\n");
         ex.log("\tSelected package: %s.\n", pkgDefs.data[selectedPkgIdx].name);
-        ex.log("\tDebug info:       %s.\n", (inputArgs.flags & BRAHMA_INPUT_ARG_FLAGS_DEBUG)     ? "on" : "off");
-        ex.log("\tOptimised:        %s.\n", (inputArgs.flags & BRAHMA_INPUT_ARG_FLAGS_OPTIMISED) ? "on" : "off");
+        ex.log("\tDebug info:       %s.\n", (ex.flags & BRAHMA_ARGS_FLAG_DEBUG)     ? "on" : "off");
+        ex.log("\tOptimised:        %s.\n", (ex.flags & BRAHMA_ARGS_FLAG_OPTIMISED) ? "on" : "off");
         ex.log("-----------------------------------------\n");
     }
 
@@ -917,18 +913,16 @@ void brahma_exec_log(const char* fmt, ...)
 
 int main(int argc, char* argv[])
 {
-    Brahma_Input_Args inputArgs;
-    inputArgs.flags          = BRAHMA_INPUT_ARG_FLAGS_NONE;
-    inputArgs.packageToBuild = NULL;
-
-    Brahma_Execution_Args ex;
+    Brahma_Args ex;
+    ex.flags           = BRAHMA_ARGS_FLAG_NONE;
+    ex.packageToBuild  = NULL;
     ex.pkgCount        = BRAHMA_PACKAGE_COUNT;
     ex.libCount        = BRAHMA_LIBRARY_COUNT;
     ex.log             = brahma_exec_log;
     ex.createPackages  = brahma_create_all_packages;
     ex.createLibraries = brahma_create_all_libraries;
 
-    inputArgs.flags |= BRAHMA_INPUT_ARG_FLAGS_DEBUG; // default to debug mode
+    ex.flags |= BRAHMA_ARGS_FLAG_DEBUG; // default to debug mode
 
     for (int i = 1; i < argc; i++) // skipping first arg because it's gonna be the executable name
     {
@@ -939,12 +933,12 @@ int main(int argc, char* argv[])
         if (!strcmp("-debug_build_tool",   argv[i])) {      continue; } // whether the build tool itself is a debug build
 
         // flags
-        if (!strcmp("-nodebuginfo", argv[i])) { inputArgs.flags &= ~(Brahma_Input_Args_Flags) BRAHMA_INPUT_ARG_FLAGS_DEBUG;     continue; }
-        if (!strcmp("-optimised",   argv[i])) { inputArgs.flags |=  (Brahma_Input_Args_Flags) BRAHMA_INPUT_ARG_FLAGS_OPTIMISED; continue; }
+        if (!strcmp("-nodebuginfo", argv[i])) { ex.flags &= ~(Brahma_Args_Flags) BRAHMA_ARGS_FLAG_DEBUG;     continue; }
+        if (!strcmp("-optimised",   argv[i])) { ex.flags |=  (Brahma_Args_Flags) BRAHMA_ARGS_FLAG_OPTIMISED; continue; }
 
         if (!strcmp("-package", argv[i]))
         {
-            if (inputArgs.packageToBuild)
+            if (ex.packageToBuild)
             {
                 ex.log("ERROR: Multiple packages specified with -package. Use as: *.exe -package packageName.\n");
                 return 1;
@@ -956,7 +950,7 @@ int main(int argc, char* argv[])
                 return 1;
             }
 
-            inputArgs.packageToBuild = argv[i];
+            ex.packageToBuild = argv[i];
             continue;
         }
 
@@ -965,7 +959,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    bool success = brahma_execute(inputArgs, ex);
+    bool success = brahma_execute(ex);
     return success ? 0 : 1;
 }
 
