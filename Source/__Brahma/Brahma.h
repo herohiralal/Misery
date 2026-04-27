@@ -109,6 +109,7 @@ BRAHMA_SUPPRESS_WARN
     #include <stdlib.h>
     #include <dirent.h>
     #include <sys/stat.h>
+    #include <unistd.h>
 #endif
 BRAHMA_UNSUPPRESS_WARN
 
@@ -258,6 +259,7 @@ void* brahma_push_memory(size_t size, size_t alignment);
         list->count++; \
     }
 
+BRAHMA_DECLARE_ARRAY_LIST(String, string, char*)
 BRAHMA_DECLARE_PAGED_LIST(String, string, char*, 15)
 
 /**
@@ -460,6 +462,15 @@ int brahma_find_package_by_name(const Brahma_Package_Array_List* packages, const
 
 // find a library index by its name; -1 if not found
 int brahma_find_library_by_name(const Brahma_Library_Array_List* libraries, const char* name);
+
+// represents a running process
+typedef struct Brahma_Process_Impl* Brahma_Process;
+
+// start a process and return its handle
+Brahma_Process brahma_start_process(Brahma_String_Array_List args, const char* workingDir);
+
+// wait for a process to finish and return its exit code; optionally, also output the process's stdout (with a null-terminator at the end)
+int brahma_wait_for_process(Brahma_Process process, char** outStdOut);
 
 bool brahma_execute(Brahma_Args ex)
 {
@@ -874,6 +885,286 @@ int brahma_find_library_by_name(const Brahma_Library_Array_List* libraries, cons
     }
 
     return selectedLibIdx;
+}
+
+typedef struct Brahma_Process_Impl
+{
+#if defined(_WIN32)
+    HANDLE processHandle;
+    HANDLE stdoutReadPipe;
+#elif defined(__linux__) || defined(__APPLE__)
+    pid_t  pid;
+    int    stdoutReadFd;
+#endif
+} Brahma_Process_Impl;
+
+Brahma_Process brahma_start_process(Brahma_String_Array_List args, const char* workingDir)
+{
+    Brahma_Process proc = BRAHMA_PUSH_STRUCT(Brahma_Process_Impl);
+
+    #if defined(_WIN32)
+    {
+        // build a single string the way CreateProcessA expects it
+        char* cmdLine = (char*) malloc(32768); // create process limit
+        {
+            char* cursor  = cmdLine;
+            char* cmdEnd  = cmdLine + 32768 - 1;
+
+            for (int i = 0; i < (int) args.count; i++)
+            {
+                char* arg = args.data[i];
+
+                if (i != 0 && cursor < cmdEnd) *cursor++ = ' ';
+
+                // wrap every argument in double-quotes and escape embedded quotes
+                if (cursor < cmdEnd) *cursor++ = '"';
+                for (char* c = arg; *c && cursor < cmdEnd; c++)
+                {
+                    if (*c == '"' && cursor < cmdEnd) *cursor++ = '\\';
+                    if (cursor < cmdEnd) *cursor++ = *c;
+                }
+                if (cursor < cmdEnd) *cursor++ = '"';
+            }
+            *cursor = '\0';
+        }
+
+        SECURITY_ATTRIBUTES sa;
+        sa.nLength              = sizeof(sa);
+        sa.lpSecurityDescriptor = NULL;
+        sa.bInheritHandle       = TRUE; // pipe handles must be inheritable
+
+        HANDLE pipeRead  = NULL;
+        HANDLE pipeWrite = NULL;
+        if (!CreatePipe(&pipeRead, &pipeWrite, &sa, 0))
+        {
+            #if defined(_MSC_VER)
+            {
+                __debugbreak();
+            }
+            #else
+            {
+                __builtin_trap();
+            }
+            #endif
+        }
+
+        // don't inherit parent's read end to child
+        SetHandleInformation(pipeRead, HANDLE_FLAG_INHERIT, 0);
+
+        STARTUPINFOA si;
+        memset(&si, 0, sizeof(si));
+        si.cb          = sizeof(si);
+        si.hStdOutput  = pipeWrite;
+        si.hStdError   = pipeWrite; // mmerge stderr into same pipe
+        si.hStdInput   = GetStdHandle(STD_INPUT_HANDLE);
+        si.dwFlags    |= STARTF_USESTDHANDLES;
+
+        PROCESS_INFORMATION pi;
+        memset(&pi, 0, sizeof(pi));
+
+        BOOL ok = CreateProcessA(
+            NULL, // app name
+            cmdLine,
+            NULL, // process security attrs
+            NULL, // thread security attrs
+            TRUE, // inherit handles
+            0,    // creation flags
+            NULL, // inherit parent environment
+            workingDir,
+            &si,
+            &pi
+        );
+
+        CloseHandle(pipeWrite);
+        free(cmdLine);
+
+        if (!ok)
+        {
+            #if defined(_MSC_VER)
+            {
+                __debugbreak();
+            }
+            #else
+            {
+                __builtin_trap();
+            }
+            #endif
+        }
+
+        CloseHandle(pi.hThread); // we won't be waiting on the thread, only the process
+        proc->processHandle  = pi.hProcess;
+        proc->stdoutReadPipe = pipeRead;
+    }
+    #elif defined(__linux__) || defined(__APPLE__)
+    {
+        int pipefd[2];
+        if (pipe(pipefd) == -1) { __builtin_trap(); }
+
+        pid_t pid = fork();
+
+        if (pid == -1) { __builtin_trap(); }
+        else if (pid == 0)
+        {
+            // child process
+            close(pipefd[0]); // close read end
+
+            dup2(pipefd[1], STDOUT_FILENO); // redirect stdout to pipe
+            dup2(pipefd[1], STDERR_FILENO); // redirect stderr to pipe
+            close(pipefd[1]); // close original write end
+
+            char** argv = (char**) malloc((args.count + 1) * sizeof(char*));
+            for (int i = 0; i < args.count; i++)
+            {
+                argv[i] = args.data[i];
+            }
+            argv[args.count] = NULL;
+
+            if (workingDir) chdir(workingDir);
+            execvp(argv[0], argv);
+
+            // if execvp returns, it means it failed
+            _exit(127);
+        }
+        else
+        {
+            // parent process
+            close(pipefd[1]); // close write end
+
+            proc->pid = pid;
+            proc->stdoutReadFd = pipefd[0];
+        }
+    }
+    #endif
+
+    return proc;
+}
+
+int brahma_wait_for_process(Brahma_Process proc, char** outStdOut)
+{
+    // accumulate chunks into a resizable buffer, backed by plain malloc
+    // then copy finishhed data into the arena at the end
+    // avoid polluting arena with intermediate scratch space
+
+    size_t capturedSize     = 0;
+    size_t capturedCapacity = 0;
+    char*  capturedBuffer   = NULL;
+    int    outExitCode      = 0;
+
+    #if defined(_WIN32)
+    {
+        if (outStdOut)
+        {
+            // drain the pipe concurrently with the child running, otherwise
+            // child blocks when pipe buffer fills up and we deadlock waiting on its exit
+            while (true)
+            {
+                // grow the buffer if needed
+                if (capturedSize + 16384 > capturedCapacity)
+                {
+                    size_t newCapacity = capturedCapacity ? capturedCapacity * 2 : 16384;
+                    char*  newBuffer   = (char*) malloc(newCapacity);
+                    memcpy(newBuffer, capturedBuffer, capturedSize);
+                    free(capturedBuffer);
+                    capturedBuffer   = newBuffer;
+                    capturedCapacity = newCapacity;
+                }
+
+                DWORD bytesRead = 0;
+                BOOL  ok = ReadFile(
+                    proc->stdoutReadPipe,
+                    capturedBuffer + capturedSize,
+                    (DWORD) (capturedCapacity - capturedSize),
+                    &bytesRead,
+                    NULL
+                );
+
+                if (!ok || bytesRead == 0) break; // pipe closed or error
+                capturedSize += (size_t) bytesRead;
+            }
+        }
+        else
+        {
+            // drain out the pipe, 1kb at a time, but discard the data, since the caller doesn't care
+            // this is to avoid the child process blocking when the pipe buffer fills up
+            char dummyBuffer[1024];
+            while (true)
+            {
+                DWORD bytesRead = 0;
+                BOOL  ok = ReadFile(
+                    proc->stdoutReadPipe,
+                    dummyBuffer,
+                    sizeof(dummyBuffer),
+                    &bytesRead,
+                    NULL
+                );
+
+                if (!ok || bytesRead == 0) break; // pipe closed or error
+            }
+        }
+
+        CloseHandle(proc->stdoutReadPipe);
+
+        WaitForSingleObject(proc->processHandle, INFINITE);
+
+        DWORD exitCode = 0;
+        GetExitCodeProcess(proc->processHandle, &exitCode);
+        outExitCode = (int) exitCode;
+
+        CloseHandle(proc->processHandle);
+    }
+    #elif defined(__linux__) || defined(__APPLE__)
+    {
+        if (outStdOut)
+        {
+            while (true)
+            {
+                if (capturedSize + 16384 > capturedCapacity)
+                {
+                    size_t newCapacity = capturedCapacity ? capturedCapacity * 2 : 16384;
+                    char*  newBuffer   = (char*) malloc(newCapacity);
+                    memcpy(newBuffer, capturedBuffer, capturedSize);
+                    free(capturedBuffer);
+                    capturedBuffer   = newBuffer;
+                    capturedCapacity = newCapacity;
+                }
+
+                ssize_t bytesRead = read(proc->stdoutReadFd, capturedBuffer + capturedSize, capturedCapacity - capturedSize);
+                if (bytesRead <= 0) break;
+                capturedSize += (size_t) bytesRead;
+            }
+        }
+        else
+        {
+            char dummyBuffer[1024];
+            while (true)
+            {
+                ssize_t bytesRead = read(proc->stdoutReadFd, dummyBuffer, sizeof(dummyBuffer));
+                if (bytesRead <= 0) break;
+            }
+        }
+
+        close(proc->stdoutReadFd);
+
+        int status = 0;
+        waitpid(proc->pid, &status, 0);
+
+        if      (WIFEXITED(status))   outExitCode = WEXITSTATUS(status);
+        else if (WIFSIGNALED(status)) outExitCode = -(int) WTERMSIG(status);
+        else                          outExitCode = -1;
+    }
+    #endif
+
+    // copy data to internal allocator and null-terminate it
+    if (outStdOut)
+    {
+        *outStdOut = (char*) brahma_push_memory(capturedSize + 1, 1);
+        if (capturedSize) memcpy(*outStdOut, capturedBuffer, capturedSize);
+        (*outStdOut)[capturedSize] = '\0';
+    }
+
+    free(capturedBuffer);
+
+    return outExitCode;
 }
 
 #endif//BRAHMA_LIBRARY_IMPL
