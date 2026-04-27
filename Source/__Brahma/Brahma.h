@@ -253,7 +253,11 @@ void* brahma_push_memory(size_t size, size_t alignment);
     static inline void brahma_append_##convNameFn##_to_paged_list(Brahma_##convNameSt##_Paged_List* list, type item) \
     { \
         brahma_reserve_##convNameFn##_paged_list_capacity(list, list->count + 1); \
-        *(brahma_index_##convNameFn##_paged_list(list, list->count)) = item; \
+        size_t pageIndex = list->count / itemsPerPage; \
+        size_t itemIndex = list->count % itemsPerPage; \
+        Brahma_##convNameSt##_Paged_List_Page* page = list->firstPage; \
+        for (size_t i = 0; i < pageIndex; i++) { page = page->nextPage; } \
+        page->items[itemIndex] = item; \
         list->count++; \
     }
 
@@ -457,14 +461,27 @@ void brahma_initialise_internal_allocator(void);
 // shutdown the internal allocator
 void brahma_shutdown_internal_allocator(void);
 
+// check if a directory exists
+bool brahma_dir_exists(const char* path);
+
 // ensure that a directory exists, and create it if it doesn't
-void brahma_ensure_dir(char* path);
+void brahma_ensure_dir(const char* path);
 
 // visitor function to use for iterating a directory
 typedef bool (*Brahma_Directory_Visitor_Delegate)(void* payload, const char* path, bool isDirectory, bool* exploreCurrentDirectory);
 
 // iterate a directory, calling the visitor function for each child file and subdirectory
 void brahma_iterate_directory(const char* path, bool recursive, void* visitorPayload, Brahma_Directory_Visitor_Delegate visitor);
+
+// payload to use for brahma_gather_files_by_extension_visitor
+typedef struct
+{
+    const char*               extension; // extension to match, including the dot
+    Brahma_String_Paged_List* outFilePaths; // output list to append the matched file paths to
+} Brahma_Gather_Files_By_Extension_Payload;
+
+// visitor func to use for gathering files with a specific extension; payload must be of type Brahma_Gather_Files_By_Extension_Payload
+bool brahma_gather_files_by_extension_visitor(void* payload, const char* path, bool isDirectory, bool* exploreCurrentDirectory);
 
 // find a package index by its name; -1 if not found
 int brahma_find_package_by_name(const Brahma_Package_Array_List* packages, const char* name);
@@ -485,13 +502,13 @@ int brahma_wait_for_process(Brahma_Process process, char** outStdOut);
 BRAHMA_DECLARE_PAGED_LIST(Library_Dependency_Idx, library_dependency_idx, uint16_t, ((64 - sizeof(void*)) / sizeof(uint16_t)))
 
 // a chunk of library dependencies, which represents a contiguous range of dependencies in the list of all dependencies of a library
-typedef struct { uint16_t start, count; } Brahma_Library_Dependencies_Chunk;
-BRAHMA_DECLARE_ARRAY_LIST(Library_Dependencies_Chunk, library_dependencies_chunk, Brahma_Library_Dependencies_Chunk)
+typedef struct { uint16_t start, count; } Brahma_Data_Chunk;
+BRAHMA_DECLARE_ARRAY_LIST(Data_Chunk, data_chunk, Brahma_Data_Chunk)
 
 // the type of library dependency; either an interface dependency, or an internal dependency
-typedef enum {BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERFACE, BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERNAL, BRAHMA_LIBRARY_DEPENDENCY_TYPE__MAX} Brahma_Library_Dependency_Type;
+typedef enum {BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERFACE, BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERNAL} Brahma_Library_Dependency_Type;
 
-// append all recursive library dependencies to all the indices (view into this via dep chunks)
+// append all recursive library dependencies to all the indices (view into this via data chunks)
 bool brahma_append_all_library_deps(
     Brahma_Library_Dependency_Type depType,
     const Brahma_Library_Array_List* allLibs,
@@ -567,46 +584,52 @@ bool brahma_execute(Brahma_Args ex)
     PROFILE_SECTION("create libraries");
 
     // dependencies of libs
-    Brahma_Library_Dependencies_Chunk_Array_List interfaceDepChunks = { NULL, 0, 0 };
+    Brahma_Data_Chunk_Array_List interfaceDepChunks = { NULL, 0, 0 };
     Brahma_Library_Dependency_Idx_Paged_List interfaceDepIdxs; memset(&interfaceDepIdxs, 0, sizeof(interfaceDepIdxs));
-    Brahma_Library_Dependencies_Chunk_Array_List internalDepChunks = { NULL, 0, 0 };
+    Brahma_Data_Chunk_Array_List internalDepChunks = { NULL, 0, 0 };
     Brahma_Library_Dependency_Idx_Paged_List internalDepIdxs; memset(&internalDepIdxs, 0, sizeof(internalDepIdxs));
     if (!failed)
     {
-        brahma_reserve_library_dependencies_chunk_array_list_capacity(&interfaceDepChunks, libDefs.count);
-        brahma_reserve_library_dependencies_chunk_array_list_capacity( &internalDepChunks, libDefs.count);
+        brahma_reserve_data_chunk_array_list_capacity(&interfaceDepChunks, libDefs.count);
+        brahma_reserve_data_chunk_array_list_capacity( &internalDepChunks, libDefs.count);
 
+        // performance: technically both (interface and internal) these can be done on separate threads
+        // they're technically writing to different arrays
         for (size_t i = 0; i < libDefs.count; i++)
         {
             Brahma_Library* lib = &(libDefs.data[i]);
 
+            struct
+            {
+                Brahma_Library_Dependency_Type depTy;
+                Brahma_Library_Dependency_Idx_Paged_List* depIdxs;
+                Brahma_Data_Chunk_Array_List* depChunks;
+            } toProcess[2];
+
+            toProcess[0].depTy = BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERFACE;
+            toProcess[0].depIdxs = &interfaceDepIdxs;
+            toProcess[0].depChunks = &interfaceDepChunks;
+
+            toProcess[1].depTy = BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERNAL;
+            toProcess[1].depIdxs = &internalDepIdxs;
+            toProcess[1].depChunks = &internalDepChunks;
+
             // performance: technically both (interface and internal) these can be done on separate threads
             // they're technically writing to different arrays
-            for (Brahma_Library_Dependency_Type depTy = 0; depTy < BRAHMA_LIBRARY_DEPENDENCY_TYPE__MAX; depTy++)
+            for (size_t j = 0; j < 2; j++)
             {
-                Brahma_Library_Dependency_Idx_Paged_List* depIdxs = NULL;
-                Brahma_Library_Dependencies_Chunk_Array_List* depChunks = NULL;
-                switch (depTy)
-                {
-                    case BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERFACE: depIdxs = &interfaceDepIdxs; depChunks = &interfaceDepChunks; break;
-                    case BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERNAL:  depIdxs = &internalDepIdxs;  depChunks = &internalDepChunks;  break;
-                    case BRAHMA_LIBRARY_DEPENDENCY_TYPE__MAX:                                                                    break;
-                }
-
-                if (!depIdxs || !depChunks) continue;
-
-                Brahma_Library_Dependencies_Chunk chunk;
-                chunk.start = (uint16_t) depIdxs->count;
+                Brahma_Data_Chunk chunk;
+                chunk.start = (uint16_t) toProcess[j].depIdxs->count;
                 char* error = NULL;
-                if (!brahma_append_all_library_deps(depTy, &libDefs, lib, depIdxs, chunk.start, &error))
+                if (!brahma_append_all_library_deps(toProcess[j].depTy, &libDefs, lib, toProcess[j].depIdxs, chunk.start, &error))
                 {
                     ex.log("ERROR: Failed to resolve dependencies for library '%s'.\n\tDetails: %s.\n", lib->name, error ? error : "<unknown>");
                     failed = true;
                     break;
                 }
 
-                chunk.count = (uint16_t) (depIdxs->count - chunk.start);
-                brahma_append_library_dependencies_chunk_to_array_list(depChunks, chunk);
+                chunk.count = (uint16_t) (toProcess[j].depIdxs->count - chunk.start);
+                brahma_append_data_chunk_to_array_list(toProcess[j].depChunks, chunk);
             }
 
             if (failed) break;
@@ -615,9 +638,61 @@ bool brahma_execute(Brahma_Args ex)
 
     PROFILE_SECTION("resolve library dependencies");
 
+    Brahma_Data_Chunk_Array_List interfaceFileChunks = { NULL, 0, 0 };
+    Brahma_String_Paged_List interfaceFilePaths; memset(&interfaceFilePaths, 0, sizeof(interfaceFilePaths));
+    Brahma_Data_Chunk_Array_List internalCFileChunks = { NULL, 0, 0 };
+    Brahma_String_Paged_List internalCFilePaths; memset(&internalCFilePaths, 0, sizeof(internalCFilePaths));
+    Brahma_Data_Chunk_Array_List internalCxxFileChunks = { NULL, 0, 0 };
+    Brahma_String_Paged_List internalCxxFilePaths; memset(&internalCxxFilePaths, 0, sizeof(internalCxxFilePaths));
     if (!failed)
     {
+        brahma_reserve_data_chunk_array_list_capacity(&interfaceFileChunks, libDefs.count);
+
+        for (size_t i = 0; i < libDefs.count; i++)
+        {
+            Brahma_Library* lib = &(libDefs.data[i]);
+
+            struct
+            {
+                char* searchPath;
+                char* extension;
+                Brahma_Data_Chunk_Array_List* fileChunks;
+                Brahma_String_Paged_List* filePaths;
+            } toProcess[3];
+
+            toProcess[0].searchPath = brahma_sprintf("%s/Interface", lib->owningDir);
+            toProcess[0].extension = ".h";
+            toProcess[0].fileChunks = &interfaceFileChunks;
+            toProcess[0].filePaths = &interfaceFilePaths;
+
+            toProcess[1].searchPath = brahma_sprintf("%s/Implementation", lib->owningDir);
+            toProcess[1].extension = ".c";
+            toProcess[1].fileChunks = &internalCFileChunks;
+            toProcess[1].filePaths = &internalCFilePaths;
+
+            toProcess[2].searchPath = toProcess[1].searchPath; // same search path as internal C files
+            toProcess[2].extension = ".cpp";
+            toProcess[2].fileChunks = &internalCxxFileChunks;
+            toProcess[2].filePaths = &internalCxxFilePaths;
+
+            // performance: technically all three of these can be done on separate threads
+            // they're technically writing to different arrays
+            for (size_t j = 0; j < 3; j++)
+            {
+                Brahma_Data_Chunk chunk;
+                chunk.start = (uint16_t) toProcess[j].filePaths->count;
+                if (brahma_dir_exists(toProcess[j].searchPath))
+                {
+                    Brahma_Gather_Files_By_Extension_Payload payload = { toProcess[j].extension, toProcess[j].filePaths };
+                    brahma_iterate_directory(toProcess[j].searchPath, true, &payload, brahma_gather_files_by_extension_visitor);
+                }
+                chunk.count = (uint16_t) (toProcess[j].filePaths->count - chunk.start);
+                brahma_append_data_chunk_to_array_list(toProcess[j].fileChunks, chunk);
+            }
+        }
     }
+
+    PROFILE_SECTION("gather files");
 
     brahma_shutdown_internal_allocator();
 
@@ -642,7 +717,6 @@ bool brahma_append_all_library_deps(
     {
         case BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERFACE: directDeps = &(library->interfaceDependencies); break;
         case BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERNAL:  directDeps = &(library->internalDependencies);  break;
-        case BRAHMA_LIBRARY_DEPENDENCY_TYPE__MAX:                                                      break;
     }
 
     for (size_t i = 0; i < directDeps->count; i++)
@@ -935,7 +1009,22 @@ char* brahma_sprintf(const char* format, ...)
     return output;
 }
 
-void brahma_ensure_dir(char* path)
+bool brahma_dir_exists(const char* path)
+{
+    #if defined(_WIN32)
+    {
+        DWORD attrs = GetFileAttributesA(path);
+        return (attrs != INVALID_FILE_ATTRIBUTES) && (attrs & FILE_ATTRIBUTE_DIRECTORY);
+    }
+    #elif defined(__linux__) || defined(__APPLE__)
+    {
+        struct stat st;
+        return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
+    }
+    #endif
+}
+
+void brahma_ensure_dir(const char* path)
 {
     #if defined(_WIN32)
     {
@@ -1037,6 +1126,46 @@ void brahma_iterate_directory(const char* path, bool recursive, void* visitorPay
         }
 
     #endif
+}
+
+bool brahma_gather_files_by_extension_visitor(void* rawPayload, const char* path, bool isDirectory, bool* exploreCurrentDirectory)
+{
+    Brahma_Gather_Files_By_Extension_Payload* payload = (Brahma_Gather_Files_By_Extension_Payload*) rawPayload;
+
+    if (!isDirectory)
+    {
+        size_t pathLen = strlen(path);
+        size_t extLen  = strlen(payload->extension);
+
+        // compare in reverse, use case-insensitivity for the extension part
+        bool match = true;
+        if (pathLen < extLen) match = false;
+        else
+        {
+            for (size_t i = 0; i < extLen; i++)
+            {
+                char c1 = path[pathLen - extLen + i];
+                char c2 = payload->extension[i];
+
+                // convert to lowercase if it's an uppercase letter
+                if (c1 >= 'A' && c1 <= 'Z') c1 += ('a' - 'A');
+                if (c2 >= 'A' && c2 <= 'Z') c2 += ('a' - 'A');
+
+                if (c1 != c2)
+                {
+                    match = false;
+                    break;
+                }
+            }
+        }
+
+        if (match)
+        {
+            brahma_append_string_to_paged_list(payload->outFilePaths, (char*) path);
+        }
+    }
+
+    return true; // continue iterating
 }
 
 int brahma_find_package_by_name(const Brahma_Package_Array_List* packages, const char* name)
