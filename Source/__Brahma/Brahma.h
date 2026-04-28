@@ -569,6 +569,9 @@ typedef struct
 // shutdown the internal allocator
 Brahma_Memory_Usage_Report brahma_shutdown_internal_allocator(void);
 
+// get an env value, NULL if not found
+char* brahma_get_env_var(const char* name);
+
 // check if a directory exists
 bool brahma_dir_exists(const char* path);
 
@@ -1072,6 +1075,8 @@ bool brahma_execute(Brahma_Args ex)
         }
     }
 
+    PROFILE_SECTION_END("generate unity files");
+
     Brahma_Memory_Usage_Report report = brahma_shutdown_internal_allocator();
 
     PROFILE_SECTION_END("shutdown");
@@ -1443,6 +1448,33 @@ char* brahma_sprintf(const char* format, ...)
     }
 
     return output;
+}
+
+char* brahma_get_env_var(const char* name)
+{
+    #if defined(_WIN32)
+    {
+        DWORD bufferSize = 0;
+        GetEnvironmentVariableA(name, NULL, 0); // get the required buffer size
+        if (bufferSize == 0) return NULL; // variable not found
+
+        char* buffer = (char*) brahma_push_memory(bufferSize, 1); // +1 for null terminator
+        GetEnvironmentVariableA(name, buffer, bufferSize);
+        return buffer;
+    }
+    #elif defined(__linux__) || defined(__APPLE__)
+    {
+        const char* value = getenv(name);
+        if (!value) return NULL;
+
+        size_t valueLen = strlen(value);
+        char* result = (char*) brahma_push_memory(valueLen + 1, 1); // +1 for null terminator
+        memcpy(result, value, valueLen + 1);
+        return result;
+    }
+    #else
+        #error "unsupported platform"
+    #endif
 }
 
 bool brahma_dir_exists(const char* path)
