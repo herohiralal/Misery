@@ -1,10 +1,8 @@
-#ifndef CORE_LIBRARY_H
-#define CORE_LIBRARY_H
+#pragma once
+
 #include "../__Brahma/Brahma.h"
 
 BRAHMA_IMPLEMENT_LIBRARY(Core)
 {
     // set up
 }
-
-#endif//CORE_LIBRARY_H

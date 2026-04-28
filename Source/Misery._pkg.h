@@ -1,10 +1,8 @@
-#ifndef MISERY_PACKAGE_H
-#define MISERY_PACKAGE_H
+#pragma once
+
 #include "__Brahma/Brahma.h"
 
 BRAHMA_IMPLEMENT_PACKAGE(Misery)
 {
-    // set up
+    package->primaryLibrary = "HelloWorld";
 }
-
-#endif//MISERY_PACKAGE_H
