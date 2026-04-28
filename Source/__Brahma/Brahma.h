@@ -1236,11 +1236,7 @@ bool brahma_execute(Brahma_Args ex)
 
             for (size_t i = 0; i < (sizeof(toProcess) / sizeof(toProcess[0])); i++)
             {
-                if (!toProcess[i].filesChunk.count)
-                {
-                    brahma_append_string_to_array_list(toProcess[i].filePathsOutput, NULL);
-                    continue;
-                }
+                if (!toProcess[i].filesChunk.count) { continue; }
 
                 char* artifactPath = brahma_sprintf("%s/Unity%s", artifactsDir, toProcess[i].extension);
                 brahma_append_string_to_array_list(toProcess[i].filePathsOutput, artifactPath);
@@ -1265,6 +1261,169 @@ bool brahma_execute(Brahma_Args ex)
     }
 
     PROFILE_SECTION_END("generate unity files");
+
+    Brahma_Process_Array_List compileProcesses = { NULL, 0, 0 };
+    Brahma_String_Array_List builtObjects = { NULL, 0, 0 };
+    if (!failed)
+    {
+        brahma_reserve_process_array_list_capacity(&compileProcesses, (libUnityCFiles.count + libUnityCxxFiles.count));
+        brahma_reserve_string_array_list_capacity(&builtObjects, (libUnityCFiles.count + libUnityCxxFiles.count));
+
+        Brahma_String_Array_List commonCArgs = { NULL, 0, 0 };
+        {
+            brahma_reserve_string_array_list_capacity(&commonCArgs, 16);
+            if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
+            {
+                brahma_append_string_to_array_list(&commonCArgs, "/Brepro"); // deterministic output
+                brahma_append_string_to_array_list(&commonCArgs, "/nologo");
+                brahma_append_string_to_array_list(&commonCArgs, "/Wall"); // all warnings
+                brahma_append_string_to_array_list(&commonCArgs, "/WX"); // warnings as errors
+                brahma_append_string_to_array_list(&commonCArgs, "/Zc:preprocessor"); // conformant preprocessor
+                brahma_append_string_to_array_list(&commonCArgs, (ex.flags & BRAHMA_ARGS_FLAG_OPTIMISED) ? "/O2" : "/Od"); // optimised vs not
+
+                if (ex.flags & BRAHMA_ARGS_FLAG_DEBUG) // debug
+                {
+                    brahma_append_string_to_array_list(&commonCArgs, "/Z7"); // debug info
+                    brahma_append_string_to_array_list(&commonCArgs, "/D_DEBUG");
+                    brahma_append_string_to_array_list(&commonCArgs, "/MTd"); // debug multithreaded runtime
+                }
+                else // release
+                {
+                    brahma_append_string_to_array_list(&commonCArgs, "/MT"); // multithreaded runtime
+                    brahma_append_string_to_array_list(&commonCArgs, "/DNDEBUG");
+                    brahma_append_string_to_array_list(&commonCArgs, "/GL"); // LTCG
+                }
+
+                brahma_append_string_to_array_list(&commonCArgs, "/c"); // compile only
+            }
+            else
+            {
+                brahma_append_string_to_array_list(&commonCArgs, "-Werror");
+                brahma_append_string_to_array_list(&commonCArgs, (ex.flags & BRAHMA_ARGS_FLAG_OPTIMISED) ? "-O2" : "-O0"); // optimised vs not
+
+                if (ex.flags & BRAHMA_ARGS_FLAG_DEBUG) // debug
+                {
+                    brahma_append_string_to_array_list(&commonCArgs, "-g"); // debug info
+                    brahma_append_string_to_array_list(&commonCArgs, "-DDEBUG");
+                }
+                else // release
+                {
+                    brahma_append_string_to_array_list(&commonCArgs, "-DNDEBUG");
+                    brahma_append_string_to_array_list(&commonCArgs, "-flto");
+                }
+
+                brahma_append_string_to_array_list(&commonCArgs, "-c"); // compile only
+            }
+        }
+
+        Brahma_String_Array_List commonCxxArgs = { NULL, 0, 0 };
+        {
+            for (size_t i = 0; i < commonCArgs.count; i++)
+            {
+                brahma_append_string_to_array_list(&commonCxxArgs, commonCArgs.data[i]);
+            }
+
+            if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
+            {
+                brahma_append_string_to_array_list(&commonCArgs, "/EHs-"); // no exception handling
+                brahma_append_string_to_array_list(&commonCArgs, "/GR-"); // no rtti
+                brahma_append_string_to_array_list(&commonCArgs, "/std:c++20");
+            }
+            else
+            {
+                brahma_append_string_to_array_list(&commonCArgs, "-fno-exceptions");
+                brahma_append_string_to_array_list(&commonCArgs, "-fno-rtti");
+                brahma_append_string_to_array_list(&commonCArgs, "-std=c++20");
+            }
+        }
+
+        // add some c-only args that we don't want for c++
+        {
+            brahma_append_string_to_array_list(&commonCArgs, (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? "/std:c17" : "-std=c17");
+        }
+
+        struct
+        {
+            char* compilerPath;
+            const Brahma_String_Array_List* files;
+            const Brahma_String_Array_List* commonArgs;
+        } toProcess[2];
+
+        toProcess[0].compilerPath = cCompilerPath;
+        toProcess[0].files = &libUnityCFiles;
+        toProcess[0].commonArgs = &commonCArgs;
+
+        toProcess[1].compilerPath = cxxCompilerPath;
+        toProcess[1].files = &libUnityCxxFiles;
+        toProcess[1].commonArgs = &commonCxxArgs;
+
+        for (size_t i = 0; i < (sizeof(toProcess) / sizeof(toProcess[0])); i++)
+        {
+            const Brahma_String_Array_List* commonArgs = toProcess[i].commonArgs;
+
+            for (size_t j = 0; j < toProcess[i].files->count; j++)
+            {
+                char* sourceFilePath = toProcess[i].files->data[j];
+                char* objectFilePath = brahma_sprintf("%s.obj", sourceFilePath);
+
+                Brahma_String_Array_List compileArgs = { NULL, 0, 0 };
+                brahma_reserve_string_array_list_capacity(&compileArgs, 16);
+
+                brahma_append_string_to_array_list(&compileArgs, toProcess[i].compilerPath);
+                for (size_t k = 0; k < commonArgs->count; k++)
+                {
+                    brahma_append_string_to_array_list(&compileArgs, commonArgs->data[k]);
+                }
+
+                brahma_append_string_to_array_list(&compileArgs, sourceFilePath);
+                if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
+                {
+                    brahma_append_string_to_array_list(&compileArgs, brahma_sprintf("/Fo%s", objectFilePath)); // object file output
+                }
+                else
+                {
+                    brahma_append_string_to_array_list(&compileArgs, "-o");
+                    brahma_append_string_to_array_list(&compileArgs, objectFilePath);
+                }
+
+                Brahma_Process compileProcess = brahma_start_process(compileArgs, NULL);
+
+                brahma_append_process_to_array_list(&compileProcesses, compileProcess);
+                brahma_append_string_to_array_list(&builtObjects, objectFilePath);
+            }
+        }
+    }
+
+    PROFILE_SECTION_END("start compile processes");
+
+    if (!failed)
+    {
+        for (size_t i = 0; i < compileProcesses.count; i++)
+        {
+            Brahma_Process compileProcess = compileProcesses.data[i];
+            if (!compileProcess)
+            {
+                ex.log(BRAHMA_LOG_ERROR "Failed to start compile process for '%s'.\n", builtObjects.data[i]);
+                failed = true;
+                continue;
+            }
+
+            char* outputFromProcess = NULL;
+            if (0 != brahma_wait_for_process(compileProcess, &outputFromProcess))
+            {
+                ex.log("--------------------------------------------------------\n");
+                ex.log(BRAHMA_LOG_ERROR "Failed to compile '%s'.\n", builtObjects.data[i]);
+                ex.log("%s", outputFromProcess);
+                ex.log("--------------------------------------------------------\n");
+                failed = true;
+                continue;
+            }
+
+            ex.log(BRAHMA_LOG_SUCCESS "Compiled '%s' successfully.\n", builtObjects.data[i]);
+        }
+    }
+
+    PROFILE_SECTION_END("end compile processes");
 
     Brahma_Memory_Usage_Report report = brahma_shutdown_internal_allocator();
 
