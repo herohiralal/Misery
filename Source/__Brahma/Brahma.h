@@ -558,8 +558,16 @@ int64_t brahma_get_time(void);
 // initialise the internal allocator
 void brahma_initialise_internal_allocator(void);
 
+typedef struct
+{
+    size_t totalAllocated;
+    size_t totalUsed;
+    size_t totalUnused;
+    size_t totalWasted; // because of fragmentation, page sizing, alignment, etc.
+} Brahma_Memory_Usage_Report;
+
 // shutdown the internal allocator
-void brahma_shutdown_internal_allocator(void);
+Brahma_Memory_Usage_Report brahma_shutdown_internal_allocator(void);
 
 // check if a directory exists
 bool brahma_dir_exists(const char* path);
@@ -627,7 +635,6 @@ bool brahma_execute(Brahma_Args ex)
 
     if (!ex.platform)
     {
-        ex.log(BRAHMA_LOG_WARNING "No target platform specified. Defaulting to the host platform.\n");
         #if defined(_WIN32)
             ex.platform = BRAHMA_PLATFORM_WINDOWS;
         #elif defined(__linux__)
@@ -637,11 +644,13 @@ bool brahma_execute(Brahma_Args ex)
         #else
             #error "Unsupported platform."
         #endif
+
+        ex.log(BRAHMA_LOG_WARNING "No target platform specified. Defaulting to the host platform: '%s'.\n",
+            BRAHMA_PLATFORM_NAMES[ex.platform]);
     }
 
     if (!ex.architecture)
     {
-        ex.log(BRAHMA_LOG_WARNING "No target architecture specified. Defaulting to the host architecture.\n");
         #if defined(_M_IX86) || defined(__i386__)
             ex.architecture = BRAHMA_ARCHITECTURE_X86;
         #elif defined(_M_X64) || defined(__x86_64__)
@@ -653,6 +662,14 @@ bool brahma_execute(Brahma_Args ex)
         #else
             #error "Unsupported architecture."
         #endif
+
+        if (ex.platform == BRAHMA_PLATFORM_ANDROID || ex.platform == BRAHMA_PLATFORM_IOS)
+        {
+            ex.architecture = BRAHMA_ARCHITECTURE_ARM64; // better default
+        }
+
+        ex.log(BRAHMA_LOG_WARNING "No target architecture specified. Defaulting to the host architecture: '%s'.\n",
+            BRAHMA_ARCHITECTURE_NAMES[ex.architecture]);
     }
 
     int64_t startTime = brahma_get_time(), time = 0, lastTime = startTime;
@@ -1057,14 +1074,44 @@ bool brahma_execute(Brahma_Args ex)
         }
     }
 
-    brahma_shutdown_internal_allocator();
+    Brahma_Memory_Usage_Report report = brahma_shutdown_internal_allocator();
 
     PROFILE_SECTION_END("shutdown");
 
-    ex.log(BRAHMA_LOG_INFO "Total execution time: %.2f ms.\n", (brahma_get_time() - startTime) / 1000000.0);
-    return !failed;
-
     #undef PROFILE_SECTION_END
+
+    ex.log(BRAHMA_LOG_PROFILE "Total execution time: %.2f ms.\n", (brahma_get_time() - startTime) / 1000000.0);
+
+    {
+        #define BYTE_PRINTER(varName) \
+            double varName = (double) report.varName; \
+            uint8_t varName##Power = 0; \
+            while (varName >= 1024.0) { varName /= 1024.0; varName##Power++; } \
+            const char* varName##Unit = sizeUnits[varName##Power];
+
+        static const char* sizeUnits[] = { "B", "KiB", "MiB", "GiB", "TiB" };
+
+        BYTE_PRINTER(totalAllocated);
+        BYTE_PRINTER(totalUsed);
+        BYTE_PRINTER(totalUnused);
+        BYTE_PRINTER(totalWasted);
+
+        ex.log(BRAHMA_LOG_PROFILE "Memory usage: %.2f %s allocated, %.2f %s used, %.2f %s unused, %.2f %s wasted (to alignment, paging, fragmentation, etc.).\n",
+            totalAllocated, totalAllocatedUnit, totalUsed, totalUsedUnit, totalUnused, totalUnusedUnit, totalWasted, totalWastedUnit);
+
+        #undef BYTE_PRINTER
+    }
+
+    if (failed)
+    {
+        ex.log(BRAHMA_LOG_ERROR "FAILED!\n");
+    }
+    else
+    {
+        ex.log(BRAHMA_LOG_SUCCESS "SUCCESS!\n");
+    }
+
+    return !failed;
 }
 
 bool brahma_append_all_library_deps(
@@ -1162,6 +1209,9 @@ static struct
     uint8_t** previousMemoryPages;
     size_t    previousMemoryPagesCount;
     size_t    previousMemoryPagesCapacity;
+
+    size_t totalAllocatedMemory;
+    size_t usedMemory;
 } g_brahmaInternalAllocator;
 
 void brahma_initialise_internal_allocator(void)
@@ -1184,10 +1234,21 @@ void brahma_initialise_internal_allocator(void)
     }
     #endif
 
+    g_brahmaInternalAllocator.currentMemoryPage = NULL;
+    g_brahmaInternalAllocator.capacity          = 0;
+    g_brahmaInternalAllocator.offset            = 0;
+
+    g_brahmaInternalAllocator.previousMemoryPages         = NULL;
+    g_brahmaInternalAllocator.previousMemoryPagesCount    = 0;
+    g_brahmaInternalAllocator.previousMemoryPagesCapacity = 0;
+
+    g_brahmaInternalAllocator.totalAllocatedMemory = 0;
+    g_brahmaInternalAllocator.usedMemory           = 0;
+
     brahma_push_memory(1, 1); // ready the allocator for use
 }
 
-void brahma_shutdown_internal_allocator(void)
+Brahma_Memory_Usage_Report brahma_shutdown_internal_allocator(void)
 {
     #if defined(_WIN32)
     {
@@ -1228,6 +1289,12 @@ void brahma_shutdown_internal_allocator(void)
 
     free(g_brahmaInternalAllocator.previousMemoryPages);
 
+    Brahma_Memory_Usage_Report report;
+    report.totalAllocated = g_brahmaInternalAllocator.totalAllocatedMemory;
+    report.totalUsed = g_brahmaInternalAllocator.usedMemory;
+    report.totalUnused = g_brahmaInternalAllocator.capacity - g_brahmaInternalAllocator.offset;
+    report.totalWasted = report.totalAllocated - report.totalUsed - report.totalUnused;
+
     g_brahmaInternalAllocator.currentMemoryPage = NULL;
     g_brahmaInternalAllocator.capacity          = 0;
     g_brahmaInternalAllocator.offset            = 0;
@@ -1235,6 +1302,11 @@ void brahma_shutdown_internal_allocator(void)
     g_brahmaInternalAllocator.previousMemoryPages         = NULL;
     g_brahmaInternalAllocator.previousMemoryPagesCount    = 0;
     g_brahmaInternalAllocator.previousMemoryPagesCapacity = 0;
+
+    g_brahmaInternalAllocator.totalAllocatedMemory = 0;
+    g_brahmaInternalAllocator.usedMemory           = 0;
+
+    return report;
 }
 
 void* brahma_push_memory(size_t size, size_t alignment)
@@ -1328,10 +1400,13 @@ void* brahma_push_memory(size_t size, size_t alignment)
         g_brahmaInternalAllocator.currentMemoryPage = (uint8_t*) newPage;
         g_brahmaInternalAllocator.capacity          = newPageSize;
         g_brahmaInternalAllocator.offset            = 0;
+
+        g_brahmaInternalAllocator.totalAllocatedMemory += newPageSize;
     }
 
     void* result = g_brahmaInternalAllocator.currentMemoryPage + alignedOffset;
     g_brahmaInternalAllocator.offset = alignedOffset + alignedSize;
+    g_brahmaInternalAllocator.usedMemory += size;
 
     #if defined(_WIN32)
         LeaveCriticalSection(&g_brahmaInternalAllocator.mutex);
