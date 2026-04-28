@@ -1093,6 +1093,8 @@ bool brahma_execute(Brahma_Args ex)
 
     PROFILE_SECTION_END("generate unity files");
 
+    char* compilerPath = NULL;
+    char* linkerPath = NULL;
     if (!failed && ex.platform == BRAHMA_PLATFORM_WINDOWS)
     {
         char* programFilesX86 = brahma_get_env_var(sizeof(void*) == 8 ? "ProgramFiles(x86)" : "ProgramFiles");
@@ -1110,15 +1112,39 @@ bool brahma_execute(Brahma_Args ex)
             brahma_append_string_to_array_list(&vswhereArgs, "-products");
             brahma_append_string_to_array_list(&vswhereArgs, "*");
             brahma_append_string_to_array_list(&vswhereArgs, "-requires");
-            brahma_append_string_to_array_list(&vswhereArgs, "Microsoft.VisualStudio.Component.VC.Tools.x86.x64");
-            brahma_append_string_to_array_list(&vswhereArgs, "-property");
-            brahma_append_string_to_array_list(&vswhereArgs, "installationPath");
+            brahma_append_string_to_array_list(&vswhereArgs, brahma_sprintf("Microsoft.VisualStudio.Component.VC.Tools.%s",
+                (ex.architecture == BRAHMA_ARCHITECTURE_ARM64 ? "ARM64" : "x86.x64")));
+            brahma_append_string_to_array_list(&vswhereArgs, "-find");
+
+            char* clFindPath = brahma_sprintf("VC\\Tools\\MSVC\\**\\bin\\"
+                #if defined(_M_ARM64) || defined(__aarch64__)
+                    "Hostarm64"
+                #elif defined(_M_X64) || defined(__x86_64__)
+                    "Hostx64"
+                #elif defined(_M_IX86) || defined(__i386__)
+                    "Hostx86"
+                #else
+                    #error "Unsupported architecture."
+                #endif
+                "\\%s\\cl.exe",
+                (false ? ""
+                    : ex.architecture == BRAHMA_ARCHITECTURE_ARM64 ? "arm64"
+                    : ex.architecture == BRAHMA_ARCHITECTURE_X64 ? "x64"
+                    : ex.architecture == BRAHMA_ARCHITECTURE_X86 ? "x86"
+                    : "unknown"));
+
+            brahma_append_string_to_array_list(&vswhereArgs, clFindPath);
 
             char* vswhereStdOut = NULL;
             Brahma_Process vswhereProcess = brahma_start_process(vswhereArgs, NULL);
-            if (!vswhereProcess || brahma_wait_for_process(vswhereProcess, &vswhereStdOut) != 0 || !vswhereStdOut || !vswhereStdOut[0])
+            if (!vswhereProcess || 0 != brahma_wait_for_process(vswhereProcess, &vswhereStdOut) || !vswhereStdOut || !vswhereStdOut[0])
             {
                 ex.log(BRAHMA_LOG_ERROR "Failed to execute vswhere to find Visual Studio installation path. Make sure you have Visual Studio with C++ workload installed.\n");
+                if (vswhereStdOut && vswhereStdOut[0])
+                {
+                    ex.log(BRAHMA_LOG_ERROR "vswhere output: %s\n", vswhereStdOut);
+                }
+
                 failed = true;
             }
             else
@@ -1130,10 +1156,24 @@ bool brahma_execute(Brahma_Args ex)
                     vswhereStdOut[--len] = '\0';
                 }
 
-                ex.log(BRAHMA_LOG_INFO "Found Visual Studio installation path: %s\n", vswhereStdOut);
+                compilerPath = vswhereStdOut;
+
+                ex.log(BRAHMA_LOG_INFO "Found Visual Studio installation path: %s\n", compilerPath);
+
+                size_t compilerPathLen = strlen(compilerPath);
+                size_t linkerPathLen = compilerPathLen + (sizeof("link") - sizeof("cl"));
+
+                linkerPath = brahma_push_memory(linkerPathLen + 1, 1); // +1 for null terminator
+                memcpy(linkerPath, compilerPath, compilerPathLen - (sizeof("cl.exe") - 1));
+                memcpy(linkerPath + compilerPathLen - (sizeof("cl.exe") - 1), "link.exe", sizeof("link.exe"));
+                linkerPath[linkerPathLen] = '\0';
+
+                ex.log(BRAHMA_LOG_INFO "Derived linker path: %s\n", linkerPath);
             }
         }
     }
+
+    PROFILE_SECTION_END("get compiler/linker");
 
     Brahma_Memory_Usage_Report report = brahma_shutdown_internal_allocator();
 
@@ -1885,7 +1925,7 @@ int brahma_wait_for_process(Brahma_Process proc, char** outStdOut)
     while (true)
     {
         // grow the buffer if needed
-        if (outStdOut && capturedCapacity < (capturedSize + 16384))
+        if (outStdOut && (!capturedCapacity || capturedCapacity < (capturedSize + 512)))
         {
             size_t newCapacity = capturedCapacity ? capturedCapacity * 2 : 16384;
             char*  newBuffer   = (char*) malloc(newCapacity);
