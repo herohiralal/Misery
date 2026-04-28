@@ -595,9 +595,9 @@ bool brahma_execute(Brahma_Args ex)
 
         // performance: technically both (interface and internal) these can be done on separate threads
         // they're technically writing to different arrays
-        for (size_t i = 0; i < libDefs.count; i++)
+        for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
         {
-            Brahma_Library* lib = &(libDefs.data[i]);
+            Brahma_Library* lib = &(libDefs.data[libIdx]);
 
             struct
             {
@@ -616,20 +616,20 @@ bool brahma_execute(Brahma_Args ex)
 
             // performance: technically both (interface and internal) these can be done on separate threads
             // they're technically writing to different arrays
-            for (size_t j = 0; j < (sizeof(toProcess) / sizeof(toProcess[0])); j++)
+            for (size_t i = 0; i < (sizeof(toProcess) / sizeof(toProcess[0])); i++)
             {
                 Brahma_Data_Chunk chunk;
-                chunk.start = (uint16_t) toProcess[j].depIdxs->count;
+                chunk.start = (uint16_t) toProcess[i].depIdxs->count;
                 char* error = NULL;
-                if (!brahma_append_all_library_deps(toProcess[j].depTy, &libDefs, lib, toProcess[j].depIdxs, chunk.start, &error))
+                if (!brahma_append_all_library_deps(toProcess[i].depTy, &libDefs, lib, toProcess[i].depIdxs, chunk.start, &error))
                 {
                     ex.log("ERROR: Failed to resolve dependencies for library '%s'.\n\tDetails: %s.\n", lib->name, error ? error : "<unknown>");
                     failed = true;
                     break;
                 }
 
-                chunk.count = (uint16_t) (toProcess[j].depIdxs->count - chunk.start);
-                brahma_append_data_chunk_to_array_list(toProcess[j].depChunks, chunk);
+                chunk.count = (uint16_t) (toProcess[i].depIdxs->count - chunk.start);
+                brahma_append_data_chunk_to_array_list(toProcess[i].depChunks, chunk);
             }
 
             if (failed) break;
@@ -649,9 +649,9 @@ bool brahma_execute(Brahma_Args ex)
     {
         brahma_reserve_data_chunk_array_list_capacity(&interfaceFileChunks, libDefs.count);
 
-        for (size_t i = 0; i < libDefs.count; i++)
+        for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
         {
-            Brahma_Library* lib = &(libDefs.data[i]);
+            Brahma_Library* lib = &(libDefs.data[libIdx]);
 
             struct
             {
@@ -678,17 +678,17 @@ bool brahma_execute(Brahma_Args ex)
 
             // performance: technically all three of these can be done on separate threads
             // they're technically writing to different arrays
-            for (size_t j = 0; j < (sizeof(toProcess) / sizeof(toProcess[0])); j++)
+            for (size_t i = 0; i < (sizeof(toProcess) / sizeof(toProcess[0])); i++)
             {
                 Brahma_Data_Chunk chunk;
-                chunk.start = (uint16_t) toProcess[j].filePaths->count;
-                if (brahma_dir_exists(toProcess[j].searchPath))
+                chunk.start = (uint16_t) toProcess[i].filePaths->count;
+                if (brahma_dir_exists(toProcess[i].searchPath))
                 {
-                    Brahma_Gather_Files_By_Extension_Payload payload = { toProcess[j].extension, toProcess[j].filePaths };
-                    brahma_iterate_directory(toProcess[j].searchPath, true, &payload, brahma_gather_files_by_extension_visitor);
+                    Brahma_Gather_Files_By_Extension_Payload payload = { toProcess[i].extension, toProcess[i].filePaths };
+                    brahma_iterate_directory(toProcess[i].searchPath, true, &payload, brahma_gather_files_by_extension_visitor);
                 }
-                chunk.count = (uint16_t) (toProcess[j].filePaths->count - chunk.start);
-                brahma_append_data_chunk_to_array_list(toProcess[j].fileChunks, chunk);
+                chunk.count = (uint16_t) (toProcess[i].filePaths->count - chunk.start);
+                brahma_append_data_chunk_to_array_list(toProcess[i].fileChunks, chunk);
             }
         }
     }
@@ -766,6 +766,54 @@ bool brahma_execute(Brahma_Args ex)
     }
 
     PROFILE_SECTION_END("generate definitions");
+
+    // artifact generation - unity files
+    if (!failed)
+    {
+        for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
+        {
+            Brahma_Library* lib = &(libDefs.data[libIdx]);
+            char* artifactsDir = brahma_sprintf("%s/Artifacts", lib->owningDir);
+
+            struct
+            {
+                const char* fileName;
+                const char* extension;
+                const Brahma_Data_Chunk_Array_List* fileChunks;
+                const Brahma_String_Paged_List* filePaths;
+            } toProcess[2];
+
+            toProcess[0].fileName = "C";
+            toProcess[0].extension = ".c";
+            toProcess[0].fileChunks = &internalCFileChunks;
+            toProcess[0].filePaths = &internalCFilePaths;
+
+            toProcess[1].fileName = "Cxx";
+            toProcess[1].extension = ".cpp";
+            toProcess[1].fileChunks = &internalCxxFileChunks;
+            toProcess[1].filePaths = &internalCxxFilePaths;
+
+            for (size_t i = 0; i < (sizeof(toProcess) / sizeof(toProcess[0])); i++)
+            {
+                char* artifactPath = brahma_sprintf("%s/%sUnity%s", artifactsDir, toProcess[i].fileName, toProcess[i].extension);
+                FILE* artifactFile = fopen(artifactPath, "w");
+                if (artifactFile)
+                {
+                    fprintf(artifactFile, "// This file is auto-generated by Brahma. Do not edit manually.\n\n");
+                    fprintf(artifactFile, "#include \"InternalDefinitions.h\"\n\n");
+
+                    Brahma_Data_Chunk fileChunk = toProcess[i].fileChunks->data[libIdx];
+                    for (size_t j = fileChunk.start; j < (size_t) (fileChunk.start + fileChunk.count); j++)
+                    {
+                        const char* filePath = *brahma_index_string_paged_list(toProcess[i].filePaths, j);
+                        fprintf(artifactFile, "#include \"%s\"\n", filePath);
+                    }
+
+                    fclose(artifactFile);
+                }
+            }
+        }
+    }
 
     brahma_shutdown_internal_allocator();
 
