@@ -610,23 +610,20 @@ Brahma_Process brahma_start_process(Brahma_String_Array_List args, const char* w
 // wait for a process to finish and return its exit code; optionally, also output the process's stdout (with a null-terminator at the end)
 int brahma_wait_for_process(Brahma_Process process, char** outStdOut);
 
-BRAHMA_DECLARE_PAGED_LIST(Library_Dependency_Idx, library_dependency_idx, uint16_t, ((64 - sizeof(void*)) / sizeof(uint16_t)))
+BRAHMA_DECLARE_PAGED_LIST(Library_Idx, library_idx, uint16_t, ((64 - sizeof(void*)) / sizeof(uint16_t)))
 
 // a chunk of library dependencies, which represents a contiguous range of dependencies in the list of all dependencies of a library
 typedef struct { uint16_t start, count; } Brahma_Data_Chunk;
 BRAHMA_DECLARE_ARRAY_LIST(Data_Chunk, data_chunk, Brahma_Data_Chunk)
 
-// the type of library dependency; either an interface dependency, or an internal dependency
-typedef enum {BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERFACE, BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERNAL} Brahma_Library_Dependency_Type;
-
 // append all recursive library dependencies to all the indices (view into this via data chunks)
 bool brahma_append_all_library_deps(
-    Brahma_Library_Dependency_Type depType,
     const Brahma_Library_Array_List* allLibs,
     const Brahma_Library* library,
-    Brahma_Library_Dependency_Idx_Paged_List* allLibDeps,
+    Brahma_Library_Idx_Paged_List* allLibDeps,
     uint16_t firstLibDepIdx,
-    char** error);
+    char** error,
+    void* cycleChecker);
 
 bool brahma_execute(Brahma_Args ex)
 {
@@ -900,6 +897,24 @@ bool brahma_execute(Brahma_Args ex)
         }
     }
 
+    if (!failed)
+    {
+        ex.outputDir = brahma_sprintf("%s/%s-%s-%s",
+            ex.outputDir,
+            BRAHMA_PLATFORM_NAMES[selectedPkg->platform], BRAHMA_ARCHITECTURE_NAMES[selectedPkg->architecture],
+            ((ex.flags & BRAHMA_ARGS_FLAG_DEBUG) ? "Debug" : "Release")
+        );
+
+        ex.intermediateOutputDir = brahma_sprintf("%s/%s-%s-%s-%s",
+            ex.intermediateOutputDir, selectedPkg->name,
+            BRAHMA_PLATFORM_NAMES[selectedPkg->platform], BRAHMA_ARCHITECTURE_NAMES[selectedPkg->architecture],
+            ((ex.flags & BRAHMA_ARGS_FLAG_DEBUG) ? "Debug" : "Release")
+        );
+
+        brahma_ensure_dir(ex.outputDir);
+        brahma_ensure_dir(ex.intermediateOutputDir);
+    }
+
     PROFILE_SECTION_END("create packages");
 
     // libs
@@ -910,7 +925,7 @@ bool brahma_execute(Brahma_Args ex)
         ex.createLibraries(&libDefs, selectedPkg);
     }
 
-    Brahma_Library* primaryLib = NULL;
+    size_t primaryLibIdx = SIZE_MAX;
     if (!failed)
     {
         if (!selectedPkg->primaryLibrary || !selectedPkg->primaryLibrary[0])
@@ -920,10 +935,9 @@ bool brahma_execute(Brahma_Args ex)
         }
         else
         {
-            int primaryLibIdx = brahma_find_library_by_name(&libDefs, selectedPkg->primaryLibrary);
-            if (primaryLibIdx >= 0) { primaryLib = &libDefs.data[primaryLibIdx]; }
+            primaryLibIdx = (size_t) brahma_find_library_by_name(&libDefs, selectedPkg->primaryLibrary);
 
-            if (!primaryLib)
+            if (primaryLibIdx >= libDefs.count)
             {
                 ex.log(BRAHMA_LOG_ERROR "No library found with the name '%s', which is the primary library of the package '%s'.\n", selectedPkg->primaryLibrary, selectedPkg->name);
                 failed = true;
@@ -942,7 +956,7 @@ bool brahma_execute(Brahma_Args ex)
         ex.log(BRAHMA_LOG_SUCCESS "\tC++ compiler:     %s.\n", cxxCompilerPath);
         ex.log(BRAHMA_LOG_SUCCESS "\tStatic linker:    %s.\n", staticLinkerPath);
         ex.log(BRAHMA_LOG_SUCCESS "\tSelected package: %s.\n", selectedPkg->name);
-        ex.log(BRAHMA_LOG_SUCCESS "\tPrimary library:  %s.\n", primaryLib->name);
+        ex.log(BRAHMA_LOG_SUCCESS "\tPrimary library:  %s.\n", libDefs.data[primaryLibIdx].name);
         ex.log(BRAHMA_LOG_SUCCESS "\tPlatform:         %s.\n", BRAHMA_PLATFORM_NAMES[selectedPkg->platform]);
         ex.log(BRAHMA_LOG_SUCCESS "\tArch:             %s.\n", BRAHMA_ARCHITECTURE_NAMES[selectedPkg->architecture]);
         ex.log(BRAHMA_LOG_SUCCESS "\tDebug info:       %s.\n", (ex.flags & BRAHMA_ARGS_FLAG_DEBUG)     ? "on" : "off");
@@ -952,60 +966,71 @@ bool brahma_execute(Brahma_Args ex)
         ex.log(BRAHMA_LOG_SUCCESS "-----------------------------------------\n");
     }
 
-    // dependencies of libs
-    Brahma_Data_Chunk_Array_List interfaceDepChunks = { NULL, 0, 0 };
-    Brahma_Library_Dependency_Idx_Paged_List interfaceDepIdxs; memset(&interfaceDepIdxs, 0, sizeof(interfaceDepIdxs));
-    Brahma_Data_Chunk_Array_List internalDepChunks = { NULL, 0, 0 };
-    Brahma_Library_Dependency_Idx_Paged_List internalDepIdxs; memset(&internalDepIdxs, 0, sizeof(internalDepIdxs));
+    // gather libs to process
     if (!failed)
     {
-        brahma_reserve_data_chunk_array_list_capacity(&interfaceDepChunks, libDefs.count);
-        brahma_reserve_data_chunk_array_list_capacity( &internalDepChunks, libDefs.count);
+        Brahma_Library_Array_List libsToProcess = { NULL, 0, 0 };
+        Brahma_Library* primaryLib = &(libDefs.data[primaryLibIdx]);
 
-        // performance: technically both (interface and internal) these can be done on separate threads
-        // they're technically writing to different arrays
-        for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
+        Brahma_Library_Idx_Paged_List libIdxs; memset(&libIdxs, 0, sizeof(libIdxs));
+        char* error = NULL;
+        if (!brahma_append_all_library_deps(&libDefs, primaryLib, &libIdxs, 0, &error, NULL))
         {
-            Brahma_Library* lib = &(libDefs.data[libIdx]);
+            ex.log(BRAHMA_LOG_ERROR "Failed to resolve dependencies for primary library '%s'.\n\tDetails: %s.\n", primaryLib->name, error ? error : "<unknown>");
+            failed = true;
+        }
 
-            struct
+        // add self
+        if (!failed)
+        {
+            bool alreadyExists = false;
+            for (size_t i = 0; i < libIdxs.count; i++)
             {
-                Brahma_Library_Dependency_Type depTy;
-                Brahma_Library_Dependency_Idx_Paged_List* depIdxs;
-                Brahma_Data_Chunk_Array_List* depChunks;
-            } toProcess[2];
-
-            toProcess[0].depTy = BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERFACE;
-            toProcess[0].depIdxs = &interfaceDepIdxs;
-            toProcess[0].depChunks = &interfaceDepChunks;
-
-            toProcess[1].depTy = BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERNAL;
-            toProcess[1].depIdxs = &internalDepIdxs;
-            toProcess[1].depChunks = &internalDepChunks;
-
-            // performance: technically both (interface and internal) these can be done on separate threads
-            // they're technically writing to different arrays
-            for (size_t i = 0; i < (sizeof(toProcess) / sizeof(toProcess[0])); i++)
-            {
-                Brahma_Data_Chunk chunk;
-                chunk.start = (uint16_t) toProcess[i].depIdxs->count;
-                char* error = NULL;
-                if (!brahma_append_all_library_deps(toProcess[i].depTy, &libDefs, lib, toProcess[i].depIdxs, chunk.start, &error))
+                uint16_t existingIdx = *brahma_index_library_idx_paged_list(&libIdxs, i);
+                if (existingIdx == primaryLibIdx)
                 {
-                    ex.log(BRAHMA_LOG_ERROR "Failed to resolve dependencies for library '%s'.\n\tDetails: %s.\n", lib->name, error ? error : "<unknown>");
-                    failed = true;
+                    alreadyExists = true;
                     break;
                 }
-
-                chunk.count = (uint16_t) (toProcess[i].depIdxs->count - chunk.start);
-                brahma_append_data_chunk_to_array_list(toProcess[i].depChunks, chunk);
             }
 
-            if (failed) break;
+            if (!alreadyExists)
+            {
+                brahma_append_library_idx_to_paged_list(&libIdxs, (uint16_t) primaryLibIdx);
+            }
+            else
+            {
+                ex.log(BRAHMA_LOG_ERROR "Circular dependency detected for primary library '%s'.\n", primaryLib->name);
+                failed = true;
+            }
+        }
+
+        if (!failed)
+        {
+            brahma_reserve_library_array_list_capacity(&libsToProcess, libIdxs.count);
+            for (size_t i = 0; i < libIdxs.count; i++)
+            {
+                uint16_t libIdx = *brahma_index_library_idx_paged_list(&libIdxs, i);
+                brahma_append_library_to_array_list(&libsToProcess, libDefs.data[libIdx]);
+                primaryLibIdx = (libsToProcess.count - 1);
+            }
+        }
+
+        if (!failed)
+        {
+            /*
+            * by this point, the libraries to process are in libsToProcess, and so we shouldn't be using libDefs at all
+            * this should minimise the number of libraries that we actually process
+            *
+            * conveniently, the files are also in a linear order where the dependencies of a library will appear before the library itself
+            *
+            * so we'll just do a quick switcharoooo
+            */
+           libDefs = libsToProcess;
         }
     }
 
-    PROFILE_SECTION_END("resolve library dependencies");
+    PROFILE_SECTION_END("sort libraries");
 
     // files gather
     Brahma_Data_Chunk_Array_List interfaceFileChunks = { NULL, 0, 0 };
@@ -1070,17 +1095,6 @@ bool brahma_execute(Brahma_Args ex)
     {
         brahma_reserve_string_array_list_capacity(&libArtifactDirs, libDefs.count);
 
-        ex.outputDir = brahma_sprintf("%s/%s-%s",
-            ex.outputDir,
-            BRAHMA_PLATFORM_NAMES[selectedPkg->platform], BRAHMA_ARCHITECTURE_NAMES[selectedPkg->architecture]);
-
-        ex.intermediateOutputDir = brahma_sprintf("%s/%s-%s-%s",
-            ex.intermediateOutputDir, selectedPkg->name,
-            BRAHMA_PLATFORM_NAMES[selectedPkg->platform], BRAHMA_ARCHITECTURE_NAMES[selectedPkg->architecture]);
-
-        brahma_ensure_dir(ex.outputDir);
-        brahma_ensure_dir(ex.intermediateOutputDir);
-
         for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
         {
             Brahma_Library* lib = &(libDefs.data[libIdx]);
@@ -1105,21 +1119,15 @@ bool brahma_execute(Brahma_Args ex)
             {
                 const char* fileName;
                 const Brahma_Define_Paged_List* defines;
-                const Brahma_Data_Chunk* depChunk;
-                const Brahma_Library_Dependency_Idx_Paged_List* depIdxs;
                 bool isInternal;
             } toProcess[2];
 
             toProcess[0].fileName = "Interface";
             toProcess[0].defines = &lib->interfaceDefines;
-            toProcess[0].depChunk = &interfaceDepChunks.data[libIdx];
-            toProcess[0].depIdxs = &interfaceDepIdxs;
             toProcess[0].isInternal = false;
 
             toProcess[1].fileName = "Internal";
             toProcess[1].defines = &lib->internalDefines;
-            toProcess[1].depChunk = &internalDepChunks.data[libIdx];
-            toProcess[1].depIdxs = &internalDepIdxs;
             toProcess[1].isInternal = true;
 
             for (size_t i = 0; i < (sizeof(toProcess) / sizeof(toProcess[0])); i++)
@@ -1130,23 +1138,32 @@ bool brahma_execute(Brahma_Args ex)
                 {
                     fprintf(artifactFile, "// This file is auto-generated by Brahma. Do not edit manually.\n");
                     fprintf(artifactFile, "#pragma once\n\n");
+                    fprintf(artifactFile, "#include \"../PackageDefinitions.h\"\n\n");
+
+                    // write the dependency paths
+                    Brahma_String_Paged_List depsLists[2] = {lib->interfaceDependencies, lib->internalDependencies};
+                    size_t depListCount = (size_t) (sizeof(depsLists) / sizeof(depsLists[0]));
+                    if (toProcess[i].isInternal) depListCount = 1; // exclude internal dependencies
+
+                    for (size_t depListIdx = 0; depListIdx < depListCount; depListIdx++)
+                    {
+                        Brahma_String_Paged_List* depList = &depsLists[depListIdx];
+                        for (size_t j = 0; j < depList->count; j++)
+                        {
+                            char* depLibName = *brahma_index_string_paged_list(depList, j);
+                            int depLibIdx = brahma_find_library_by_name(&libDefs, depLibName);
+                            Brahma_Library* depLib = &(libDefs.data[depLibIdx]);
+
+                            fprintf(artifactFile, "#ifndef LIB_PATH_%s\n", depLib->name);
+                            fprintf(artifactFile, "#define LIB_PATH_%s \"%s/\"\n", depLib->name, depLib->owningDir);
+                            fprintf(artifactFile, "#include \"%s/InterfaceDefinitions.h\"\n", libArtifactDirs.data[depLibIdx]);
+                            fprintf(artifactFile, "#endif\n\n");
+                        }
+                    }
 
                     // include interface definitions in internal definitions, obviously
                     if (toProcess[i].isInternal)
-                        fprintf(artifactFile, "#include \"InterfaceDefinitions.h\"\n");
-
-                    // write the dependency paths
-                    Brahma_Data_Chunk depChunk = *(toProcess[i].depChunk);
-                    for (size_t j = depChunk.start; j < (size_t) (depChunk.start + depChunk.count); j++)
-                    {
-                        uint16_t depLibIdx = *brahma_index_library_dependency_idx_paged_list(toProcess[i].depIdxs, j);
-                        Brahma_Library* depLib = &(libDefs.data[depLibIdx]);
-
-                        fprintf(artifactFile, "#ifndef LIB_PATH_%s\n", depLib->name);
-                        fprintf(artifactFile, "#define LIB_PATH_%s \"%s/\"\n", depLib->name, depLib->owningDir);
-                        fprintf(artifactFile, "#include \"%s/%sDefinitions.h\"\n", libArtifactDirs.data[depLibIdx], toProcess[i].fileName);
-                        fprintf(artifactFile, "#endif\n");
-                    }
+                        fprintf(artifactFile, "#include \"InterfaceDefinitions.h\"\n\n");
 
                     const Brahma_Define_Paged_List* defines = toProcess[i].defines;
                     for (size_t j = 0; j < defines->count; j++)
@@ -1158,6 +1175,42 @@ bool brahma_execute(Brahma_Args ex)
 
                     fclose(artifactFile);
                 }
+            }
+        }
+
+        {
+            char* packageDefinitions = brahma_sprintf("%s/PackageDefinitions.h", ex.intermediateOutputDir);
+            FILE* packageDefinitionsFile = fopen(packageDefinitions, "w");
+            if (packageDefinitionsFile)
+            {
+                fprintf(packageDefinitionsFile, "// This file is auto-generated by Brahma. Do not edit manually.\n");
+                fprintf(packageDefinitionsFile, "#pragma once\n\n");
+
+                fprintf(packageDefinitionsFile, "#define BRAHMA_PACKAGE_NAME \"%s\"\n", selectedPkg->name);
+
+                for (Brahma_Platform p = BRAHMA_PLATFORM_UNKNOWN; p < BRAHMA_PLATFORM__COUNT; p++)
+                {
+                    char* pltName = brahma_sprintf("%s", BRAHMA_PLATFORM_NAMES[p]);
+                    for (char* c = pltName; *c; c++) if (*c >= 'a' && *c <= 'z') *c = *c - ('a' - 'A');
+                    fprintf(packageDefinitionsFile, "#define BRAHMA_PLATFORM_%s %d\n", pltName, p == selectedPkg->platform ? 1 : 0);
+                }
+
+                for (Brahma_Architecture a = BRAHMA_ARCHITECTURE_UNKNOWN; a < BRAHMA_ARCHITECTURE__COUNT; a++)
+                {
+                    char* archName = brahma_sprintf("%s", BRAHMA_ARCHITECTURE_NAMES[a]);
+                    for (char* c = archName; *c; c++) if (*c >= 'a' && *c <= 'z') *c = *c - ('a' - 'A');
+                    fprintf(packageDefinitionsFile, "#define BRAHMA_ARCHITECTURE_%s %d\n", archName, a == selectedPkg->architecture ? 1 : 0);
+                }
+
+                Brahma_Define_Paged_List* pkgDefines = &selectedPkg->defines;
+                for (size_t j = 0; j < pkgDefines->count; j++)
+                {
+                    const Brahma_Define* define = brahma_index_define_paged_list(pkgDefines, j);
+                    fprintf(packageDefinitionsFile, "\n#undef %s\n", define->key);
+                    fprintf(packageDefinitionsFile, "#define %s %s\n", define->key, define->value);
+                }
+
+                fclose(packageDefinitionsFile);
             }
         }
     }
@@ -1257,62 +1310,80 @@ bool brahma_execute(Brahma_Args ex)
 }
 
 bool brahma_append_all_library_deps(
-    Brahma_Library_Dependency_Type depType,
     const Brahma_Library_Array_List* allLibs,
     const Brahma_Library* library,
-    Brahma_Library_Dependency_Idx_Paged_List* allLibDeps,
+    Brahma_Library_Idx_Paged_List* allLibDeps,
     uint16_t firstLibDepIdx,
-    char** error)
+    char** error,
+    void* cycleChecker)
 {
-    const Brahma_String_Paged_List* directDeps = NULL;
-    switch (depType)
+    typedef struct Cycle_Check_Entry Cycle_Check_Entry;
+    struct Cycle_Check_Entry
     {
-        case BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERFACE: directDeps = &(library->interfaceDependencies); break;
-        case BRAHMA_LIBRARY_DEPENDENCY_TYPE_INTERNAL:  directDeps = &(library->internalDependencies);  break;
+        Cycle_Check_Entry* previous;
+        const Brahma_Library* library;
+    } cycleCheckCurrentEntry;
+    cycleCheckCurrentEntry.previous = (Cycle_Check_Entry*) cycleChecker;
+    cycleCheckCurrentEntry.library = library;
+
+    for (Cycle_Check_Entry* entry = cycleCheckCurrentEntry.previous; entry != NULL; entry = entry->previous)
+    {
+        if (entry->library == library)
+        {
+            if (error) *error = brahma_sprintf("(%s: circular dependency)", library->name);
+            return false;
+        }
     }
 
-    for (size_t i = 0; i < directDeps->count; i++)
+    const Brahma_String_Paged_List* lists[2] = { &(library->interfaceDependencies), &(library->internalDependencies) };
+
+    for (size_t listIdx = 0; listIdx < (size_t) (sizeof(lists) / sizeof(lists[0])); listIdx++)
     {
-        const char* const* directDependencyPtr = brahma_index_string_paged_list(directDeps, i);
-        if (!directDependencyPtr)
-        {
-            if (error) *error = brahma_sprintf("(%d: failed to index direct dependency)", (int) i);
-            return false;
-        }
+        const Brahma_String_Paged_List* directDeps = lists[listIdx];
 
-        const char* directDependency = *directDependencyPtr;
-        int idxOfDirectDepLib = brahma_find_library_by_name(allLibs, directDependency);
-        if (idxOfDirectDepLib < 0)
+        for (size_t i = 0; i < directDeps->count; i++)
         {
-            if (error) *error = brahma_sprintf("(%s: failed to locate)", directDependency);
-            return false;
-        }
-
-        Brahma_Library* directDepLib = &(allLibs->data[idxOfDirectDepLib]);
-        if (!brahma_append_all_library_deps(depType, allLibs, directDepLib, allLibDeps, firstLibDepIdx, error))
-        {
-            if (error) *error = brahma_sprintf("(%s) -> %s", directDependency, *error);
-            return false;
-        }
-
-        // by this point, all the dependencies of the direct dependency should have been added
-        // now we just need to add the direct dependency itself, if it's not already in the list of all dependencies
-
-        // check if the direct dependency is already in the list of all dependencies
-        bool alreadyInList = false;
-        for (size_t j = (size_t) firstLibDepIdx; j < allLibDeps->count; j++)
-        {
-            int depIdx = (int) *brahma_index_library_dependency_idx_paged_list(allLibDeps, j);
-            if (depIdx == idxOfDirectDepLib)
+            const char* const* directDependencyPtr = brahma_index_string_paged_list(directDeps, i);
+            if (!directDependencyPtr)
             {
-                alreadyInList = true;
-                break;
+                if (error) *error = brahma_sprintf("(%d: failed to index direct dependency)", (int) i);
+                return false;
             }
-        }
-        if (alreadyInList) continue;
 
-        // add to the list of all dependencies
-        brahma_append_library_dependency_idx_to_paged_list(allLibDeps, (uint16_t) idxOfDirectDepLib);
+            const char* directDependency = *directDependencyPtr;
+            int idxOfDirectDepLib = brahma_find_library_by_name(allLibs, directDependency);
+            if (idxOfDirectDepLib < 0)
+            {
+                if (error) *error = brahma_sprintf("(%s: failed to locate)", directDependency);
+                return false;
+            }
+
+            Brahma_Library* directDepLib = &(allLibs->data[idxOfDirectDepLib]);
+            if (!brahma_append_all_library_deps(allLibs, directDepLib, allLibDeps, firstLibDepIdx, error, &cycleCheckCurrentEntry))
+            {
+                if (error) *error = brahma_sprintf("(%s) -> %s", directDependency, *error);
+                return false;
+            }
+
+            // by this point, all the dependencies of the direct dependency should have been added
+            // now we just need to add the direct dependency itself, if it's not already in the list of all dependencies
+
+            // check if the direct dependency is already in the list of all dependencies
+            bool alreadyInList = false;
+            for (size_t j = (size_t) firstLibDepIdx; j < allLibDeps->count; j++)
+            {
+                int depIdx = (int) *brahma_index_library_idx_paged_list(allLibDeps, j);
+                if (depIdx == idxOfDirectDepLib)
+                {
+                    alreadyInList = true;
+                    break;
+                }
+            }
+            if (alreadyInList) continue;
+
+            // add to the list of all dependencies
+            brahma_append_library_idx_to_paged_list(allLibDeps, (uint16_t) idxOfDirectDepLib);
+        }
     }
 
     return true;
