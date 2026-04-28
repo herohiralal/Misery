@@ -695,13 +695,133 @@ bool brahma_execute(Brahma_Args ex)
             ex.log(BRAHMA_LOG_PROFILE "'" sectionName "': DONE (%.2f ms).\n", (time - lastTime) / 1000000.0); \
             lastTime = time; \
         } while (false)
-
-    Brahma_Package_Array_List pkgDefs = { NULL, 0, 0 };
     bool failed = false;
 
     brahma_initialise_internal_allocator();
 
     PROFILE_SECTION_END("initialise");
+
+    char* toolchainPath = NULL;
+    char* compilerPath = NULL;
+    char* linkerPath = NULL;
+    {
+        char* programFilesX86 = NULL;
+        if (!failed)
+        {
+            programFilesX86 = brahma_get_env_var(sizeof(void*) == 8 ? "ProgramFiles(x86)" : "ProgramFiles");
+            if (!programFilesX86)
+            {
+                ex.log(BRAHMA_LOG_ERROR "Failed to get 'Program Files' directory from environment variables.\n");
+                failed = true;
+            }
+        }
+
+        // using this file to search, because vswhere can only "-find" files, and not directories
+        // but what we actually want is the full directory (up till msvc version), so we get stuff till
+        // this temp search file and then trim the path back to get the compiler directory
+        #define BRAHMA_TEMP_SEARCH_FILE "\\modules\\modules.json"
+
+        Brahma_Process vswhereProcess = NULL;
+        if (!failed)
+        {
+            // use vswhere to find latest visual studio
+            Brahma_String_Array_List vswhereArgs = { NULL, 0, 0 };
+            brahma_append_string_to_array_list(&vswhereArgs, brahma_sprintf("%s\\Microsoft Visual Studio\\Installer\\vswhere.exe", programFilesX86));
+            brahma_append_string_to_array_list(&vswhereArgs, "-latest");
+            brahma_append_string_to_array_list(&vswhereArgs, "-products");
+            brahma_append_string_to_array_list(&vswhereArgs, "*");
+            brahma_append_string_to_array_list(&vswhereArgs, "-requires");
+            brahma_append_string_to_array_list(&vswhereArgs, brahma_sprintf("Microsoft.VisualStudio.Component.VC.Tools.%s",
+                (ex.architecture == BRAHMA_ARCHITECTURE_ARM64 ? "ARM64" : "x86.x64")));
+            brahma_append_string_to_array_list(&vswhereArgs, "-find");
+
+            char* clFindPath = brahma_sprintf("VC\\Tools\\MSVC\\**" BRAHMA_TEMP_SEARCH_FILE);
+
+            brahma_append_string_to_array_list(&vswhereArgs, clFindPath);
+
+            vswhereProcess = brahma_start_process(vswhereArgs, NULL);
+            if (!vswhereProcess)
+            {
+                ex.log(BRAHMA_LOG_ERROR "Failed to start vswhere process!.\n");
+                failed = true;
+            }
+        }
+
+        char* vswhereStdOut = NULL;
+        if (!failed)
+        {
+            if (0 != brahma_wait_for_process(vswhereProcess, &vswhereStdOut) || !vswhereStdOut || !vswhereStdOut[0])
+            {
+                ex.log(BRAHMA_LOG_ERROR "Failed to execute vswhere to find Visual Studio installation path. Make sure you have Visual Studio with C++ workload installed.\n");
+                if (vswhereStdOut && vswhereStdOut[0])
+                {
+                    ex.log(BRAHMA_LOG_ERROR "vswhere output: %s\n", vswhereStdOut);
+                }
+
+                failed = true;
+            }
+        }
+
+        if (!failed)
+        {
+            // remove trailing newlines from vswhere output
+            size_t len = strlen(vswhereStdOut);
+            while (len > 0 && (vswhereStdOut[len - 1] == '\n' || vswhereStdOut[len - 1] == '\r'))
+            {
+                vswhereStdOut[--len] = '\0';
+            }
+
+            // remove the temp search file to get the toolchain directory
+            {
+                size_t vswhereOutputLen = strlen(vswhereStdOut);
+                size_t searchFileLen = sizeof(BRAHMA_TEMP_SEARCH_FILE) - 1;
+                if (vswhereOutputLen <= searchFileLen ||
+                    strcmp(vswhereStdOut + vswhereOutputLen - searchFileLen, BRAHMA_TEMP_SEARCH_FILE) != 0)
+                {
+                    ex.log(BRAHMA_LOG_ERROR "Unexpected vswhere output format. Expected path to end with '" BRAHMA_TEMP_SEARCH_FILE "'. Actual output: %s\n", vswhereStdOut);
+                    failed = true;
+                }
+                else
+                {
+                    vswhereStdOut[vswhereOutputLen - searchFileLen] = '\0'; // trim the search file from the end
+                    toolchainPath = vswhereStdOut;
+                }
+            }
+        }
+
+        if (!failed)
+        {
+            ex.log(BRAHMA_LOG_INFO "Used vswhere for locating VC Toolchain: %s\n", toolchainPath);
+
+            char* vsBinaries = brahma_sprintf("%s\\bin\\"
+            #if defined(_M_ARM64) || defined(__aarch64__)
+                "Hostarm64"
+            #elif defined(_M_X64) || defined(__x86_64__)
+                "Hostx64"
+            #elif defined(_M_IX86) || defined(__i386__)
+                "Hostx86"
+            #else
+                #error "Unsupported architecture."
+            #endif
+            "\\%s",
+            toolchainPath,
+            (false ? ""
+                : ex.architecture == BRAHMA_ARCHITECTURE_ARM64 ? "arm64"
+                : ex.architecture == BRAHMA_ARCHITECTURE_X64 ? "x64"
+                : ex.architecture == BRAHMA_ARCHITECTURE_X86 ? "x86"
+                : "unknown"));
+
+            compilerPath = brahma_sprintf("%s\\cl.exe", vsBinaries);
+            linkerPath = brahma_sprintf("%s\\link.exe", vsBinaries);
+
+            ex.log(BRAHMA_LOG_INFO "Resolved compiler path: %s\n", compilerPath);
+            ex.log(BRAHMA_LOG_INFO "Resolved linker path: %s\n", linkerPath);
+        }
+
+        #undef BRAHMA_TEMP_SEARCH_FILE
+    }
+
+    PROFILE_SECTION_END("get toolchains");
 
     // clean up output dir - forward slashes only, no trailing slash
     {
@@ -750,6 +870,8 @@ bool brahma_execute(Brahma_Args ex)
 
     PROFILE_SECTION_END("input cleanup");
 
+
+    Brahma_Package_Array_List pkgDefs = { NULL, 0, 0 };
     brahma_reserve_package_array_list_capacity(&pkgDefs, ex.pkgCount);
     ex.createPackages(ex.platform, ex.architecture, &pkgDefs);
 
@@ -1092,88 +1214,6 @@ bool brahma_execute(Brahma_Args ex)
     }
 
     PROFILE_SECTION_END("generate unity files");
-
-    char* compilerPath = NULL;
-    char* linkerPath = NULL;
-    if (!failed && ex.platform == BRAHMA_PLATFORM_WINDOWS)
-    {
-        char* programFilesX86 = brahma_get_env_var(sizeof(void*) == 8 ? "ProgramFiles(x86)" : "ProgramFiles");
-        if (!programFilesX86)
-        {
-            ex.log(BRAHMA_LOG_ERROR "Failed to get 'Program Files' directory from environment variables.\n");
-            failed = true;
-        }
-        else
-        {
-            // use vswhere to find latest visual studio
-            Brahma_String_Array_List vswhereArgs = { NULL, 0, 0 };
-            brahma_append_string_to_array_list(&vswhereArgs, brahma_sprintf("%s\\Microsoft Visual Studio\\Installer\\vswhere.exe", programFilesX86));
-            brahma_append_string_to_array_list(&vswhereArgs, "-latest");
-            brahma_append_string_to_array_list(&vswhereArgs, "-products");
-            brahma_append_string_to_array_list(&vswhereArgs, "*");
-            brahma_append_string_to_array_list(&vswhereArgs, "-requires");
-            brahma_append_string_to_array_list(&vswhereArgs, brahma_sprintf("Microsoft.VisualStudio.Component.VC.Tools.%s",
-                (ex.architecture == BRAHMA_ARCHITECTURE_ARM64 ? "ARM64" : "x86.x64")));
-            brahma_append_string_to_array_list(&vswhereArgs, "-find");
-
-            char* clFindPath = brahma_sprintf("VC\\Tools\\MSVC\\**\\bin\\"
-                #if defined(_M_ARM64) || defined(__aarch64__)
-                    "Hostarm64"
-                #elif defined(_M_X64) || defined(__x86_64__)
-                    "Hostx64"
-                #elif defined(_M_IX86) || defined(__i386__)
-                    "Hostx86"
-                #else
-                    #error "Unsupported architecture."
-                #endif
-                "\\%s\\cl.exe",
-                (false ? ""
-                    : ex.architecture == BRAHMA_ARCHITECTURE_ARM64 ? "arm64"
-                    : ex.architecture == BRAHMA_ARCHITECTURE_X64 ? "x64"
-                    : ex.architecture == BRAHMA_ARCHITECTURE_X86 ? "x86"
-                    : "unknown"));
-
-            brahma_append_string_to_array_list(&vswhereArgs, clFindPath);
-
-            char* vswhereStdOut = NULL;
-            Brahma_Process vswhereProcess = brahma_start_process(vswhereArgs, NULL);
-            if (!vswhereProcess || 0 != brahma_wait_for_process(vswhereProcess, &vswhereStdOut) || !vswhereStdOut || !vswhereStdOut[0])
-            {
-                ex.log(BRAHMA_LOG_ERROR "Failed to execute vswhere to find Visual Studio installation path. Make sure you have Visual Studio with C++ workload installed.\n");
-                if (vswhereStdOut && vswhereStdOut[0])
-                {
-                    ex.log(BRAHMA_LOG_ERROR "vswhere output: %s\n", vswhereStdOut);
-                }
-
-                failed = true;
-            }
-            else
-            {
-                // remove trailing newlines from vswhere output
-                size_t len = strlen(vswhereStdOut);
-                while (len > 0 && (vswhereStdOut[len - 1] == '\n' || vswhereStdOut[len - 1] == '\r'))
-                {
-                    vswhereStdOut[--len] = '\0';
-                }
-
-                compilerPath = vswhereStdOut;
-
-                ex.log(BRAHMA_LOG_INFO "Found Visual Studio installation path: %s\n", compilerPath);
-
-                size_t compilerPathLen = strlen(compilerPath);
-                size_t linkerPathLen = compilerPathLen + (sizeof("link") - sizeof("cl"));
-
-                linkerPath = brahma_push_memory(linkerPathLen + 1, 1); // +1 for null terminator
-                memcpy(linkerPath, compilerPath, compilerPathLen - (sizeof("cl.exe") - 1));
-                memcpy(linkerPath + compilerPathLen - (sizeof("cl.exe") - 1), "link.exe", sizeof("link.exe"));
-                linkerPath[linkerPathLen] = '\0';
-
-                ex.log(BRAHMA_LOG_INFO "Derived linker path: %s\n", linkerPath);
-            }
-        }
-    }
-
-    PROFILE_SECTION_END("get compiler/linker");
 
     Brahma_Memory_Usage_Report report = brahma_shutdown_internal_allocator();
 
