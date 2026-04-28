@@ -675,6 +675,17 @@ bool brahma_execute(Brahma_Args ex)
             BRAHMA_ARCHITECTURE_NAMES[ex.architecture]);
     }
 
+    if (false
+        || (ex.architecture == BRAHMA_ARCHITECTURE_ARM32 && ex.platform != BRAHMA_PLATFORM_ANDROID) // only android supports arm32
+        || (ex.architecture == BRAHMA_ARCHITECTURE_X86 && ex.platform == BRAHMA_PLATFORM_OSX) // no 32-bit support on osx
+        || (ex.architecture == BRAHMA_ARCHITECTURE_X86 && ex.platform == BRAHMA_PLATFORM_IOS) // no 32-bit support on ios
+        || false)
+    {
+        ex.log(BRAHMA_LOG_ERROR "The architecture '%s' is not supported on the platform '%s'.\n",
+            BRAHMA_ARCHITECTURE_NAMES[ex.architecture], BRAHMA_PLATFORM_NAMES[ex.platform]);
+        return false;
+    }
+
     int64_t startTime = brahma_get_time(), time = 0, lastTime = startTime;
 
     #define PROFILE_SECTION_END(sectionName) \
