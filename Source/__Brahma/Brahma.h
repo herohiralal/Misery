@@ -702,8 +702,9 @@ bool brahma_execute(Brahma_Args ex)
     PROFILE_SECTION_END("initialise");
 
     char* toolchainPath = NULL;
-    char* compilerPath = NULL;
-    char* linkerPath = NULL;
+    char* cCompilerPath = NULL;
+    char* cxxCompilerPath = NULL;
+    char* staticLinkerPath = NULL;
     {
         char* programFilesX86 = NULL;
         if (!failed)
@@ -791,8 +792,6 @@ bool brahma_execute(Brahma_Args ex)
 
         if (!failed)
         {
-            ex.log(BRAHMA_LOG_INFO "Used vswhere for locating VC Toolchain: %s\n", toolchainPath);
-
             char* vsBinaries = brahma_sprintf("%s\\bin\\"
             #if defined(_M_ARM64) || defined(__aarch64__)
                 "Hostarm64"
@@ -811,11 +810,9 @@ bool brahma_execute(Brahma_Args ex)
                 : ex.architecture == BRAHMA_ARCHITECTURE_X86 ? "x86"
                 : "unknown"));
 
-            compilerPath = brahma_sprintf("%s\\cl.exe", vsBinaries);
-            linkerPath = brahma_sprintf("%s\\link.exe", vsBinaries);
-
-            ex.log(BRAHMA_LOG_INFO "Resolved compiler path: %s\n", compilerPath);
-            ex.log(BRAHMA_LOG_INFO "Resolved linker path: %s\n", linkerPath);
+            cCompilerPath = brahma_sprintf("%s\\cl.exe", vsBinaries);
+            cxxCompilerPath = cCompilerPath;
+            staticLinkerPath = brahma_sprintf("%s\\link.exe", vsBinaries);
         }
 
         #undef BRAHMA_TEMP_SEARCH_FILE
@@ -940,6 +937,10 @@ bool brahma_execute(Brahma_Args ex)
     {
         ex.log(BRAHMA_LOG_SUCCESS "-----------------------------------------\n");
         ex.log(BRAHMA_LOG_SUCCESS "Brahma Configuration:\n");
+        ex.log(BRAHMA_LOG_SUCCESS "\tToolchain:        %s.\n", toolchainPath);
+        ex.log(BRAHMA_LOG_SUCCESS "\tC compiler:       %s.\n", cCompilerPath);
+        ex.log(BRAHMA_LOG_SUCCESS "\tC++ compiler:     %s.\n", cxxCompilerPath);
+        ex.log(BRAHMA_LOG_SUCCESS "\tStatic linker:    %s.\n", staticLinkerPath);
         ex.log(BRAHMA_LOG_SUCCESS "\tSelected package: %s.\n", selectedPkg->name);
         ex.log(BRAHMA_LOG_SUCCESS "\tPrimary library:  %s.\n", primaryLib->name);
         ex.log(BRAHMA_LOG_SUCCESS "\tPlatform:         %s.\n", BRAHMA_PLATFORM_NAMES[selectedPkg->platform]);
