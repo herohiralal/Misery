@@ -1031,8 +1031,13 @@ bool brahma_execute(Brahma_Args ex)
     PROFILE_SECTION_END("generate definitions");
 
     // artifact generation - unity files
+    Brahma_String_Array_List libUnityCFiles = { NULL, 0, 0 };
+    Brahma_String_Array_List libUnityCxxFiles = { NULL, 0, 0 };
     if (!failed)
     {
+        brahma_reserve_string_array_list_capacity(&libUnityCFiles, libDefs.count);
+        brahma_reserve_string_array_list_capacity(&libUnityCxxFiles, libDefs.count);
+
         for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
         {
             // Brahma_Library* lib = &(libDefs.data[libIdx]);
@@ -1076,6 +1081,48 @@ bool brahma_execute(Brahma_Args ex)
     }
 
     PROFILE_SECTION_END("generate unity files");
+
+    if (!failed && ex.platform == BRAHMA_PLATFORM_WINDOWS)
+    {
+        char* programFilesX86 = brahma_get_env_var(sizeof(void*) == 8 ? "ProgramFiles(x86)" : "ProgramFiles");
+        if (!programFilesX86)
+        {
+            ex.log(BRAHMA_LOG_ERROR "Failed to get 'Program Files' directory from environment variables.\n");
+            failed = true;
+        }
+        else
+        {
+            // use vswhere to find latest visual studio
+            Brahma_String_Array_List vswhereArgs = { NULL, 0, 0 };
+            brahma_append_string_to_array_list(&vswhereArgs, brahma_sprintf("%s\\Microsoft Visual Studio\\Installer\\vswhere.exe", programFilesX86));
+            brahma_append_string_to_array_list(&vswhereArgs, "-latest");
+            brahma_append_string_to_array_list(&vswhereArgs, "-products");
+            brahma_append_string_to_array_list(&vswhereArgs, "*");
+            brahma_append_string_to_array_list(&vswhereArgs, "-requires");
+            brahma_append_string_to_array_list(&vswhereArgs, "Microsoft.VisualStudio.Component.VC.Tools.x86.x64");
+            brahma_append_string_to_array_list(&vswhereArgs, "-property");
+            brahma_append_string_to_array_list(&vswhereArgs, "installationPath");
+
+            char* vswhereStdOut = NULL;
+            Brahma_Process vswhereProcess = brahma_start_process(vswhereArgs, NULL);
+            if (!vswhereProcess || brahma_wait_for_process(vswhereProcess, &vswhereStdOut) != 0 || !vswhereStdOut || !vswhereStdOut[0])
+            {
+                ex.log(BRAHMA_LOG_ERROR "Failed to execute vswhere to find Visual Studio installation path. Make sure you have Visual Studio with C++ workload installed.\n");
+                failed = true;
+            }
+            else
+            {
+                // remove trailing newlines from vswhere output
+                size_t len = strlen(vswhereStdOut);
+                while (len > 0 && (vswhereStdOut[len - 1] == '\n' || vswhereStdOut[len - 1] == '\r'))
+                {
+                    vswhereStdOut[--len] = '\0';
+                }
+
+                ex.log(BRAHMA_LOG_INFO "Found Visual Studio installation path: %s\n", vswhereStdOut);
+            }
+        }
+    }
 
     Brahma_Memory_Usage_Report report = brahma_shutdown_internal_allocator();
 
@@ -1454,8 +1501,7 @@ char* brahma_get_env_var(const char* name)
 {
     #if defined(_WIN32)
     {
-        DWORD bufferSize = 0;
-        GetEnvironmentVariableA(name, NULL, 0); // get the required buffer size
+        DWORD bufferSize = GetEnvironmentVariableA(name, NULL, 0); // get the required buffer size
         if (bufferSize == 0) return NULL; // variable not found
 
         char* buffer = (char*) brahma_push_memory(bufferSize, 1); // +1 for null terminator
@@ -1681,8 +1727,6 @@ typedef struct Brahma_Process_Impl
 
 Brahma_Process brahma_start_process(Brahma_String_Array_List args, const char* workingDir)
 {
-    Brahma_Process proc = BRAHMA_PUSH_STRUCT(Brahma_Process_Impl);
-
     #if defined(_WIN32)
     {
         // build a single string the way CreateProcessA expects it
@@ -1759,22 +1803,14 @@ Brahma_Process brahma_start_process(Brahma_String_Array_List args, const char* w
         CloseHandle(pipeWrite);
         free(cmdLine);
 
-        if (!ok)
-        {
-            #if defined(_MSC_VER)
-            {
-                __debugbreak();
-            }
-            #else
-            {
-                __builtin_trap();
-            }
-            #endif
-        }
+        if (!ok) { return NULL; }
 
         CloseHandle(pi.hThread); // we won't be waiting on the thread, only the process
+
+        Brahma_Process proc = BRAHMA_PUSH_STRUCT(Brahma_Process_Impl);
         proc->processHandle  = pi.hProcess;
         proc->stdoutReadPipe = pipeRead;
+        return proc;
     }
     #elif defined(__linux__) || defined(__APPLE__)
     {
@@ -1811,13 +1847,13 @@ Brahma_Process brahma_start_process(Brahma_String_Array_List args, const char* w
             // parent process
             close(pipefd[1]); // close write end
 
+            Brahma_Process proc = BRAHMA_PUSH_STRUCT(Brahma_Process_Impl);
             proc->pid = pid;
             proc->stdoutReadFd = pipefd[0];
+            return proc;
         }
     }
     #endif
-
-    return proc;
 }
 
 int brahma_wait_for_process(Brahma_Process proc, char** outStdOut)
