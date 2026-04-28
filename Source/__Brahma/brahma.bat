@@ -142,7 +142,7 @@ if errorlevel 1 (
 )
 
 if %CXX_MODE% equ 1 (
-    set CL_FLAGS=/std:c++20
+    set CL_FLAGS=/std:c++20 /Zc:strictStrings-
 ) else (
     set CL_FLAGS=/std:c17
 )

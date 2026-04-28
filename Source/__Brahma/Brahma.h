@@ -82,6 +82,7 @@
     #define WIN32_LEAN_AND_MEAN
     #define VC_EXTRALEAN
     #define NOMINMAX
+    #define _CRT_SECURE_NO_WARNINGS
 #endif
 
 #ifdef __linux__
@@ -369,22 +370,22 @@ typedef struct
     /**
      * The name of the package. This should ideally be filled by some kind of codegen, and not manually.
      */
-    const char* const name;
+    const char* name;
 
     /**
      * The path to the file that declared this package. This should ideally be filled by some kind of codegen, and not manually.
      */
-    const char* const owningFile;
+    const char* owningFile;
 
     /**
      * The platform that this package is targeting. This should ideally be filled by some kind of codegen, and not manually.
      */
-    const Brahma_Platform platform;
+    Brahma_Platform platform;
 
     /**
     * The architecture that this package is targeting. This should ideally be filled by some kind of codegen, and not manually.
     */
-    const Brahma_Architecture architecture;
+    Brahma_Architecture architecture;
 
     /**
      * Package-level definitions to use for compilation.
@@ -414,17 +415,17 @@ typedef struct
     /**
      * The name of the library. This should ideally be filled by some kind of codegen, and not manually.
      */
-    const char* const name;
+    const char* name;
 
     /**
      * The path to the file that declared this package. This should ideally be filled by some kind of codegen, and not manually.
      */
-    const char* const owningFile;
+    const char* owningFile;
 
     /**
      * The owning directory of this library. All the items inside this directory will be considered as belonging to this library.
      */
-    const char* const owningDir;
+    const char* owningDir;
 
     /**
      * The libraries that this library depends on for its implementation, as well as its interface (headers).
@@ -495,23 +496,23 @@ typedef void (*Brahma_Log_Delegate)(const char* fmt, ...);
 // flags for input args
 typedef enum
 {
-    BRAHMA_ARGS_FLAG_NONE      =       0,
-    BRAHMA_ARGS_FLAG_DEBUG     = 1 <<  0,
-    BRAHMA_ARGS_FLAG_OPTIMISED = 1 <<  1,
-    BRAHMA_ARGS_FLAG_UNUSED_02 = 1 <<  2,
-    BRAHMA_ARGS_FLAG_UNUSED_03 = 1 <<  3,
-    BRAHMA_ARGS_FLAG_UNUSED_04 = 1 <<  4,
-    BRAHMA_ARGS_FLAG_UNUSED_05 = 1 <<  5,
-    BRAHMA_ARGS_FLAG_UNUSED_06 = 1 <<  6,
-    BRAHMA_ARGS_FLAG_UNUSED_07 = 1 <<  7,
-    BRAHMA_ARGS_FLAG_UNUSED_08 = 1 <<  8,
-    BRAHMA_ARGS_FLAG_UNUSED_09 = 1 <<  9,
-    BRAHMA_ARGS_FLAG_UNUSED_10 = 1 << 10,
-    BRAHMA_ARGS_FLAG_UNUSED_11 = 1 << 11,
-    BRAHMA_ARGS_FLAG_UNUSED_12 = 1 << 12,
-    BRAHMA_ARGS_FLAG_UNUSED_13 = 1 << 13,
-    BRAHMA_ARGS_FLAG_UNUSED_14 = 1 << 14,
-    BRAHMA_ARGS_FLAG_UNUSED_15 = 1 << 15,
+    BRAHMA_ARGS_FLAG_NONE                =       0,
+    BRAHMA_ARGS_FLAG_DEBUG               = 1 <<  0,
+    BRAHMA_ARGS_FLAG_OPTIMISED           = 1 <<  1,
+    BRAHMA_ARGS_FLAG_SHOW_WARNINGS       = 1 <<  2,
+    BRAHMA_ARGS_FLAG_WARNINGS_ARE_ERRORS = 1 <<  3,
+    BRAHMA_ARGS_FLAG_UNUSED_04           = 1 <<  4,
+    BRAHMA_ARGS_FLAG_UNUSED_05           = 1 <<  5,
+    BRAHMA_ARGS_FLAG_UNUSED_06           = 1 <<  6,
+    BRAHMA_ARGS_FLAG_UNUSED_07           = 1 <<  7,
+    BRAHMA_ARGS_FLAG_UNUSED_08           = 1 <<  8,
+    BRAHMA_ARGS_FLAG_UNUSED_09           = 1 <<  9,
+    BRAHMA_ARGS_FLAG_UNUSED_10           = 1 << 10,
+    BRAHMA_ARGS_FLAG_UNUSED_11           = 1 << 11,
+    BRAHMA_ARGS_FLAG_UNUSED_12           = 1 << 12,
+    BRAHMA_ARGS_FLAG_UNUSED_13           = 1 << 13,
+    BRAHMA_ARGS_FLAG_UNUSED_14           = 1 << 14,
+    BRAHMA_ARGS_FLAG_UNUSED_15           = 1 << 15,
     // that's all folks!
 } Brahma_Args_Flags_Bits;
 
@@ -689,7 +690,7 @@ bool brahma_execute(Brahma_Args ex)
         do \
         { \
             time = brahma_get_time(); \
-            ex.log(BRAHMA_LOG_PROFILE "'" sectionName "': DONE (%.2f ms).\n", (time - lastTime) / 1000000.0); \
+            ex.log(BRAHMA_LOG_PROFILE "'" sectionName "': DONE (%.2f ms).\n", (double) (time - lastTime) / 1000000.0); \
             lastTime = time; \
         } while (false)
     bool failed = false;
@@ -823,7 +824,7 @@ bool brahma_execute(Brahma_Args ex)
         bool hasTrailingSlash = (outputDirLen > 0) && (ex.outputDir[outputDirLen - 1] == '/' || ex.outputDir[outputDirLen - 1] == '\\');
         if (hasTrailingSlash) { outputDirLen--; }
 
-        char* outputDirCleanPath = brahma_push_memory(outputDirLen + 1, 1);
+        char* outputDirCleanPath = (char*) brahma_push_memory(outputDirLen + 1, 1);
         for (size_t i = 0; i < outputDirLen; i++)
         {
             char c = ex.outputDir[i];
@@ -850,7 +851,7 @@ bool brahma_execute(Brahma_Args ex)
 
         if (hasTrailingSlash) { intermediateOutputDirLen--; }
 
-        char* intermediateOutputDirCleanPath = brahma_push_memory(intermediateOutputDirLen + 1, 1);
+        char* intermediateOutputDirCleanPath = (char*) brahma_push_memory(intermediateOutputDirLen + 1, 1);
         for (size_t i = 0; i < intermediateOutputDirLen; i++)
         {
             char c = ex.intermediateOutputDir[i];
@@ -1276,9 +1277,14 @@ bool brahma_execute(Brahma_Args ex)
             {
                 brahma_append_string_to_array_list(&commonCArgs, "/Brepro"); // deterministic output
                 brahma_append_string_to_array_list(&commonCArgs, "/nologo");
-                brahma_append_string_to_array_list(&commonCArgs, "/Wall"); // all warnings
-                brahma_append_string_to_array_list(&commonCArgs, "/WX"); // warnings as errors
                 brahma_append_string_to_array_list(&commonCArgs, "/Zc:preprocessor"); // conformant preprocessor
+
+                if (ex.flags & BRAHMA_ARGS_FLAG_SHOW_WARNINGS)
+                    brahma_append_string_to_array_list(&commonCArgs, "/Wall"); // all warnings
+
+                if (ex.flags & BRAHMA_ARGS_FLAG_WARNINGS_ARE_ERRORS)
+                    brahma_append_string_to_array_list(&commonCArgs, "/WX"); // warnings as errors
+
                 brahma_append_string_to_array_list(&commonCArgs, (ex.flags & BRAHMA_ARGS_FLAG_OPTIMISED) ? "/O2" : "/Od"); // optimised vs not
 
                 if (ex.flags & BRAHMA_ARGS_FLAG_DEBUG) // debug
@@ -1298,7 +1304,22 @@ bool brahma_execute(Brahma_Args ex)
             }
             else
             {
-                brahma_append_string_to_array_list(&commonCArgs, "-Werror");
+                if (ex.flags & BRAHMA_ARGS_FLAG_SHOW_WARNINGS)
+                {
+                    brahma_append_string_to_array_list(&commonCArgs, "-Wall");
+                    brahma_append_string_to_array_list(&commonCArgs, "-Wextra");
+                    brahma_append_string_to_array_list(&commonCArgs, "-Wshadow");
+                    brahma_append_string_to_array_list(&commonCArgs, "-Wconversion");
+                    brahma_append_string_to_array_list(&commonCArgs, "-Wsign-conversion");
+                    brahma_append_string_to_array_list(&commonCArgs, "-Wdouble-promotion");
+                    brahma_append_string_to_array_list(&commonCArgs, "-Wfloat-equal");
+                    brahma_append_string_to_array_list(&commonCArgs, "-Wundef");
+                    brahma_append_string_to_array_list(&commonCArgs, "-Wswitch-enum");
+                }
+
+                if (ex.flags & BRAHMA_ARGS_FLAG_WARNINGS_ARE_ERRORS)
+                    brahma_append_string_to_array_list(&commonCArgs, "-Werror");
+
                 brahma_append_string_to_array_list(&commonCArgs, (ex.flags & BRAHMA_ARGS_FLAG_OPTIMISED) ? "-O2" : "-O0"); // optimised vs not
 
                 if (ex.flags & BRAHMA_ARGS_FLAG_DEBUG) // debug
@@ -1331,6 +1352,11 @@ bool brahma_execute(Brahma_Args ex)
             }
             else
             {
+                if (ex.flags & BRAHMA_ARGS_FLAG_SHOW_WARNINGS)
+                {
+                    brahma_append_string_to_array_list(&commonCxxArgs, "-Wstrict-prototypes");
+                }
+
                 brahma_append_string_to_array_list(&commonCArgs, "-fno-exceptions");
                 brahma_append_string_to_array_list(&commonCArgs, "-fno-rtti");
                 brahma_append_string_to_array_list(&commonCArgs, "-std=c++20");
@@ -1431,7 +1457,7 @@ bool brahma_execute(Brahma_Args ex)
 
     #undef PROFILE_SECTION_END
 
-    ex.log(BRAHMA_LOG_PROFILE "Total execution time: %.2f ms.\n", (brahma_get_time() - startTime) / 1000000.0);
+    ex.log(BRAHMA_LOG_PROFILE "Total execution time: %.2f ms.\n", (double) (brahma_get_time() - startTime) / 1000000.0);
 
     {
         #define BYTE_PRINTER(varName) \
@@ -2312,8 +2338,10 @@ int main(int argc, char* argv[])
         if (!strcmp("-debug_build_tool", argv[i])) {      continue; } // whether the build tool itself is a debug build
 
         // flags
-        if (!strcmp("-nodebuginfo", argv[i])) { ex.flags &= ~(Brahma_Args_Flags) BRAHMA_ARGS_FLAG_DEBUG;     continue; }
-        if (!strcmp("-optimised",   argv[i])) { ex.flags |=  (Brahma_Args_Flags) BRAHMA_ARGS_FLAG_OPTIMISED; continue; }
+        if (!strcmp("-nodebuginfo", argv[i])) { ex.flags &= ~(Brahma_Args_Flags) BRAHMA_ARGS_FLAG_DEBUG;               continue; }
+        if (!strcmp("-optimised",   argv[i])) { ex.flags |=  (Brahma_Args_Flags) BRAHMA_ARGS_FLAG_OPTIMISED;           continue; }
+        if (!strcmp("-warnings",    argv[i])) { ex.flags |=  (Brahma_Args_Flags) BRAHMA_ARGS_FLAG_SHOW_WARNINGS;       continue; }
+        if (!strcmp("-warn_as_err", argv[i])) { ex.flags |=  (Brahma_Args_Flags) BRAHMA_ARGS_FLAG_WARNINGS_ARE_ERRORS; continue; }
 
         if (!strcmp("-package", argv[i]))
         {
@@ -2465,18 +2493,18 @@ int main(int argc, char* argv[])
 
 #define BRAHMA_ADD_PACKAGE(owningFile_, packageName) \
     memset(&currentPackage, 0, sizeof(currentPackage)); \
-    *((char**) &(currentPackage.name)) = #packageName; \
-    *((char**) &(currentPackage.owningFile)) = owningFile_; \
-    *((Brahma_Platform*) &(currentPackage.platform)) = platform; \
-    *((Brahma_Architecture*) &(currentPackage.architecture)) = architecture; \
+    currentPackage.name = #packageName; \
+    currentPackage.owningFile = owningFile_; \
+    currentPackage.platform = platform; \
+    currentPackage.architecture = architecture; \
     brahma_implement_package_##packageName(&currentPackage); \
     brahma_append_package_to_array_list(packages, currentPackage);
 
 #define BRAHMA_ADD_LIBRARY(owningDir_, owningFile_, libraryName) \
     memset(&currentLibrary, 0, sizeof(currentLibrary)); \
-    *((char**) &(currentLibrary.name)) = #libraryName; \
-    *((char**) &(currentLibrary.owningFile)) = owningFile_; \
-    *((char**) &(currentLibrary.owningDir)) = owningDir_; \
+    currentLibrary.name = #libraryName; \
+    currentLibrary.owningFile = owningFile_; \
+    currentLibrary.owningDir = owningDir_; \
     brahma_implement_library_##libraryName(package, &currentLibrary); \
     brahma_append_library_to_array_list(libraries, currentLibrary);
 
