@@ -32,8 +32,8 @@ if "%~1"=="-debug_build_tool" (
     goto SECTION_ParseArgs
 )
 
-if "%~1"=="-build_tool_path" (
-    set OUTPUT=%~2
+if "%~1"=="-intermediate_output" (
+    set "OUTPUT=%~2\brahma"
     shift
     shift
     goto SECTION_ParseArgs
@@ -55,7 +55,7 @@ rem Process Parsed Args
 :SECTION_DoneParsing
 
 if "%OUTPUT%"=="" (
-    echo ERROR: No output file specified with -build_tool_path. Use as: *.bat -build_tool_path ^<file^> ^(no extension needed^). Press any key to exit...
+    echo ERROR: No output file specified with -out. Use as: *.bat -out ^<file^> ^(no extension needed^). Press any key to exit...
     pause >nul
     exit /b 1
 )

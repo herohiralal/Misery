@@ -441,6 +441,9 @@ typedef struct
 
     void (*createPackages)(Brahma_Package_Array_List* packages);
     void (*createLibraries)(Brahma_Library_Array_List* libraries, const Brahma_Package* package);
+
+    char* intermediateOutputDir;
+    char* outputDir;
 } Brahma_Args;
 
 // main entry point function
@@ -519,6 +522,12 @@ bool brahma_append_all_library_deps(
 
 bool brahma_execute(Brahma_Args ex)
 {
+    if (!ex.log || !ex.createPackages || !ex.createLibraries || !ex.outputDir || !ex.outputDir[0])
+    {
+        ex.log("ERROR: Invalid arguments passed to brahma_execute.\n");
+        return false;
+    }
+
     int64_t startTime = brahma_get_time(), time = 0, lastTime = startTime;
 
     #define PROFILE_SECTION_END(sectionName) \
@@ -535,6 +544,51 @@ bool brahma_execute(Brahma_Args ex)
     brahma_initialise_internal_allocator();
 
     PROFILE_SECTION_END("initialise");
+
+    // clean up output dir - forward slashes only, no trailing slash
+    {
+        size_t outputDirLen = strlen(ex.outputDir);
+        bool hasTrailingSlash = (outputDirLen > 0) && (ex.outputDir[outputDirLen - 1] == '/' || ex.outputDir[outputDirLen - 1] == '\\');
+        if (hasTrailingSlash) { outputDirLen--; }
+
+        char* outputDirCleanPath = brahma_push_memory(outputDirLen + 1, 1);
+        for (size_t i = 0; i < outputDirLen; i++)
+        {
+            char c = ex.outputDir[i];
+            if (c == '\\') { c = '/'; }
+            outputDirCleanPath[i] = c;
+        }
+
+        outputDirCleanPath[outputDirLen] = '\0';
+    }
+
+    if (!ex.intermediateOutputDir || !ex.intermediateOutputDir[0])
+    {
+        ex.log("WARNING: No intermediate output directory specified. Defaulting \"%s/Temp/\".\n", ex.outputDir);
+        ex.intermediateOutputDir = brahma_sprintf("%s/Temp", ex.outputDir);
+    }
+
+    // clean up intermediate output dir - forward slashes only, no trailing slash
+    {
+        size_t intermediateOutputDirLen = strlen(ex.intermediateOutputDir);
+        bool hasTrailingSlash = (intermediateOutputDirLen > 0) &&
+            (ex.intermediateOutputDir[intermediateOutputDirLen - 1] == '/' ||
+                ex.intermediateOutputDir[intermediateOutputDirLen - 1] == '\\');
+
+        if (hasTrailingSlash) { intermediateOutputDirLen--; }
+
+        char* intermediateOutputDirCleanPath = brahma_push_memory(intermediateOutputDirLen + 1, 1);
+        for (size_t i = 0; i < intermediateOutputDirLen; i++)
+        {
+            char c = ex.intermediateOutputDir[i];
+            if (c == '\\') { c = '/'; }
+            intermediateOutputDirCleanPath[i] = c;
+        }
+
+        intermediateOutputDirCleanPath[intermediateOutputDirLen] = '\0';
+    }
+
+    PROFILE_SECTION_END("input cleanup");
 
     brahma_reserve_package_array_list_capacity(&pkgDefs, ex.pkgCount);
     ex.createPackages(&pkgDefs);
@@ -570,6 +624,8 @@ bool brahma_execute(Brahma_Args ex)
         ex.log("\tSelected package: %s.\n", selectedPkg->name);
         ex.log("\tDebug info:       %s.\n", (ex.flags & BRAHMA_ARGS_FLAG_DEBUG)     ? "on" : "off");
         ex.log("\tOptimised:        %s.\n", (ex.flags & BRAHMA_ARGS_FLAG_OPTIMISED) ? "on" : "off");
+        ex.log("\tOutput dir:       %s.\n", ex.outputDir);
+        ex.log("\tIntermediate dir: %s.\n", ex.intermediateOutputDir);
         ex.log("-----------------------------------------\n");
     }
 
@@ -1595,15 +1651,18 @@ int main(int argc, char* argv[])
     ex.createPackages  = brahma_create_all_packages;
     ex.createLibraries = brahma_create_all_libraries;
 
+    ex.intermediateOutputDir = NULL;
+    ex.outputDir             = NULL;
+
     ex.flags |= BRAHMA_ARGS_FLAG_DEBUG; // default to debug mode
 
     for (int i = 1; i < argc; i++) // skipping first arg because it's gonna be the executable name
     {
         // intermediate stuff - not relevant once this tool has begun executing
-        if (!strcmp("-cxx",                argv[i])) { i++; continue; } // make build tool in cxx mode
-        if (!strcmp("-lib_search_dir", argv[i]))     { i++; continue; } // library search dirs
-        if (!strcmp("-build_tool_path",    argv[i])) { i++; continue; } // the path where the build tool was compiled
-        if (!strcmp("-debug_build_tool",   argv[i])) {      continue; } // whether the build tool itself is a debug build
+        if (!strcmp("-cxx",              argv[i])) { i++; continue; } // make build tool in cxx mode
+        if (!strcmp("-lib_search_dir",   argv[i])) { i++; continue; } // library search dirs
+        // if (!strcmp("-out",              argv[i])) { i++; continue; } // the path where the build tool was compiled
+        if (!strcmp("-debug_build_tool", argv[i])) {      continue; } // whether the build tool itself is a debug build
 
         // flags
         if (!strcmp("-nodebuginfo", argv[i])) { ex.flags &= ~(Brahma_Args_Flags) BRAHMA_ARGS_FLAG_DEBUG;     continue; }
@@ -1624,6 +1683,42 @@ int main(int argc, char* argv[])
             }
 
             ex.packageToBuild = argv[i];
+            continue;
+        }
+
+        if (!strcmp("-out", argv[i]))
+        {
+            if (ex.outputDir)
+            {
+                ex.log("ERROR: Multiple output directories specified with -output_dir. Use as: *.exe -output_dir outputDirectory.\n");
+                return 1;
+            }
+
+            if (++i >= argc)
+            {
+                ex.log("ERROR: No output directory specified after -output_dir. Use as: *.exe -output_dir outputDirectory.\n");
+                return 1;
+            }
+
+            ex.outputDir = argv[i];
+            continue;
+        }
+
+        if (!strcmp("-intermediate_output", argv[i]))
+        {
+            if (ex.intermediateOutputDir)
+            {
+                ex.log("ERROR: Multiple intermediate output directories specified with -intermediate_output. Use as: *.exe -intermediate_output intermediateOutputDirectory.\n");
+                return 1;
+            }
+
+            if (++i >= argc)
+            {
+                ex.log("ERROR: No intermediate output directory specified after -intermediate_output. Use as: *.exe -intermediate_output intermediateOutputDirectory.\n");
+                return 1;
+            }
+
+            ex.intermediateOutputDir = argv[i];
             continue;
         }
 

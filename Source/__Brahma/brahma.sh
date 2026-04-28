@@ -24,8 +24,8 @@ while [[ $# -gt 0 ]]; do
         SELF_DEBUG=1
         shift
 
-    elif [[ "$1" == "-build_tool_path" ]]; then
-        OUTPUT="$2"
+    elif [[ "$1" == "-intermediate_output" ]]; then
+        OUTPUT="$2/brahma"
         shift 2
 
     elif [[ "$1" == "-lib_search_dir" ]]; then
@@ -41,7 +41,7 @@ done
 # Process Parsed Args
 
 if [[ -z "$OUTPUT" ]]; then
-    echo "ERROR: No output file specified with -build_tool_path. Use as: *.sh -build_tool_path <file> (no extension needed)."
+    echo "ERROR: No output file specified with -out. Use as: *.sh -out <file> (no extension needed)."
     exit 1
 fi
 
