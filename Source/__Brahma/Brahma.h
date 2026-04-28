@@ -546,9 +546,11 @@ bool brahma_execute(Brahma_Args ex);
 // Library implementation
 #if defined(BRAHMA_LIBRARY_IMPL) || defined(BRAHMA_EXEC)
 
+#define BRAHMA_LOG_PROFILE "\033[35m[PRF]\033[0m " // magenta
 #define BRAHMA_LOG_INFO    "\033[34m[INF]\033[0m " // blue
 #define BRAHMA_LOG_WARNING "\033[33m[WRN]\033[0m " // yellow
 #define BRAHMA_LOG_ERROR   "\033[31m[ERR]\033[0m " // red
+#define BRAHMA_LOG_SUCCESS "\033[32m[SCS]\033[0m " // green
 
 // get current time in nanoseconds since unix epoch
 int64_t brahma_get_time(void);
@@ -659,7 +661,7 @@ bool brahma_execute(Brahma_Args ex)
         do \
         { \
             time = brahma_get_time(); \
-            ex.log(BRAHMA_LOG_INFO "'" sectionName "': DONE (%.2f ms).\n", (time - lastTime) / 1000000.0); \
+            ex.log(BRAHMA_LOG_PROFILE "'" sectionName "': DONE (%.2f ms).\n", (time - lastTime) / 1000000.0); \
             lastTime = time; \
         } while (false)
 
@@ -781,17 +783,17 @@ bool brahma_execute(Brahma_Args ex)
 
     if (!failed)
     {
-        ex.log(BRAHMA_LOG_INFO "-----------------------------------------\n");
-        ex.log(BRAHMA_LOG_INFO "Brahma Configuration:\n");
-        ex.log(BRAHMA_LOG_INFO "\tSelected package: %s.\n", selectedPkg->name);
-        ex.log(BRAHMA_LOG_INFO "\tPrimary library:  %s.\n", primaryLib->name);
-        ex.log(BRAHMA_LOG_INFO "\tPlatform:         %s.\n", BRAHMA_PLATFORM_NAMES[selectedPkg->platform]);
-        ex.log(BRAHMA_LOG_INFO "\tArch:             %s.\n", BRAHMA_ARCHITECTURE_NAMES[selectedPkg->architecture]);
-        ex.log(BRAHMA_LOG_INFO "\tDebug info:       %s.\n", (ex.flags & BRAHMA_ARGS_FLAG_DEBUG)     ? "on" : "off");
-        ex.log(BRAHMA_LOG_INFO "\tOptimised:        %s.\n", (ex.flags & BRAHMA_ARGS_FLAG_OPTIMISED) ? "on" : "off");
-        ex.log(BRAHMA_LOG_INFO "\tOutput dir:       %s.\n", ex.outputDir);
-        ex.log(BRAHMA_LOG_INFO "\tIntermediate dir: %s.\n", ex.intermediateOutputDir);
-        ex.log(BRAHMA_LOG_INFO "-----------------------------------------\n");
+        ex.log(BRAHMA_LOG_SUCCESS "-----------------------------------------\n");
+        ex.log(BRAHMA_LOG_SUCCESS "Brahma Configuration:\n");
+        ex.log(BRAHMA_LOG_SUCCESS "\tSelected package: %s.\n", selectedPkg->name);
+        ex.log(BRAHMA_LOG_SUCCESS "\tPrimary library:  %s.\n", primaryLib->name);
+        ex.log(BRAHMA_LOG_SUCCESS "\tPlatform:         %s.\n", BRAHMA_PLATFORM_NAMES[selectedPkg->platform]);
+        ex.log(BRAHMA_LOG_SUCCESS "\tArch:             %s.\n", BRAHMA_ARCHITECTURE_NAMES[selectedPkg->architecture]);
+        ex.log(BRAHMA_LOG_SUCCESS "\tDebug info:       %s.\n", (ex.flags & BRAHMA_ARGS_FLAG_DEBUG)     ? "on" : "off");
+        ex.log(BRAHMA_LOG_SUCCESS "\tOptimised:        %s.\n", (ex.flags & BRAHMA_ARGS_FLAG_OPTIMISED) ? "on" : "off");
+        ex.log(BRAHMA_LOG_SUCCESS "\tOutput dir:       %s.\n", ex.outputDir);
+        ex.log(BRAHMA_LOG_SUCCESS "\tIntermediate dir: %s.\n", ex.intermediateOutputDir);
+        ex.log(BRAHMA_LOG_SUCCESS "-----------------------------------------\n");
     }
 
     // dependencies of libs
@@ -919,20 +921,20 @@ bool brahma_execute(Brahma_Args ex)
             {
                 const char* fileName;
                 const Brahma_Define_Paged_List* defines;
-                const Brahma_Data_Chunk_Array_List* depChunks;
+                const Brahma_Data_Chunk* depChunk;
                 const Brahma_Library_Dependency_Idx_Paged_List* depIdxs;
                 bool isInternal;
             } toProcess[2];
 
             toProcess[0].fileName = "Interface";
             toProcess[0].defines = &lib->interfaceDefines;
-            toProcess[0].depChunks = &interfaceDepChunks;
+            toProcess[0].depChunk = &interfaceDepChunks.data[libIdx];
             toProcess[0].depIdxs = &interfaceDepIdxs;
             toProcess[0].isInternal = false;
 
             toProcess[1].fileName = "Internal";
             toProcess[1].defines = &lib->internalDefines;
-            toProcess[1].depChunks = &internalDepChunks;
+            toProcess[1].depChunk = &internalDepChunks.data[libIdx];
             toProcess[1].depIdxs = &internalDepIdxs;
             toProcess[1].isInternal = true;
 
@@ -950,16 +952,16 @@ bool brahma_execute(Brahma_Args ex)
                         fprintf(artifactFile, "#include \"InterfaceDefinitions.h\"\n");
 
                     // write the dependency paths
-                    Brahma_Data_Chunk depChunk = toProcess[i].depChunks->data[i];
+                    Brahma_Data_Chunk depChunk = *(toProcess[i].depChunk);
                     for (size_t j = depChunk.start; j < (size_t) (depChunk.start + depChunk.count); j++)
                     {
                         uint16_t depLibIdx = *brahma_index_library_dependency_idx_paged_list(toProcess[i].depIdxs, j);
                         Brahma_Library* depLib = &(libDefs.data[depLibIdx]);
 
-                        fprintf(artifactFile, "#ifndef LIB_PATH_%s", depLib->name);
-                        fprintf(artifactFile, "#define LIB_PATH_%s \"%s/\"", depLib->name, depLib->owningDir);
-                        fprintf(artifactFile, "#include LIB_PATH_%s \"Artifacts/%sDefinitions.h\"", depLib->name, toProcess[i].fileName);
-                        fprintf(artifactFile, "#endif");
+                        fprintf(artifactFile, "#ifndef LIB_PATH_%s\n", depLib->name);
+                        fprintf(artifactFile, "#define LIB_PATH_%s \"%s/\"\n", depLib->name, depLib->owningDir);
+                        fprintf(artifactFile, "#include LIB_PATH_%s \"Artifacts/%sDefinitions.h\"\n", depLib->name, toProcess[i].fileName);
+                        fprintf(artifactFile, "#endif\n");
                     }
 
                     const Brahma_Define_Paged_List* defines = toProcess[i].defines;
