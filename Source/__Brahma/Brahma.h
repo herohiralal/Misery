@@ -908,6 +908,35 @@ bool brahma_execute(Brahma_Args ex)
 
     PROFILE_SECTION_END("gather files");
 
+    // make dirs
+    Brahma_String_Array_List libArtifactDirs = { NULL, 0, 0 };
+    if (!failed)
+    {
+        brahma_reserve_string_array_list_capacity(&libArtifactDirs, libDefs.count);
+
+        ex.outputDir = brahma_sprintf("%s/%s-%s",
+            ex.outputDir,
+            BRAHMA_PLATFORM_NAMES[selectedPkg->platform], BRAHMA_ARCHITECTURE_NAMES[selectedPkg->architecture]);
+
+        ex.intermediateOutputDir = brahma_sprintf("%s/%s-%s-%s",
+            ex.intermediateOutputDir, selectedPkg->name,
+            BRAHMA_PLATFORM_NAMES[selectedPkg->platform], BRAHMA_ARCHITECTURE_NAMES[selectedPkg->architecture]);
+
+        brahma_ensure_dir(ex.outputDir);
+        brahma_ensure_dir(ex.intermediateOutputDir);
+
+        for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
+        {
+            Brahma_Library* lib = &(libDefs.data[libIdx]);
+            char* libOutputDir = brahma_sprintf("%s/%s", ex.intermediateOutputDir, lib->name);
+            brahma_ensure_dir(libOutputDir);
+
+            brahma_append_string_to_array_list(&libArtifactDirs, libOutputDir);
+        }
+    }
+
+    PROFILE_SECTION_END("ensure directories");
+
     // artifact generation - definitions
     if (!failed)
     {
