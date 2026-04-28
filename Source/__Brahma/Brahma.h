@@ -1188,20 +1188,6 @@ bool brahma_execute(Brahma_Args ex)
 
                 fprintf(packageDefinitionsFile, "#define BRAHMA_PACKAGE_NAME \"%s\"\n", selectedPkg->name);
 
-                for (Brahma_Platform p = BRAHMA_PLATFORM_UNKNOWN; p < BRAHMA_PLATFORM__COUNT; p++)
-                {
-                    char* pltName = brahma_sprintf("%s", BRAHMA_PLATFORM_NAMES[p]);
-                    for (char* c = pltName; *c; c++) if (*c >= 'a' && *c <= 'z') *c = *c - ('a' - 'A');
-                    fprintf(packageDefinitionsFile, "#define BRAHMA_PLATFORM_%s %d\n", pltName, p == selectedPkg->platform ? 1 : 0);
-                }
-
-                for (Brahma_Architecture a = BRAHMA_ARCHITECTURE_UNKNOWN; a < BRAHMA_ARCHITECTURE__COUNT; a++)
-                {
-                    char* archName = brahma_sprintf("%s", BRAHMA_ARCHITECTURE_NAMES[a]);
-                    for (char* c = archName; *c; c++) if (*c >= 'a' && *c <= 'z') *c = *c - ('a' - 'A');
-                    fprintf(packageDefinitionsFile, "#define BRAHMA_ARCHITECTURE_%s %d\n", archName, a == selectedPkg->architecture ? 1 : 0);
-                }
-
                 Brahma_Define_Paged_List* pkgDefines = &selectedPkg->defines;
                 for (size_t j = 0; j < pkgDefines->count; j++)
                 {
