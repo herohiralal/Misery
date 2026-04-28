@@ -704,6 +704,7 @@ bool brahma_execute(Brahma_Args ex)
         }
 
         outputDirCleanPath[outputDirLen] = '\0';
+        ex.outputDir = outputDirCleanPath;
     }
 
     if (!ex.intermediateOutputDir || !ex.intermediateOutputDir[0])
@@ -730,6 +731,7 @@ bool brahma_execute(Brahma_Args ex)
         }
 
         intermediateOutputDirCleanPath[intermediateOutputDirLen] = '\0';
+        ex.intermediateOutputDir = intermediateOutputDirCleanPath;
     }
 
     PROFILE_SECTION_END("input cleanup");
@@ -960,8 +962,7 @@ bool brahma_execute(Brahma_Args ex)
         for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
         {
             Brahma_Library* lib = &(libDefs.data[libIdx]);
-            char* artifactsDir = brahma_sprintf("%s/Artifacts", lib->owningDir);
-            brahma_ensure_dir(artifactsDir);
+            char* artifactsDir = libArtifactDirs.data[libIdx];
 
             struct
             {
@@ -1006,7 +1007,7 @@ bool brahma_execute(Brahma_Args ex)
 
                         fprintf(artifactFile, "#ifndef LIB_PATH_%s\n", depLib->name);
                         fprintf(artifactFile, "#define LIB_PATH_%s \"%s/\"\n", depLib->name, depLib->owningDir);
-                        fprintf(artifactFile, "#include LIB_PATH_%s \"Artifacts/%sDefinitions.h\"\n", depLib->name, toProcess[i].fileName);
+                        fprintf(artifactFile, "#include \"%s/%sDefinitions.h\"\n", libArtifactDirs.data[depLibIdx], toProcess[i].fileName);
                         fprintf(artifactFile, "#endif\n");
                     }
 
@@ -1031,30 +1032,27 @@ bool brahma_execute(Brahma_Args ex)
     {
         for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
         {
-            Brahma_Library* lib = &(libDefs.data[libIdx]);
-            char* artifactsDir = brahma_sprintf("%s/Artifacts", lib->owningDir);
+            // Brahma_Library* lib = &(libDefs.data[libIdx]);
+            char* artifactsDir = libArtifactDirs.data[libIdx];
 
             struct
             {
-                const char* fileName;
                 const char* extension;
                 const Brahma_Data_Chunk_Array_List* fileChunks;
                 const Brahma_String_Paged_List* filePaths;
             } toProcess[2];
 
-            toProcess[0].fileName = "C";
             toProcess[0].extension = ".c";
             toProcess[0].fileChunks = &internalCFileChunks;
             toProcess[0].filePaths = &internalCFilePaths;
 
-            toProcess[1].fileName = "Cxx";
             toProcess[1].extension = ".cpp";
             toProcess[1].fileChunks = &internalCxxFileChunks;
             toProcess[1].filePaths = &internalCxxFilePaths;
 
             for (size_t i = 0; i < (sizeof(toProcess) / sizeof(toProcess[0])); i++)
             {
-                char* artifactPath = brahma_sprintf("%s/%sUnity%s", artifactsDir, toProcess[i].fileName, toProcess[i].extension);
+                char* artifactPath = brahma_sprintf("%s/Unity%s", artifactsDir, toProcess[i].extension);
                 FILE* artifactFile = fopen(artifactPath, "w");
                 if (artifactFile)
                 {
