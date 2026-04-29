@@ -1349,6 +1349,7 @@ bool brahma_execute(Brahma_Args ex)
             }
         }
 
+        // copy all c args to c++ args and the nadd some c++ specific args
         {
             for (size_t i = 0; i < commonCArgs.count; i++)
             {
