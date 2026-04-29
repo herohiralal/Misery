@@ -1712,7 +1712,7 @@ bool brahma_append_all_library_deps(
             Brahma_Library* directDepLib = &(allLibs->data[idxOfDirectDepLib]);
             if (!brahma_append_all_library_deps(allLibs, directDepLib, allLibDeps, firstLibDepIdx, error, &cycleCheckCurrentEntry))
             {
-                if (error) *error = brahma_sprintf("(%s) -> %s", directDependency, *error);
+                if (error) *error = brahma_sprintf("(%s) -> %s", library->name, *error);
                 return false;
             }
 
