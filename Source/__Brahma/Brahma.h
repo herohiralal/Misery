@@ -928,9 +928,9 @@ bool brahma_execute(Brahma_Args ex)
 
         brahma_ensure_dir(ex.outputDir);
         brahma_ensure_dir(ex.intermediateOutputDir);
-    }
 
-    PROFILE_SECTION_END("create packages");
+        PROFILE_SECTION_END("create packages");
+    }
 
     // libs
     Brahma_Library_Array_List libDefs = { NULL, 0, 0 };
@@ -958,9 +958,10 @@ bool brahma_execute(Brahma_Args ex)
                 failed = true;
             }
         }
+
+        PROFILE_SECTION_END("create libraries");
     }
 
-    PROFILE_SECTION_END("create libraries");
 
     if (!failed)
     {
@@ -1043,9 +1044,10 @@ bool brahma_execute(Brahma_Args ex)
             libDefs = libsToProcess;
             primaryLibIdx = (libsToProcess.count - 1);
         }
+
+        PROFILE_SECTION_END("sort libraries");
     }
 
-    PROFILE_SECTION_END("sort libraries");
 
     // files gather
     Brahma_Data_Chunk_Array_List interfaceFileChunks = { NULL, 0, 0 };
@@ -1100,9 +1102,10 @@ bool brahma_execute(Brahma_Args ex)
                 brahma_append_data_chunk_to_array_list(toProcess[i].fileChunks, chunk);
             }
         }
+
+        PROFILE_SECTION_END("gather files");
     }
 
-    PROFILE_SECTION_END("gather files");
 
     // make dirs
     Brahma_String_Array_List libArtifactDirs = { NULL, 0, 0 };
@@ -1118,9 +1121,10 @@ bool brahma_execute(Brahma_Args ex)
 
             brahma_append_string_to_array_list(&libArtifactDirs, libOutputDir);
         }
+
+        PROFILE_SECTION_END("ensure directories");
     }
 
-    PROFILE_SECTION_END("ensure directories");
 
     // artifact generation - definitions
     if (!failed)
@@ -1217,9 +1221,10 @@ bool brahma_execute(Brahma_Args ex)
                 }
             }
         }
+
+        PROFILE_SECTION_END("generate definitions");
     }
 
-    PROFILE_SECTION_END("generate definitions");
 
     // artifact generation - unity files
     Brahma_String_Array_List libUnityCFiles = { NULL, 0, 0 };
@@ -1276,9 +1281,10 @@ bool brahma_execute(Brahma_Args ex)
                 }
             }
         }
+
+        PROFILE_SECTION_END("generate unity files");
     }
 
-    PROFILE_SECTION_END("generate unity files");
 
     Brahma_String_Array_List commonCArgs = { NULL, 0, 0 };
     Brahma_String_Array_List commonCxxArgs = { NULL, 0, 0 };
@@ -1379,9 +1385,10 @@ bool brahma_execute(Brahma_Args ex)
         {
             brahma_append_string_to_array_list(&commonCArgs, (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? "/std:c17" : "-std=c17");
         }
+
+        PROFILE_SECTION_END("create common compile args");
     }
 
-    PROFILE_SECTION_END("create common compile args");
 
     Brahma_Process_Array_List compileProcesses = { NULL, 0, 0 };
     Brahma_String_Array_List builtObjects = { NULL, 0, 0 };
@@ -1443,9 +1450,10 @@ bool brahma_execute(Brahma_Args ex)
                 brahma_append_string_to_array_list(&builtObjects, objectFilePath);
             }
         }
+
+        PROFILE_SECTION_END("start compile processes");
     }
 
-    PROFILE_SECTION_END("start compile processes");
 
     if (!failed)
     {
@@ -1472,9 +1480,10 @@ bool brahma_execute(Brahma_Args ex)
 
             ex.log(BRAHMA_LOG_SUCCESS "Compiled '%s' successfully.\n", builtObjects.data[i]);
         }
+
+        PROFILE_SECTION_END("end compile processes");
     }
 
-    PROFILE_SECTION_END("end compile processes");
 
     char* output = NULL;
     if (!failed)
@@ -1606,9 +1615,10 @@ bool brahma_execute(Brahma_Args ex)
                 ex.log(BRAHMA_LOG_SUCCESS "Linked '%s' successfully.\n", output);
             }
         }
+
+        PROFILE_SECTION_END("linking");
     }
 
-    PROFILE_SECTION_END("linking");
 
     Brahma_Memory_Usage_Report report = brahma_shutdown_internal_allocator();
 
