@@ -1357,9 +1357,9 @@ bool brahma_execute(Brahma_Args ex)
 
             if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
             {
-                brahma_append_string_to_array_list(&commonCArgs, "/EHs-"); // no exception handling
-                brahma_append_string_to_array_list(&commonCArgs, "/GR-"); // no rtti
-                brahma_append_string_to_array_list(&commonCArgs, "/std:c++20");
+                brahma_append_string_to_array_list(&commonCxxArgs, "/EHs-"); // no exception handling
+                brahma_append_string_to_array_list(&commonCxxArgs, "/GR-"); // no rtti
+                brahma_append_string_to_array_list(&commonCxxArgs, "/std:c++20");
             }
             else
             {
@@ -1368,9 +1368,9 @@ bool brahma_execute(Brahma_Args ex)
                     brahma_append_string_to_array_list(&commonCxxArgs, "-Wstrict-prototypes");
                 }
 
-                brahma_append_string_to_array_list(&commonCArgs, "-fno-exceptions");
-                brahma_append_string_to_array_list(&commonCArgs, "-fno-rtti");
-                brahma_append_string_to_array_list(&commonCArgs, "-std=c++20");
+                brahma_append_string_to_array_list(&commonCxxArgs, "-fno-exceptions");
+                brahma_append_string_to_array_list(&commonCxxArgs, "-fno-rtti");
+                brahma_append_string_to_array_list(&commonCxxArgs, "-std=c++20");
             }
         }
 
@@ -1540,6 +1540,11 @@ bool brahma_execute(Brahma_Args ex)
             for (size_t i = 0; i < commonCxxArgs.count; i++)
             {
                 brahma_append_string_to_array_list(&linkArgs, commonCxxArgs.data[i]);
+            }
+
+            for (size_t i = 0; i < builtObjects.count; i++)
+            {
+                brahma_append_string_to_array_list(&linkArgs, builtObjects.data[i]);
             }
 
             if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
