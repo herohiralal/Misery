@@ -964,21 +964,21 @@ bool brahma_execute(Brahma_Args ex)
 
     if (!failed)
     {
-        ex.log(BRAHMA_LOG_SUCCESS "-----------------------------------------\n");
-        ex.log(BRAHMA_LOG_SUCCESS "Brahma Configuration:\n");
-        ex.log(BRAHMA_LOG_SUCCESS "\tToolchain:        %s.\n", toolchainPath);
-        ex.log(BRAHMA_LOG_SUCCESS "\tC compiler:       %s.\n", cCompilerPath);
-        ex.log(BRAHMA_LOG_SUCCESS "\tC++ compiler:     %s.\n", cxxCompilerPath);
-        ex.log(BRAHMA_LOG_SUCCESS "\tStatic linker:    %s.\n", staticLinkerPath);
-        ex.log(BRAHMA_LOG_SUCCESS "\tSelected package: %s.\n", selectedPkg->name);
-        ex.log(BRAHMA_LOG_SUCCESS "\tPrimary library:  %s.\n", libDefs.data[primaryLibIdx].name);
-        ex.log(BRAHMA_LOG_SUCCESS "\tPlatform:         %s.\n", BRAHMA_PLATFORM_NAMES[selectedPkg->platform]);
-        ex.log(BRAHMA_LOG_SUCCESS "\tArch:             %s.\n", BRAHMA_ARCHITECTURE_NAMES[selectedPkg->architecture]);
-        ex.log(BRAHMA_LOG_SUCCESS "\tDebug info:       %s.\n", (ex.flags & BRAHMA_ARGS_FLAG_DEBUG)     ? "on" : "off");
-        ex.log(BRAHMA_LOG_SUCCESS "\tOptimised:        %s.\n", (ex.flags & BRAHMA_ARGS_FLAG_OPTIMISED) ? "on" : "off");
-        ex.log(BRAHMA_LOG_SUCCESS "\tOutput dir:       %s.\n", ex.outputDir);
-        ex.log(BRAHMA_LOG_SUCCESS "\tIntermediate dir: %s.\n", ex.intermediateOutputDir);
-        ex.log(BRAHMA_LOG_SUCCESS "-----------------------------------------\n");
+        ex.log(BRAHMA_LOG_INFO "-----------------------------------------\n");
+        ex.log(BRAHMA_LOG_INFO "Brahma Configuration:\n");
+        ex.log(BRAHMA_LOG_INFO "\tToolchain:        %s.\n", toolchainPath);
+        ex.log(BRAHMA_LOG_INFO "\tC compiler:       %s.\n", cCompilerPath);
+        ex.log(BRAHMA_LOG_INFO "\tC++ compiler:     %s.\n", cxxCompilerPath);
+        ex.log(BRAHMA_LOG_INFO "\tStatic linker:    %s.\n", staticLinkerPath);
+        ex.log(BRAHMA_LOG_INFO "\tSelected package: %s.\n", selectedPkg->name);
+        ex.log(BRAHMA_LOG_INFO "\tPrimary library:  %s.\n", libDefs.data[primaryLibIdx].name);
+        ex.log(BRAHMA_LOG_INFO "\tPlatform:         %s.\n", BRAHMA_PLATFORM_NAMES[selectedPkg->platform]);
+        ex.log(BRAHMA_LOG_INFO "\tArch:             %s.\n", BRAHMA_ARCHITECTURE_NAMES[selectedPkg->architecture]);
+        ex.log(BRAHMA_LOG_INFO "\tDebug info:       %s.\n", (ex.flags & BRAHMA_ARGS_FLAG_DEBUG)     ? "on" : "off");
+        ex.log(BRAHMA_LOG_INFO "\tOptimised:        %s.\n", (ex.flags & BRAHMA_ARGS_FLAG_OPTIMISED) ? "on" : "off");
+        ex.log(BRAHMA_LOG_INFO "\tOutput dir:       %s.\n", ex.outputDir);
+        ex.log(BRAHMA_LOG_INFO "\tIntermediate dir: %s.\n", ex.intermediateOutputDir);
+        ex.log(BRAHMA_LOG_INFO "-----------------------------------------\n");
     }
 
     // gather libs to process
