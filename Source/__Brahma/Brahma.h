@@ -1697,7 +1697,7 @@ bool brahma_append_all_library_deps(
             const char* const* directDependencyPtr = brahma_index_string_paged_list(directDeps, i);
             if (!directDependencyPtr)
             {
-                if (error) *error = brahma_sprintf("(%d: failed to index direct dependency)", (int) i);
+                if (error) *error = brahma_sprintf("(%s) -> (%d: failed to index direct dependency)", library->name, (int) i);
                 return false;
             }
 
@@ -1705,7 +1705,7 @@ bool brahma_append_all_library_deps(
             int idxOfDirectDepLib = brahma_find_library_by_name(allLibs, directDependency);
             if (idxOfDirectDepLib < 0)
             {
-                if (error) *error = brahma_sprintf("(%s: failed to locate)", directDependency);
+                if (error) *error = brahma_sprintf("(%s) -> (%s: failed to locate)", library->name, directDependency);
                 return false;
             }
 
