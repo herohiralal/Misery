@@ -591,7 +591,7 @@ char* brahma_get_env_var(const char* name);
 bool brahma_dir_exists(const char* path);
 
 // ensure that a directory exists, and create it if it doesn't
-void brahma_ensure_dir(const char* path);
+bool brahma_ensure_dir(const char* path);
 
 // create a symlink at linkPath that points to targetPath; return true on success, false on failure
 bool brahma_create_symlink(const char* targetPath, const char* linkPath);
@@ -882,22 +882,20 @@ bool brahma_execute(Brahma_Args ex)
 
     PROFILE_SECTION_END("input cleanup");
 
-
-    Brahma_Package_Array_List pkgDefs = { NULL, 0, 0 };
-    brahma_reserve_package_array_list_capacity(&pkgDefs, ex.pkgCount);
-    ex.createPackages(ex.platform, ex.architecture, &pkgDefs);
-
-    if (pkgDefs.count == 0)
-    {
-        ex.log(BRAHMA_LOG_ERROR "No packages were created.\n");
-        failed = true;
-    }
-
     // find the package to build
     Brahma_Package* selectedPkg = NULL;
     if (!failed)
     {
-        if (!ex.packageToBuild)
+        Brahma_Package_Array_List pkgDefs = { NULL, 0, 0 };
+        brahma_reserve_package_array_list_capacity(&pkgDefs, ex.pkgCount);
+        ex.createPackages(ex.platform, ex.architecture, &pkgDefs);
+
+        if (pkgDefs.count == 0)
+        {
+            ex.log(BRAHMA_LOG_ERROR "No packages were created.\n");
+            failed = true;
+        }
+        else if (!ex.packageToBuild)
         {
             ex.log(BRAHMA_LOG_WARNING "No package specified. Defaulting to the first package: '%s'!\n", pkgDefs.data[0].name);
             selectedPkg = &pkgDefs.data[0];
@@ -913,8 +911,11 @@ bool brahma_execute(Brahma_Args ex)
                 failed = true;
             }
         }
+
+        PROFILE_SECTION_END("create packages");
     }
 
+    char* pkgIntermediateOutputDir = NULL;
     if (!failed)
     {
         ex.outputDir = brahma_sprintf("%s/%s-%s-%s",
@@ -929,10 +930,26 @@ bool brahma_execute(Brahma_Args ex)
             ((ex.flags & BRAHMA_ARGS_FLAG_DEBUG) ? "dbg" : "rel")
         );
 
-        brahma_ensure_dir(ex.outputDir);
-        brahma_ensure_dir(ex.intermediateOutputDir);
+        if (!brahma_ensure_dir(ex.outputDir))
+        {
+            ex.log(BRAHMA_LOG_ERROR "Failed to create output directory at '%s'.\n", ex.outputDir);
+            failed = true;
+        }
 
-        PROFILE_SECTION_END("create packages");
+        if (!brahma_ensure_dir(ex.intermediateOutputDir))
+        {
+            ex.log(BRAHMA_LOG_ERROR "Failed to create intermediate output directory at '%s'.\n", ex.intermediateOutputDir);
+            failed = true;
+        }
+
+        pkgIntermediateOutputDir = brahma_sprintf("%s/__PACKAGE__", ex.intermediateOutputDir, selectedPkg->name);
+        if (!failed && !brahma_ensure_dir(pkgIntermediateOutputDir))
+        {
+            ex.log(BRAHMA_LOG_ERROR "Failed to create package-specific intermediate output directory at '%s'.\n", pkgIntermediateOutputDir);
+            failed = true;
+        }
+
+        PROFILE_SECTION_END("ensure output dirs");
     }
 
     // libs
@@ -1110,6 +1127,7 @@ bool brahma_execute(Brahma_Args ex)
     }
 
 
+    #if 0
     // make dirs
     Brahma_String_Array_List libArtifactDirs = { NULL, 0, 0 };
     if (!failed)
@@ -1120,19 +1138,42 @@ bool brahma_execute(Brahma_Args ex)
         {
             Brahma_Library* lib = &(libDefs.data[libIdx]);
             char* libOutputDir = brahma_sprintf("%s/%s", ex.intermediateOutputDir, lib->name);
-            brahma_ensure_dir(libOutputDir);
+            if (!brahma_ensure_dir(libOutputDir))
+            {
+                ex.log(BRAHMA_LOG_ERROR "Failed to create library output directory at '%s'.\n", libOutputDir);
+                failed = true;
+            }
 
             brahma_append_string_to_array_list(&libArtifactDirs, libOutputDir);
         }
 
         PROFILE_SECTION_END("ensure directories");
     }
+    #endif
 
+    // make symlinks
+    if (!failed)
+    {
+        for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
+        {
+            Brahma_Library* lib = &(libDefs.data[libIdx]);
+            char* target = brahma_sprintf("%s/Interface", lib->owningDir);
+            if (!brahma_dir_exists(target)) continue;
+            char* link = brahma_sprintf("%s/%s", ex.intermediateOutputDir, lib->name);
+            if (!brahma_create_symlink(target, link))
+            {
+                ex.log(BRAHMA_LOG_ERROR "Failed to create symlink from '%s' to '%s'.\n", target, link);
+                failed = true;
+            }
+        }
+
+        PROFILE_SECTION_END("ensure symlinks");
+    }
 
     // artifact generation - definitions
     if (!failed)
     {
-        char* packageDefinitions = brahma_sprintf("%s/PackageDefinitions.h", ex.intermediateOutputDir);
+        char* packageDefinitions = brahma_sprintf("%s/Definitions.h", pkgIntermediateOutputDir);
         {
             FILE* packageDefinitionsFile = fopen(packageDefinitions, "w");
             if (packageDefinitionsFile)
@@ -1157,7 +1198,6 @@ bool brahma_execute(Brahma_Args ex)
         for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
         {
             Brahma_Library* lib = &(libDefs.data[libIdx]);
-            char* artifactsDir = libArtifactDirs.data[libIdx];
 
             struct
             {
@@ -1174,9 +1214,13 @@ bool brahma_execute(Brahma_Args ex)
             toProcess[1].definitions = &lib->internalDefinitions;
             toProcess[1].isInternal = true;
 
+            char* allCapsLibName = brahma_sprintf("%s", lib->name);
+            for (char* p = allCapsLibName; *p; p++) if (*p >= 'a' && *p <= 'z') { *p = *p - ('a' - 'A'); }
+
             for (size_t i = 0; i < (sizeof(toProcess) / sizeof(toProcess[0])); i++)
             {
-                char* artifactPath = brahma_sprintf("%s/%sDefinitions.h", artifactsDir, toProcess[i].fileName);
+                char* artifactPath = brahma_sprintf("%s/%s%sDefinitions.h", ex.intermediateOutputDir, lib->name, toProcess[i].fileName);
+
                 FILE* artifactFile = fopen(artifactPath, "w");
                 if (artifactFile)
                 {
@@ -1195,21 +1239,31 @@ bool brahma_execute(Brahma_Args ex)
                         for (size_t j = 0; j < depList->count; j++)
                         {
                             char* depLibName = *brahma_index_string_paged_list(depList, j);
-                            int depLibIdx = brahma_find_library_by_name(&libDefs, depLibName);
-
-                            fprintf(artifactFile, "#include \"%s/InterfaceDefinitions.h\"\n", libArtifactDirs.data[depLibIdx]);
+                            fprintf(artifactFile, "#include \"%s/%sInterfaceDefinitions.h\"\n", ex.intermediateOutputDir, depLibName);
                         }
                     }
 
                     if (toProcess[i].isInternal)
                     {
+                        fprintf(artifactFile, "\n#define BRAHMA_%s_IMPLEMENTATION\n", allCapsLibName);
+
                         // include interface definitions in internal definitions, obviously
-                        fprintf(artifactFile, "\n#include \"InterfaceDefinitions.h\"\n");
+                        fprintf(artifactFile, "#include \"%s/%sInterfaceDefinitions.h\"\n", ex.intermediateOutputDir, lib->name);
                     }
                     else
                     {
-                        // define self path
-                        fprintf(artifactFile, "\n#define LIB_PATH_%s \"%s/\"\n", lib->name, lib->owningDir);
+                        // define api macros (dllimport/dllexport)
+                        fprintf(artifactFile, "\n#if defined(_MSC_VER)\n");
+                        fprintf(artifactFile, "    #ifdef BRAHMA_%s_IMPLEMENTATION\n", allCapsLibName);
+                        fprintf(artifactFile, "        #define BRAHMA_%s_API __declspec(dllexport)\n", allCapsLibName);
+                        fprintf(artifactFile, "    #else\n");
+                        fprintf(artifactFile, "        #define BRAHMA_%s_API __declspec(dllimport)\n", allCapsLibName);
+                        fprintf(artifactFile, "    #endif\n");
+                        fprintf(artifactFile, "#elif defined(__GNUC__) || defined(__clang__)\n");
+                        fprintf(artifactFile, "    #define BRAHMA_%s_API __attribute__((visibility(\"default\")))\n", allCapsLibName);
+                        fprintf(artifactFile, "#else\n");
+                        fprintf(artifactFile, "    #define BRAHMA_%s_API\n", allCapsLibName);
+                        fprintf(artifactFile, "#endif\n");
                     }
 
                     const Brahma_Definition_Paged_List* definitions = toProcess[i].definitions;
@@ -1239,8 +1293,7 @@ bool brahma_execute(Brahma_Args ex)
 
         for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
         {
-            // Brahma_Library* lib = &(libDefs.data[libIdx]);
-            char* artifactsDir = libArtifactDirs.data[libIdx];
+            Brahma_Library* lib = &(libDefs.data[libIdx]);
 
             struct
             {
@@ -1264,14 +1317,14 @@ bool brahma_execute(Brahma_Args ex)
             {
                 if (!toProcess[i].filesChunk.count) { continue; }
 
-                char* artifactPath = brahma_sprintf("%s/Unity%s", artifactsDir, toProcess[i].extension);
+                char* artifactPath = brahma_sprintf("%s/%sUnity%s", pkgIntermediateOutputDir, lib->name, toProcess[i].extension);
                 brahma_append_string_to_array_list(toProcess[i].filePathsOutput, artifactPath);
 
                 FILE* artifactFile = fopen(artifactPath, "w");
                 if (artifactFile)
                 {
                     fprintf(artifactFile, "// This file is auto-generated by Brahma. Do not edit manually.\n\n");
-                    fprintf(artifactFile, "#include \"InternalDefinitions.h\"\n\n");
+                    fprintf(artifactFile, "#include \"%s/%sInternalDefinitions.h\"\n\n", ex.intermediateOutputDir, lib->name);
 
                     Brahma_Data_Chunk filesChunk = toProcess[i].filesChunk;
                     for (size_t j = filesChunk.start; j < (size_t) (filesChunk.start + filesChunk.count); j++)
@@ -1433,8 +1486,19 @@ bool brahma_execute(Brahma_Args ex)
                     brahma_append_string_to_array_list(&compileArgs, commonArgs->data[k]);
                 }
 
-                // compile only
-                brahma_append_string_to_array_list(&compileArgs, (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? "/c" : "-c");
+                // intermediate output dir as an include path
+                if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
+                {
+                    brahma_append_string_to_array_list(&compileArgs, "/diagnostics:caret");
+                    brahma_append_string_to_array_list(&compileArgs, brahma_sprintf("/I%s", ex.intermediateOutputDir));
+                    brahma_append_string_to_array_list(&compileArgs, "/c");
+                }
+                else
+                {
+                    brahma_append_string_to_array_list(&compileArgs, "-I");
+                    brahma_append_string_to_array_list(&compileArgs, ex.intermediateOutputDir);
+                    brahma_append_string_to_array_list(&compileArgs, "-c");
+                }
 
                 brahma_append_string_to_array_list(&compileArgs, sourceFilePath);
                 if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
@@ -2055,15 +2119,15 @@ bool brahma_dir_exists(const char* path)
     #endif
 }
 
-void brahma_ensure_dir(const char* path)
+bool brahma_ensure_dir(const char* path)
 {
     #if defined(_WIN32)
     {
-        CreateDirectoryA(path, NULL);
+        return CreateDirectoryA(path, NULL) != 0 || GetLastError() == ERROR_ALREADY_EXISTS;
     }
     #elif defined(__linux__) || defined(__APPLE__)
     {
-        mkdir(path, 0755);
+        return mkdir(path, 0755) == 0 || errno == EEXIST;
     }
     #endif
 }
@@ -2072,7 +2136,13 @@ bool brahma_create_symlink(const char* targetPath, const char* linkPath)
 {
     #if defined(_WIN32)
     {
-        // determine if target is a directory to set the correct flag
+        DWORD existing = GetFileAttributesA(linkPath);
+        if ((existing != INVALID_FILE_ATTRIBUTES) && (existing & FILE_ATTRIBUTE_REPARSE_POINT))
+        {
+            if (existing & FILE_ATTRIBUTE_DIRECTORY) { RemoveDirectoryA(linkPath); }
+            else                                     {      DeleteFileA(linkPath); }
+        }
+
         DWORD attrs = GetFileAttributesA(targetPath);
         DWORD flags = ((attrs != INVALID_FILE_ATTRIBUTES) && (attrs & FILE_ATTRIBUTE_DIRECTORY)) ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0;
         flags |= SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
@@ -2080,6 +2150,8 @@ bool brahma_create_symlink(const char* targetPath, const char* linkPath)
     }
     #elif defined(__linux__) || defined(__APPLE__)
     {
+        struct stat st;
+        if (lstat(linkPath, &st) == 0 && S_ISLNK(st.st_mode)) { unlink(linkPath); }
         return symlink(targetPath, linkPath) == 0;
     }
     #else
