@@ -593,6 +593,9 @@ bool brahma_dir_exists(const char* path);
 // ensure that a directory exists, and create it if it doesn't
 void brahma_ensure_dir(const char* path);
 
+// create a symlink at linkPath that points to targetPath; return true on success, false on failure
+bool brahma_create_symlink(const char* targetPath, const char* linkPath);
+
 // visitor function to use for iterating a directory
 typedef bool (*Brahma_Directory_Visitor_Delegate)(void* payload, const char* path, bool isDirectory, bool* exploreCurrentDirectory);
 
@@ -2062,6 +2065,25 @@ void brahma_ensure_dir(const char* path)
     {
         mkdir(path, 0755);
     }
+    #endif
+}
+
+bool brahma_create_symlink(const char* targetPath, const char* linkPath)
+{
+    #if defined(_WIN32)
+    {
+        // determine if target is a directory to set the correct flag
+        DWORD attrs = GetFileAttributesA(targetPath);
+        DWORD flags = ((attrs != INVALID_FILE_ATTRIBUTES) && (attrs & FILE_ATTRIBUTE_DIRECTORY)) ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0;
+        flags |= SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
+        return CreateSymbolicLinkA(linkPath, targetPath, flags) != 0;
+    }
+    #elif defined(__linux__) || defined(__APPLE__)
+    {
+        return symlink(targetPath, linkPath) == 0;
+    }
+    #else
+        #error "unsupported platform"
     #endif
 }
 
