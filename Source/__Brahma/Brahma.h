@@ -285,9 +285,9 @@ typedef struct
 {
     const char* key;
     const char* value;
-} Brahma_Define;
+} Brahma_Definition;
 
-BRAHMA_DECLARE_PAGED_LIST(Define, define, Brahma_Define, 7)
+BRAHMA_DECLARE_PAGED_LIST(Definition, definition, Brahma_Definition, 7)
 
 /**
  * The platforms that can be targeted.
@@ -353,6 +353,15 @@ typedef uint8_t Brahma_Platform;
  */
 typedef uint8_t Brahma_Architecture;
 
+typedef enum
+{
+    BRAHMA_PACKAGE_OUTPUT_TYPE_EXECUTABLE,
+    BRAHMA_PACKAGE_OUTPUT_TYPE_DYNAMIC_LIBRARY,
+    BRAHMA_PACKAGE_OUTPUT_TYPE_STATIC_LIBRARY,
+} Brahma_Package_Output_Types;
+
+typedef uint8_t Brahma_Package_Output_Type;
+
 /**
  * Package definition.
  *
@@ -388,9 +397,14 @@ typedef struct
     Brahma_Architecture architecture;
 
     /**
+     * The type of the package.
+     */
+    Brahma_Package_Output_Type outputType;
+
+    /**
      * Package-level definitions to use for compilation.
      */
-    Brahma_Define_Paged_List defines;
+    Brahma_Definition_Paged_List definitions;
 
     /**
      * The primary library that this package depends on. All the source files in this library (and its dependencies) will be compiled
@@ -441,13 +455,13 @@ typedef struct
      * Library-level definitions to use for compilation. These definitions will be used when compiling the source files in this
      * library, as well as the source files in the libraries that depend on this library (recursively).
      */
-    Brahma_Define_Paged_List interfaceDefines;
+    Brahma_Definition_Paged_List interfaceDefinitions;
 
     /**
      * Library-level definitions to use for compilation. These definitions will be used when compiling the source files in this
      * library, but not the source files in the libraries that depend on this library.
      */
-    Brahma_Define_Paged_List internalDefines;
+    Brahma_Definition_Paged_List internalDefinitions;
 } Brahma_Library;
 
 BRAHMA_DECLARE_ARRAY_LIST(Library, library, Brahma_Library)
@@ -903,13 +917,13 @@ bool brahma_execute(Brahma_Args ex)
         ex.outputDir = brahma_sprintf("%s/%s-%s-%s",
             ex.outputDir,
             BRAHMA_PLATFORM_NAMES[selectedPkg->platform], BRAHMA_ARCHITECTURE_NAMES[selectedPkg->architecture],
-            ((ex.flags & BRAHMA_ARGS_FLAG_DEBUG) ? "Debug" : "Release")
+            ((ex.flags & BRAHMA_ARGS_FLAG_DEBUG) ? "dbg" : "rel")
         );
 
         ex.intermediateOutputDir = brahma_sprintf("%s/%s-%s-%s-%s",
             ex.intermediateOutputDir, selectedPkg->name,
             BRAHMA_PLATFORM_NAMES[selectedPkg->platform], BRAHMA_ARCHITECTURE_NAMES[selectedPkg->architecture],
-            ((ex.flags & BRAHMA_ARGS_FLAG_DEBUG) ? "Debug" : "Release")
+            ((ex.flags & BRAHMA_ARGS_FLAG_DEBUG) ? "dbg" : "rel")
         );
 
         brahma_ensure_dir(ex.outputDir);
@@ -1121,10 +1135,10 @@ bool brahma_execute(Brahma_Args ex)
 
                 fprintf(packageDefinitionsFile, "#define BRAHMA_PACKAGE_NAME \"%s\"\n", selectedPkg->name);
 
-                Brahma_Define_Paged_List* pkgDefines = &selectedPkg->defines;
-                for (size_t j = 0; j < pkgDefines->count; j++)
+                Brahma_Definition_Paged_List* pkgDefinitions = &selectedPkg->definitions;
+                for (size_t j = 0; j < pkgDefinitions->count; j++)
                 {
-                    const Brahma_Define* define = brahma_index_define_paged_list(pkgDefines, j);
+                    const Brahma_Definition* define = brahma_index_definition_paged_list(pkgDefinitions, j);
                     fprintf(packageDefinitionsFile, "\n#undef %s\n", define->key);
                     fprintf(packageDefinitionsFile, "#define %s %s\n", define->key, define->value);
                 }
@@ -1141,16 +1155,16 @@ bool brahma_execute(Brahma_Args ex)
             struct
             {
                 const char* fileName;
-                const Brahma_Define_Paged_List* defines;
+                const Brahma_Definition_Paged_List* definitions;
                 bool isInternal;
             } toProcess[2];
 
             toProcess[0].fileName = "Interface";
-            toProcess[0].defines = &lib->interfaceDefines;
+            toProcess[0].definitions = &lib->interfaceDefinitions;
             toProcess[0].isInternal = false;
 
             toProcess[1].fileName = "Internal";
-            toProcess[1].defines = &lib->internalDefines;
+            toProcess[1].definitions = &lib->internalDefinitions;
             toProcess[1].isInternal = true;
 
             for (size_t i = 0; i < (sizeof(toProcess) / sizeof(toProcess[0])); i++)
@@ -1191,10 +1205,10 @@ bool brahma_execute(Brahma_Args ex)
                         fprintf(artifactFile, "\n#define LIB_PATH_%s \"%s/\"\n", lib->name, lib->owningDir);
                     }
 
-                    const Brahma_Define_Paged_List* defines = toProcess[i].defines;
-                    for (size_t j = 0; j < defines->count; j++)
+                    const Brahma_Definition_Paged_List* definitions = toProcess[i].definitions;
+                    for (size_t j = 0; j < definitions->count; j++)
                     {
-                        const Brahma_Define* define = brahma_index_define_paged_list(defines, j);
+                        const Brahma_Definition* define = brahma_index_definition_paged_list(definitions, j);
                         fprintf(artifactFile, "\n#undef %s\n", define->key);
                         fprintf(artifactFile, "#define %s %s\n", define->key, define->value);
                     }
@@ -1266,16 +1280,15 @@ bool brahma_execute(Brahma_Args ex)
 
     PROFILE_SECTION_END("generate unity files");
 
-    Brahma_Process_Array_List compileProcesses = { NULL, 0, 0 };
-    Brahma_String_Array_List builtObjects = { NULL, 0, 0 };
+    Brahma_String_Array_List commonCArgs = { NULL, 0, 0 };
+    Brahma_String_Array_List commonCxxArgs = { NULL, 0, 0 };
     if (!failed)
     {
-        brahma_reserve_process_array_list_capacity(&compileProcesses, (libUnityCFiles.count + libUnityCxxFiles.count));
-        brahma_reserve_string_array_list_capacity(&builtObjects, (libUnityCFiles.count + libUnityCxxFiles.count));
+        brahma_reserve_string_array_list_capacity(&commonCArgs, 16);
+        brahma_reserve_string_array_list_capacity(&commonCxxArgs, 16);
 
-        Brahma_String_Array_List commonCArgs = { NULL, 0, 0 };
+        // initialise some c-only args
         {
-            brahma_reserve_string_array_list_capacity(&commonCArgs, 16);
             if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
             {
                 brahma_append_string_to_array_list(&commonCArgs, "/Brepro"); // deterministic output
@@ -1302,8 +1315,6 @@ bool brahma_execute(Brahma_Args ex)
                     brahma_append_string_to_array_list(&commonCArgs, "/DNDEBUG");
                     brahma_append_string_to_array_list(&commonCArgs, "/GL"); // LTCG
                 }
-
-                brahma_append_string_to_array_list(&commonCArgs, "/c"); // compile only
             }
             else
             {
@@ -1335,12 +1346,9 @@ bool brahma_execute(Brahma_Args ex)
                     brahma_append_string_to_array_list(&commonCArgs, "-DNDEBUG");
                     brahma_append_string_to_array_list(&commonCArgs, "-flto");
                 }
-
-                brahma_append_string_to_array_list(&commonCArgs, "-c"); // compile only
             }
         }
 
-        Brahma_String_Array_List commonCxxArgs = { NULL, 0, 0 };
         {
             for (size_t i = 0; i < commonCArgs.count; i++)
             {
@@ -1370,6 +1378,16 @@ bool brahma_execute(Brahma_Args ex)
         {
             brahma_append_string_to_array_list(&commonCArgs, (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? "/std:c17" : "-std=c17");
         }
+    }
+
+    PROFILE_SECTION_END("create common compile args");
+
+    Brahma_Process_Array_List compileProcesses = { NULL, 0, 0 };
+    Brahma_String_Array_List builtObjects = { NULL, 0, 0 };
+    if (!failed)
+    {
+        brahma_reserve_process_array_list_capacity(&compileProcesses, (libUnityCFiles.count + libUnityCxxFiles.count));
+        brahma_reserve_string_array_list_capacity(&builtObjects, (libUnityCFiles.count + libUnityCxxFiles.count));
 
         struct
         {
@@ -1393,7 +1411,7 @@ bool brahma_execute(Brahma_Args ex)
             for (size_t j = 0; j < toProcess[i].files->count; j++)
             {
                 char* sourceFilePath = toProcess[i].files->data[j];
-                char* objectFilePath = brahma_sprintf("%s.obj", sourceFilePath);
+                char* objectFilePath = brahma_sprintf("%s.%s", sourceFilePath, (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? "obj" : "o");
 
                 Brahma_String_Array_List compileArgs = { NULL, 0, 0 };
                 brahma_reserve_string_array_list_capacity(&compileArgs, 16);
@@ -1403,6 +1421,9 @@ bool brahma_execute(Brahma_Args ex)
                 {
                     brahma_append_string_to_array_list(&compileArgs, commonArgs->data[k]);
                 }
+
+                // compile only
+                brahma_append_string_to_array_list(&compileArgs, (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? "/c" : "-c");
 
                 brahma_append_string_to_array_list(&compileArgs, sourceFilePath);
                 if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
@@ -1453,6 +1474,135 @@ bool brahma_execute(Brahma_Args ex)
     }
 
     PROFILE_SECTION_END("end compile processes");
+
+    char* output = NULL;
+    if (!failed)
+    {
+        Brahma_String_Array_List linkArgs = { NULL, 0, 0 };
+        brahma_reserve_string_array_list_capacity(&linkArgs, 16);
+
+        brahma_append_string_to_array_list(&linkArgs,
+            false ? "" :
+            (selectedPkg->outputType == BRAHMA_PACKAGE_OUTPUT_TYPE_EXECUTABLE) ? cxxCompilerPath :
+            (selectedPkg->outputType == BRAHMA_PACKAGE_OUTPUT_TYPE_DYNAMIC_LIBRARY) ? cxxCompilerPath :
+            (selectedPkg->outputType == BRAHMA_PACKAGE_OUTPUT_TYPE_STATIC_LIBRARY) ? staticLinkerPath :
+            "<UNKNOWN OUTPUT TYPE>"
+        );
+
+        char* extension = NULL;
+        switch (selectedPkg->outputType)
+        {
+            case BRAHMA_PACKAGE_OUTPUT_TYPE_EXECUTABLE:
+                extension = (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? ".exe" : "";
+                break;
+            case BRAHMA_PACKAGE_OUTPUT_TYPE_DYNAMIC_LIBRARY:
+                extension = (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? ".dll" :
+                            (ex.platform == BRAHMA_PLATFORM_OSX || ex.platform == BRAHMA_PLATFORM_IOS) ? ".dylib" : ".so";
+                break;
+            case BRAHMA_PACKAGE_OUTPUT_TYPE_STATIC_LIBRARY:
+                extension = (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? ".lib" : ".a";
+                break;
+            default:
+                extension = ".unknown";
+                break;
+        }
+
+        output = brahma_sprintf("%s/%s%s", ex.outputDir, selectedPkg->name, extension);
+
+        if (selectedPkg->outputType == BRAHMA_PACKAGE_OUTPUT_TYPE_STATIC_LIBRARY)
+        {
+            if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
+            {
+                brahma_append_string_to_array_list(&linkArgs, "/Brepro");
+                brahma_append_string_to_array_list(&linkArgs, "/nologo");
+                brahma_append_string_to_array_list(&linkArgs, "lib");
+                brahma_append_string_to_array_list(&linkArgs, brahma_sprintf("/OUT:%s", output));
+            }
+            else if (ex.platform == BRAHMA_PLATFORM_OSX || ex.platform == BRAHMA_PLATFORM_IOS)
+            {
+                brahma_append_string_to_array_list(&linkArgs, "-static");
+                brahma_append_string_to_array_list(&linkArgs, "-o");
+                brahma_append_string_to_array_list(&linkArgs, output);
+            }
+            else
+            {
+                brahma_append_string_to_array_list(&linkArgs, "rcs");
+                brahma_append_string_to_array_list(&linkArgs, output);
+            }
+
+            for (size_t i = 0; i < builtObjects.count; i++)
+            {
+                brahma_append_string_to_array_list(&linkArgs, builtObjects.data[i]);
+            }
+        }
+        else // executable or dynamic library
+        {
+            for (size_t i = 0; i < commonCxxArgs.count; i++)
+            {
+                brahma_append_string_to_array_list(&linkArgs, commonCxxArgs.data[i]);
+            }
+
+            if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
+            {
+                brahma_append_string_to_array_list(&linkArgs, brahma_sprintf("/Fe%s", output));
+                if (ex.flags & BRAHMA_ARGS_FLAG_DEBUG)
+                {
+                    brahma_append_string_to_array_list(&linkArgs, "/DEBUG");
+                    brahma_append_string_to_array_list(&linkArgs,
+                        // trim the extension while printf'ing and add .pdb
+                        brahma_sprintf("/Fd%s/%.*s.pdb", ex.outputDir, (int) (strlen(output) - strlen(extension)), output));
+                }
+
+                brahma_append_string_to_array_list(&linkArgs, brahma_sprintf("/Fo%s/", ex.intermediateOutputDir));
+            }
+            else
+            {
+                brahma_append_string_to_array_list(&linkArgs, "-o");
+                brahma_append_string_to_array_list(&linkArgs, output);
+            }
+
+            if (selectedPkg->outputType == BRAHMA_PACKAGE_OUTPUT_TYPE_DYNAMIC_LIBRARY)
+            {
+                if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
+                {
+                    brahma_append_string_to_array_list(&linkArgs, (ex.flags & BRAHMA_ARGS_FLAG_DEBUG) ? "/LDd" : "/LD");
+                }
+                else
+                {
+                    brahma_append_string_to_array_list(&linkArgs, "-shared");
+                    if (ex.platform == BRAHMA_PLATFORM_LINUX || ex.platform == BRAHMA_PLATFORM_ANDROID)
+                    {
+                        brahma_append_string_to_array_list(&linkArgs, "-fPIC");
+                    }
+                }
+            }
+        }
+
+        Brahma_Process linkProcess = brahma_start_process(linkArgs, NULL);
+        if (!linkProcess)
+        {
+            ex.log(BRAHMA_LOG_ERROR "Failed to start link process for '%s'.\n", output);
+            failed = true;
+        }
+        else
+        {
+            char* outputFromProcess = NULL;
+            if (0 != brahma_wait_for_process(linkProcess, &outputFromProcess))
+            {
+                ex.log("--------------------------------------------------------\n");
+                ex.log(BRAHMA_LOG_ERROR "Failed to link '%s'.\n", output);
+                ex.log("%s", outputFromProcess);
+                ex.log("--------------------------------------------------------\n");
+                failed = true;
+            }
+            else
+            {
+                ex.log(BRAHMA_LOG_SUCCESS "Linked '%s' successfully.\n", output);
+            }
+        }
+    }
+
+    PROFILE_SECTION_END("linking");
 
     Brahma_Memory_Usage_Report report = brahma_shutdown_internal_allocator();
 
