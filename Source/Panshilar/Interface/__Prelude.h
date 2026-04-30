@@ -2,6 +2,9 @@
 #define PNSLR_ENTRY_H
 //+skipreflect
 
+#include "Dependencies/PNSLR_Intrinsics/Compiler.h"
+#include "Dependencies/PNSLR_Intrinsics/Warnings.h"
+
 #ifdef PNSLR_IMPLEMENTATION
     #include "__PrivateIncludes.h"
 #endif

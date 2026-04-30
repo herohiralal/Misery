@@ -2,8 +2,6 @@
 #define PNSLR_PRIVATE_INLCUDES_H
 
 #include "Dependencies/PNSLR_Intrinsics/Platforms.h"
-#include "Dependencies/PNSLR_Intrinsics/Compiler.h"
-#include "Dependencies/PNSLR_Intrinsics/Warnings.h"
 
 PNSLR_SUPPRESS_WARN
 
