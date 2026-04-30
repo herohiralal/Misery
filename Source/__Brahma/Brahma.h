@@ -725,6 +725,7 @@ bool brahma_execute(Brahma_Args ex)
     char* cCompilerPath = NULL;
     char* cxxCompilerPath = NULL;
     char* staticLinkerPath = NULL;
+    if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
     {
         char* programFilesX86 = NULL;
         if (!failed)
@@ -836,6 +837,21 @@ bool brahma_execute(Brahma_Args ex)
         }
 
         #undef BRAHMA_TEMP_SEARCH_FILE
+    }
+    else if (ex.platform == BRAHMA_PLATFORM_LINUX)
+    {
+        #if defined(__linux__)
+        {
+            toolchainPath = "/usr/bin";
+            cCompilerPath = "gcc";
+            cxxCompilerPath = "g++";
+            staticLinkerPath = "ld";
+        }
+        #else
+        {
+            // TODO - cross compilation
+        }
+        #endif
     }
 
     PROFILE_SECTION_END("get toolchains");
