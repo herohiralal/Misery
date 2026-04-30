@@ -36,6 +36,7 @@
         #pragma GCC diagnostic error   "-Wstrict-prototypes"
     #endif
     #pragma GCC diagnostic ignored "-Wunused-parameter"
+    #pragma GCC diagnostic ignored "-Wunused-result"
     #pragma GCC diagnostic ignored "-Wuninitialized"
 
     #define BRAHMA_SUPPRESS_WARN \
@@ -62,6 +63,7 @@
         #pragma clang diagnostic error   "-Wstrict-prototypes"
     #endif
     #pragma clang diagnostic ignored "-Wunused-parameter"
+    #pragma clang diagnostic ignored "-Wunused-result"
     #pragma clang diagnostic ignored "-Wuninitialized"
 
     #define BRAHMA_SUPPRESS_WARN \
@@ -114,6 +116,9 @@ BRAHMA_SUPPRESS_WARN
     #include <sys/stat.h>
     #include <unistd.h>
     #include <time.h>
+    #include <errno.h>
+    #include <sys/types.h>
+    #include <sys/wait.h>
 #endif
 BRAHMA_UNSUPPRESS_WARN
 
@@ -1761,7 +1766,7 @@ bool brahma_append_all_library_deps(
 
         for (size_t i = 0; i < directDeps->count; i++)
         {
-            const char* const* directDependencyPtr = brahma_index_string_paged_list(directDeps, i);
+            char** directDependencyPtr = (char**) brahma_index_string_paged_list(directDeps, i);
             if (!directDependencyPtr)
             {
                 if (error) *error = brahma_sprintf("(%s) -> (%d: failed to index direct dependency)", library->name, (int) i);
@@ -2438,13 +2443,13 @@ Brahma_Process brahma_start_process(Brahma_String_Array_List args, const char* w
             close(pipefd[1]); // close original write end
 
             char** argv = (char**) malloc((args.count + 1) * sizeof(char*));
-            for (int i = 0; i < args.count; i++)
+            for (size_t i = 0; i < args.count; i++)
             {
                 argv[i] = args.data[i];
             }
             argv[args.count] = NULL;
 
-            if (workingDir) chdir(workingDir);
+            if (workingDir) ((void) chdir(workingDir));
             execvp(argv[0], argv);
 
             // if execvp returns, it means it failed
@@ -2593,6 +2598,10 @@ int main(int argc, char* argv[])
 
     ex.flags |= BRAHMA_ARGS_FLAG_DEBUG; // default to debug mode
 
+    #if 0 // uncomment to debug argument parsing
+    for (int i = 0; i < argc; i++) { printf("arg %d: %s\n", i, argv[i]); }
+    #endif
+
     for (int i = 1; i < argc; i++) // skipping first arg because it's gonna be the executable name
     {
         // intermediate stuff - not relevant once this tool has begun executing
@@ -2601,10 +2610,10 @@ int main(int argc, char* argv[])
         if (!strcmp("-debug_build_tool", argv[i])) {      continue; } // whether the build tool itself is a debug build
 
         // flags
-        if (!strcmp("-nodebuginfo", argv[i])) { ex.flags &= ~(Brahma_Args_Flags) BRAHMA_ARGS_FLAG_DEBUG;               continue; }
-        if (!strcmp("-optimised",   argv[i])) { ex.flags |=  (Brahma_Args_Flags) BRAHMA_ARGS_FLAG_OPTIMISED;           continue; }
-        if (!strcmp("-warnings",    argv[i])) { ex.flags |=  (Brahma_Args_Flags) BRAHMA_ARGS_FLAG_SHOW_WARNINGS;       continue; }
-        if (!strcmp("-warn_as_err", argv[i])) { ex.flags |=  (Brahma_Args_Flags) BRAHMA_ARGS_FLAG_WARNINGS_ARE_ERRORS; continue; }
+        if (!strcmp("-nodebuginfo", argv[i])) { ex.flags &= (~BRAHMA_ARGS_FLAG_DEBUG & UINT16_MAX); continue; }
+        if (!strcmp("-optimised",   argv[i])) { ex.flags |= BRAHMA_ARGS_FLAG_OPTIMISED;             continue; }
+        if (!strcmp("-warnings",    argv[i])) { ex.flags |= BRAHMA_ARGS_FLAG_SHOW_WARNINGS;         continue; }
+        if (!strcmp("-warn_as_err", argv[i])) { ex.flags |= BRAHMA_ARGS_FLAG_WARNINGS_ARE_ERRORS;   continue; }
 
         if (!strcmp("-package", argv[i]))
         {
@@ -2736,14 +2745,16 @@ int main(int argc, char* argv[])
 
 #define BRAHMA_BEGIN_LISTING_PACKAGES() \
     void brahma_create_all_packages(Brahma_Platform platform, Brahma_Architecture architecture, Brahma_Package_Array_List* packages) { \
-        Brahma_Package currentPackage;
+        Brahma_Package currentPackage; \
+        (void) currentPackage;
 
 #define BRAHMA_END_LISTING_PACKAGES() \
     }
 
 #define BRAHMA_BEGIN_LISTING_LIBRARIES() \
     void brahma_create_all_libraries(Brahma_Library_Array_List* libraries, const Brahma_Package* package) { \
-        Brahma_Library currentLibrary;
+        Brahma_Library currentLibrary; \
+        (void) currentLibrary;
 
 #define BRAHMA_END_LISTING_LIBRARIES() \
     }

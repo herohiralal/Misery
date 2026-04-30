@@ -11,6 +11,7 @@ PACKAGE_COUNT=0
 LIBRARY_COUNT=0
 CXX_MODE=0
 SELF_DEBUG=0
+ORIGINAL_ARGS=( "$@" )
 
 # ==============================================================================================================================
 # Parse Args
@@ -147,7 +148,7 @@ if [[ $SELF_DEBUG -eq 1 ]]; then
     exit 0
 fi
 
-if ! "${OUTPUT}" "$@"; then
+if ! "${OUTPUT}" "${ORIGINAL_ARGS[@]}"; then
     echo "Brahma build-process failed."
     exit 1
 fi
