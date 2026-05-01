@@ -598,9 +598,6 @@ bool brahma_dir_exists(const char* path);
 // ensure that a directory exists, and create it if it doesn't
 bool brahma_ensure_dir(const char* path);
 
-// create a symlink at linkPath that points to targetPath; return true on success, false on failure
-bool brahma_create_symlink(const char* targetPath, const char* linkPath);
-
 // visitor function to use for iterating a directory
 typedef bool (*Brahma_Directory_Visitor_Delegate)(void* payload, const char* path, bool isDirectory, bool* exploreCurrentDirectory);
 
@@ -645,6 +642,8 @@ bool brahma_append_all_library_deps(
     const Brahma_Library* library,
     Brahma_Library_Idx_Paged_List* allLibDeps,
     uint16_t firstLibDepIdx,
+    bool ignoreInterfaceDeps,
+    bool ignoreInternalDeps,
     char** error,
     void* cycleChecker);
 
@@ -1031,7 +1030,7 @@ bool brahma_execute(Brahma_Args ex)
 
         Brahma_Library_Idx_Paged_List libIdxs; memset(&libIdxs, 0, sizeof(libIdxs));
         char* error = NULL;
-        if (!brahma_append_all_library_deps(&libDefs, primaryLib, &libIdxs, 0, &error, NULL))
+        if (!brahma_append_all_library_deps(&libDefs, primaryLib, &libIdxs, 0, false, false, &error, NULL))
         {
             ex.log(BRAHMA_LOG_ERROR "Failed to resolve dependencies for primary library '%s'.\n\tDetails: %s.\n", primaryLib->name, error ? error : "<unknown>");
             failed = true;
@@ -1171,25 +1170,6 @@ bool brahma_execute(Brahma_Args ex)
         PROFILE_SECTION_END("ensure directories");
     }
     #endif
-
-    // make symlinks
-    if (!failed)
-    {
-        for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
-        {
-            Brahma_Library* lib = &(libDefs.data[libIdx]);
-            char* target = brahma_sprintf("%s/Interface", lib->owningDir);
-            if (!brahma_dir_exists(target)) continue;
-            char* link = brahma_sprintf("%s/%s", ex.intermediateOutputDir, lib->name);
-            if (!brahma_create_symlink(target, link))
-            {
-                ex.log(BRAHMA_LOG_ERROR "Failed to create symlink from '%s' to '%s'.\n", target, link);
-                failed = true;
-            }
-        }
-
-        PROFILE_SECTION_END("ensure symlinks");
-    }
 
     // artifact generation - definitions
     if (!failed)
@@ -1753,6 +1733,8 @@ bool brahma_append_all_library_deps(
     const Brahma_Library* library,
     Brahma_Library_Idx_Paged_List* allLibDeps,
     uint16_t firstLibDepIdx,
+    bool ignoreInterfaceDeps,
+    bool ignoreInternalDeps,
     char** error,
     void* cycleChecker)
 {
@@ -1774,9 +1756,14 @@ bool brahma_append_all_library_deps(
         }
     }
 
-    const Brahma_String_Paged_List* lists[2] = { &(library->interfaceDependencies), &(library->internalDependencies) };
+    const Brahma_String_Paged_List* lists[2];
+    lists[0] = NULL; lists[1] = NULL;
 
-    for (size_t listIdx = 0; listIdx < (size_t) (sizeof(lists) / sizeof(lists[0])); listIdx++)
+    int listCount = 0;
+    if (!ignoreInterfaceDeps) lists[listCount++] = &(library->interfaceDependencies);
+    if (!ignoreInternalDeps) lists[listCount++] =  &(library->internalDependencies);
+
+    for (size_t listIdx = 0; listIdx < (size_t) listCount; listIdx++)
     {
         const Brahma_String_Paged_List* directDeps = lists[listIdx];
 
@@ -1798,7 +1785,8 @@ bool brahma_append_all_library_deps(
             }
 
             Brahma_Library* directDepLib = &(allLibs->data[idxOfDirectDepLib]);
-            if (!brahma_append_all_library_deps(allLibs, directDepLib, allLibDeps, firstLibDepIdx, error, &cycleCheckCurrentEntry))
+            if (!brahma_append_all_library_deps(allLibs, directDepLib, allLibDeps, firstLibDepIdx,
+                    ignoreInterfaceDeps, ignoreInternalDeps, error, &cycleCheckCurrentEntry))
             {
                 if (error) *error = brahma_sprintf("(%s) -> %s", library->name, *error);
                 return false;
@@ -2150,33 +2138,6 @@ bool brahma_ensure_dir(const char* path)
     {
         return mkdir(path, 0755) == 0 || errno == EEXIST;
     }
-    #endif
-}
-
-bool brahma_create_symlink(const char* targetPath, const char* linkPath)
-{
-    #if defined(_WIN32)
-    {
-        DWORD existing = GetFileAttributesA(linkPath);
-        if ((existing != INVALID_FILE_ATTRIBUTES) && (existing & FILE_ATTRIBUTE_REPARSE_POINT))
-        {
-            if (existing & FILE_ATTRIBUTE_DIRECTORY) { RemoveDirectoryA(linkPath); }
-            else                                     {      DeleteFileA(linkPath); }
-        }
-
-        DWORD attrs = GetFileAttributesA(targetPath);
-        DWORD flags = ((attrs != INVALID_FILE_ATTRIBUTES) && (attrs & FILE_ATTRIBUTE_DIRECTORY)) ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0;
-        flags |= SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
-        return CreateSymbolicLinkA(linkPath, targetPath, flags) != 0;
-    }
-    #elif defined(__linux__) || defined(__APPLE__)
-    {
-        struct stat st;
-        if (lstat(linkPath, &st) == 0 && S_ISLNK(st.st_mode)) { unlink(linkPath); }
-        return symlink(targetPath, linkPath) == 0;
-    }
-    #else
-        #error "unsupported platform"
     #endif
 }
 
