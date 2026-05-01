@@ -1377,6 +1377,7 @@ bool brahma_execute(Brahma_Args ex)
     }
 
 
+    // common compilation args
     Brahma_String_Array_List commonCArgs = { NULL, 0, 0 };
     Brahma_String_Array_List commonCxxArgs = { NULL, 0, 0 };
     if (!failed)
@@ -1479,7 +1480,6 @@ bool brahma_execute(Brahma_Args ex)
 
         PROFILE_SECTION_END("create common compile args");
     }
-
 
     Brahma_Process_Array_List compileProcesses = { NULL, 0, 0 };
     Brahma_String_Array_List builtObjects = { NULL, 0, 0 };
