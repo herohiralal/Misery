@@ -936,7 +936,6 @@ bool brahma_execute(Brahma_Args ex)
         PROFILE_SECTION_END("create packages");
     }
 
-    char* pkgIntermediateOutputDir = NULL;
     if (!failed)
     {
         ex.outputDir = brahma_sprintf("%s/%s-%s-%s",
@@ -960,13 +959,6 @@ bool brahma_execute(Brahma_Args ex)
         if (!brahma_ensure_dir(ex.intermediateOutputDir))
         {
             ex.log(BRAHMA_LOG_ERROR "Failed to create intermediate output directory at '%s'.\n", ex.intermediateOutputDir);
-            failed = true;
-        }
-
-        pkgIntermediateOutputDir = brahma_sprintf("%s/__PACKAGE__", ex.intermediateOutputDir, selectedPkg->name);
-        if (!failed && !brahma_ensure_dir(pkgIntermediateOutputDir))
-        {
-            ex.log(BRAHMA_LOG_ERROR "Failed to create package-specific intermediate output directory at '%s'.\n", pkgIntermediateOutputDir);
             failed = true;
         }
 
@@ -1214,7 +1206,7 @@ bool brahma_execute(Brahma_Args ex)
     // artifact generation - definitions
     if (!failed)
     {
-        char* packageDefinitions = brahma_sprintf("%s/Definitions.h", pkgIntermediateOutputDir);
+        char* packageDefinitions = brahma_sprintf("%s/Definitions.h", ex.intermediateOutputDir);
         {
             FILE* packageDefinitionsFile = fopen(packageDefinitions, "w");
             if (packageDefinitionsFile)
@@ -1260,7 +1252,7 @@ bool brahma_execute(Brahma_Args ex)
 
             for (size_t i = 0; i < (sizeof(toProcess) / sizeof(toProcess[0])); i++)
             {
-                char* artifactPath = brahma_sprintf("%s/%s%sDefinitions.h", ex.intermediateOutputDir, lib->name, toProcess[i].fileName);
+                char* artifactPath = brahma_sprintf("%s/%sDefinitions.h", libArtifactDirs.data[libIdx], toProcess[i].fileName);
 
                 FILE* artifactFile = fopen(artifactPath, "w");
                 if (artifactFile)
@@ -1270,17 +1262,12 @@ bool brahma_execute(Brahma_Args ex)
                     fprintf(artifactFile, "#include \"%s\"\n", packageDefinitions);
 
                     // write the dependency paths
-                    Brahma_String_Paged_List depsLists[2] = {lib->interfaceDependencies, lib->internalDependencies};
-                    size_t depListCount = (size_t) (sizeof(depsLists) / sizeof(depsLists[0]));
-                    if (toProcess[i].isInternal) depListCount = 1; // exclude internal dependencies
-
-                    for (size_t depListIdx = 0; depListIdx < depListCount; depListIdx++)
                     {
-                        Brahma_String_Paged_List* depList = &depsLists[depListIdx];
-                        for (size_t j = 0; j < depList->count; j++)
+                        Brahma_Data_Chunk depChunk = libInterfaceDepChunks.data[libIdx];
+                        for (size_t j = depChunk.start; j < (size_t) (depChunk.start + depChunk.count); j++)
                         {
-                            char* depLibName = *brahma_index_string_paged_list(depList, j);
-                            fprintf(artifactFile, "#include \"%s/%sInterfaceDefinitions.h\"\n", ex.intermediateOutputDir, depLibName);
+                            uint16_t depLibIdx = *brahma_index_library_idx_paged_list(&allLibInterfaceDeps, j);
+                            fprintf(artifactFile, "#include \"%s/InterfaceDefinitions.h\"\n", libArtifactDirs.data[depLibIdx]);
                         }
                     }
 
@@ -1289,7 +1276,7 @@ bool brahma_execute(Brahma_Args ex)
                         fprintf(artifactFile, "\n#define BRAHMA_%s_IMPLEMENTATION\n", allCapsLibName);
 
                         // include interface definitions in internal definitions, obviously
-                        fprintf(artifactFile, "#include \"%s/%sInterfaceDefinitions.h\"\n", ex.intermediateOutputDir, lib->name);
+                        fprintf(artifactFile, "#include \"%s/InterfaceDefinitions.h\"\n", libArtifactDirs.data[libIdx]);
                     }
                     else
                     {
@@ -1339,8 +1326,6 @@ bool brahma_execute(Brahma_Args ex)
 
         for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
         {
-            Brahma_Library* lib = &(libDefs.data[libIdx]);
-
             struct
             {
                 const char* extension;
@@ -1366,7 +1351,7 @@ bool brahma_execute(Brahma_Args ex)
             {
                 if (!toProcess[i].filesChunk.count) { continue; }
 
-                char* artifactPath = brahma_sprintf("%s/%sUnity%s", pkgIntermediateOutputDir, lib->name, toProcess[i].extension);
+                char* artifactPath = brahma_sprintf("%s/Unity%s", libArtifactDirs.data[libIdx], toProcess[i].extension);
                 brahma_append_string_to_array_list(toProcess[i].filePathsOutput, artifactPath);
                 brahma_append_library_idx_to_array_list(toProcess[i].fileLibIdxsOutput, (uint16_t) libIdx);
 
@@ -1374,7 +1359,7 @@ bool brahma_execute(Brahma_Args ex)
                 if (artifactFile)
                 {
                     fprintf(artifactFile, "// This file is auto-generated by Brahma. Do not edit manually.\n\n");
-                    fprintf(artifactFile, "#include \"%s/%sInternalDefinitions.h\"\n\n", ex.intermediateOutputDir, lib->name);
+                    fprintf(artifactFile, "#include \"%s/InternalDefinitions.h\"\n\n", libArtifactDirs.data[libIdx]);
 
                     Brahma_Data_Chunk filesChunk = toProcess[i].filesChunk;
                     for (size_t j = filesChunk.start; j < (size_t) (filesChunk.start + filesChunk.count); j++)
