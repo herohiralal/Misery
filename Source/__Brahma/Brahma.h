@@ -936,6 +936,7 @@ bool brahma_execute(Brahma_Args ex)
         PROFILE_SECTION_END("create packages");
     }
 
+    // make output dirs
     if (!failed)
     {
         ex.outputDir = brahma_sprintf("%s/%s-%s-%s",
@@ -965,17 +966,15 @@ bool brahma_execute(Brahma_Args ex)
         PROFILE_SECTION_END("ensure output dirs");
     }
 
-    // libs
+    // find libraries to build
     Brahma_Library_Array_List libDefs = { NULL, 0, 0 };
     if (!failed)
     {
+        size_t primaryLibIdx = SIZE_MAX;
+
         brahma_reserve_library_array_list_capacity(&libDefs, ex.libCount);
         ex.createLibraries(&libDefs, selectedPkg);
-    }
 
-    size_t primaryLibIdx = SIZE_MAX;
-    if (!failed)
-    {
         if (!selectedPkg->primaryLibrary || !selectedPkg->primaryLibrary[0])
         {
             ex.log(BRAHMA_LOG_ERROR "The selected package '%s' does not have a primary library specified.\n", selectedPkg->name);
@@ -992,10 +991,75 @@ bool brahma_execute(Brahma_Args ex)
             }
         }
 
+        if (!failed)
+        {
+            Brahma_Library_Array_List libsToProcess = { NULL, 0, 0 };
+            Brahma_Library* primaryLib = &(libDefs.data[primaryLibIdx]);
+
+            Brahma_Library_Idx_Paged_List libIdxs; memset(&libIdxs, 0, sizeof(libIdxs));
+            char* error = NULL;
+            if (!brahma_append_all_library_deps(&libDefs, primaryLib, &libIdxs, 0, false, false, &error, NULL))
+            {
+                ex.log(BRAHMA_LOG_ERROR "Failed to resolve dependencies for primary library '%s'.\n\tDetails: %s.\n", primaryLib->name, error ? error : "<unknown>");
+                failed = true;
+            }
+
+            // add self
+            if (!failed)
+            {
+                bool alreadyExists = false;
+                for (size_t i = 0; i < libIdxs.count; i++)
+                {
+                    uint16_t existingIdx = *brahma_index_library_idx_paged_list(&libIdxs, i);
+                    if (existingIdx == primaryLibIdx)
+                    {
+                        alreadyExists = true;
+                        break;
+                    }
+                }
+
+                if (!alreadyExists)
+                {
+                    brahma_append_library_idx_to_paged_list(&libIdxs, (uint16_t) primaryLibIdx);
+                }
+                else
+                {
+                    ex.log(BRAHMA_LOG_ERROR "Circular dependency detected for primary library '%s'.\n", primaryLib->name);
+                    failed = true;
+                }
+            }
+
+            if (!failed)
+            {
+                brahma_reserve_library_array_list_capacity(&libsToProcess, libIdxs.count);
+                for (size_t i = 0; i < libIdxs.count; i++)
+                {
+                    uint16_t libIdx = *brahma_index_library_idx_paged_list(&libIdxs, i);
+                    brahma_append_library_to_array_list(&libsToProcess, libDefs.data[libIdx]);
+                }
+            }
+
+            if (!failed)
+            {
+                /*
+                * by this point, the libraries to process are in libsToProcess, and so we shouldn't be using libDefs at all
+                * this should minimise the number of libraries that we actually process
+                *
+                * conveniently, the files are also in a linear order where the dependencies of a library will appear before the library itself
+                *
+                * so we'll just do a quick switcharoooo
+                */
+                libDefs = libsToProcess;
+                primaryLibIdx = (libsToProcess.count - 1);
+            }
+
+            PROFILE_SECTION_END("sort libraries");
+        }
+
         PROFILE_SECTION_END("create libraries");
     }
 
-
+    // print input summary
     if (!failed)
     {
         ex.log(BRAHMA_LOG_INFO "-----------------------------------------\n");
@@ -1005,7 +1069,6 @@ bool brahma_execute(Brahma_Args ex)
         ex.log(BRAHMA_LOG_INFO "\tC++ compiler:     %s.\n", cxxCompilerPath);
         ex.log(BRAHMA_LOG_INFO "\tStatic linker:    %s.\n", staticLinkerPath);
         ex.log(BRAHMA_LOG_INFO "\tSelected package: %s.\n", selectedPkg->name);
-        ex.log(BRAHMA_LOG_INFO "\tPrimary library:  %s.\n", libDefs.data[primaryLibIdx].name);
         ex.log(BRAHMA_LOG_INFO "\tPlatform:         %s.\n", BRAHMA_PLATFORM_NAMES[selectedPkg->platform]);
         ex.log(BRAHMA_LOG_INFO "\tArch:             %s.\n", BRAHMA_ARCHITECTURE_NAMES[selectedPkg->architecture]);
         ex.log(BRAHMA_LOG_INFO "\tDebug info:       %s.\n", (ex.flags & BRAHMA_ARGS_FLAG_DEBUG)     ? "on" : "off");
@@ -1013,74 +1076,18 @@ bool brahma_execute(Brahma_Args ex)
         ex.log(BRAHMA_LOG_INFO "\tOutput dir:       %s.\n", ex.outputDir);
         ex.log(BRAHMA_LOG_INFO "\tIntermediate dir: %s.\n", ex.intermediateOutputDir);
         ex.log(BRAHMA_LOG_INFO "-----------------------------------------\n");
+        ex.log(BRAHMA_LOG_INFO "Libraries to build (in order):\n");
+        for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
+        {
+            Brahma_Library* lib = &(libDefs.data[libIdx]);
+            ex.log(BRAHMA_LOG_INFO "\t- %s (owning dir: %s)\n", lib->name, lib->owningDir);
+        }
+        ex.log(BRAHMA_LOG_INFO "-----------------------------------------\n");
+
+        PROFILE_SECTION_END("input summary");
     }
 
-    // gather libs to process
-    if (!failed)
-    {
-        Brahma_Library_Array_List libsToProcess = { NULL, 0, 0 };
-        Brahma_Library* primaryLib = &(libDefs.data[primaryLibIdx]);
-
-        Brahma_Library_Idx_Paged_List libIdxs; memset(&libIdxs, 0, sizeof(libIdxs));
-        char* error = NULL;
-        if (!brahma_append_all_library_deps(&libDefs, primaryLib, &libIdxs, 0, false, false, &error, NULL))
-        {
-            ex.log(BRAHMA_LOG_ERROR "Failed to resolve dependencies for primary library '%s'.\n\tDetails: %s.\n", primaryLib->name, error ? error : "<unknown>");
-            failed = true;
-        }
-
-        // add self
-        if (!failed)
-        {
-            bool alreadyExists = false;
-            for (size_t i = 0; i < libIdxs.count; i++)
-            {
-                uint16_t existingIdx = *brahma_index_library_idx_paged_list(&libIdxs, i);
-                if (existingIdx == primaryLibIdx)
-                {
-                    alreadyExists = true;
-                    break;
-                }
-            }
-
-            if (!alreadyExists)
-            {
-                brahma_append_library_idx_to_paged_list(&libIdxs, (uint16_t) primaryLibIdx);
-            }
-            else
-            {
-                ex.log(BRAHMA_LOG_ERROR "Circular dependency detected for primary library '%s'.\n", primaryLib->name);
-                failed = true;
-            }
-        }
-
-        if (!failed)
-        {
-            brahma_reserve_library_array_list_capacity(&libsToProcess, libIdxs.count);
-            for (size_t i = 0; i < libIdxs.count; i++)
-            {
-                uint16_t libIdx = *brahma_index_library_idx_paged_list(&libIdxs, i);
-                brahma_append_library_to_array_list(&libsToProcess, libDefs.data[libIdx]);
-            }
-        }
-
-        if (!failed)
-        {
-            /*
-            * by this point, the libraries to process are in libsToProcess, and so we shouldn't be using libDefs at all
-            * this should minimise the number of libraries that we actually process
-            *
-            * conveniently, the files are also in a linear order where the dependencies of a library will appear before the library itself
-            *
-            * so we'll just do a quick switcharoooo
-            */
-            libDefs = libsToProcess;
-            primaryLibIdx = (libsToProcess.count - 1);
-        }
-
-        PROFILE_SECTION_END("sort libraries");
-    }
-
+    // gather all interface paths (if they exist)
     Brahma_String_Array_List allInterfacePaths = { NULL, 0, 0 };
     if (!failed)
     {
@@ -1310,7 +1317,6 @@ bool brahma_execute(Brahma_Args ex)
         PROFILE_SECTION_END("generate definitions");
     }
 
-
     // artifact generation - unity files
     Brahma_String_Array_List libUnityCFiles = { NULL, 0, 0 };
     Brahma_Library_Idx_Array_List libUnityCFileLibIdxs = { NULL, 0, 0 };
@@ -1375,7 +1381,6 @@ bool brahma_execute(Brahma_Args ex)
 
         PROFILE_SECTION_END("generate unity files");
     }
-
 
     // common compilation args
     Brahma_String_Array_List commonCArgs = { NULL, 0, 0 };
@@ -1481,6 +1486,7 @@ bool brahma_execute(Brahma_Args ex)
         PROFILE_SECTION_END("create common compile args");
     }
 
+    // begin compile processes
     Brahma_Process_Array_List compileProcesses = { NULL, 0, 0 };
     Brahma_String_Array_List builtObjects = { NULL, 0, 0 };
     if (!failed)
@@ -1594,7 +1600,7 @@ bool brahma_execute(Brahma_Args ex)
         PROFILE_SECTION_END("start compile processes");
     }
 
-
+    // wait for compile processes
     if (!failed)
     {
         for (size_t i = 0; i < compileProcesses.count; i++)
@@ -1624,7 +1630,7 @@ bool brahma_execute(Brahma_Args ex)
         PROFILE_SECTION_END("end compile processes");
     }
 
-
+    // link all
     char* output = NULL;
     if (!failed)
     {
@@ -1758,7 +1764,6 @@ bool brahma_execute(Brahma_Args ex)
 
         PROFILE_SECTION_END("linking");
     }
-
 
     Brahma_Memory_Usage_Report report = brahma_shutdown_internal_allocator();
 
