@@ -15,6 +15,10 @@
 
 const MZNT_RendererType k_RendererTypes[] =
 {
+#if !MZNT_VULKAN && !MZNT_DX12 && !MZNT_METAL
+    MZNT_RendererType_Null,
+#endif
+
 #if MZNT_DX12
     MZNT_RendererType_DirectX12,
 #endif
