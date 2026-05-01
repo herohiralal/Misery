@@ -595,8 +595,8 @@ char* brahma_get_env_var(const char* name);
 // check if a directory exists
 bool brahma_dir_exists(const char* path);
 
-// ensure that a directory exists, and create it if it doesn't
-bool brahma_ensure_dir(const char* path);
+// ensure that a directory exists, and create it if it doesn't; warning - it'll write to the string buffer, so make sure to provide a mutable string
+bool brahma_ensure_dir(char* path);
 
 // visitor function to use for iterating a directory
 typedef bool (*Brahma_Directory_Visitor_Delegate)(void* payload, const char* path, bool isDirectory, bool* exploreCurrentDirectory);
@@ -951,13 +951,13 @@ bool brahma_execute(Brahma_Args ex)
             ((ex.flags & BRAHMA_ARGS_FLAG_DEBUG) ? "dbg" : "rel")
         );
 
-        if (!brahma_ensure_dir(ex.outputDir))
+        if (!brahma_ensure_dir(brahma_sprintf("%s", ex.outputDir)))
         {
             ex.log(BRAHMA_LOG_ERROR "Failed to create output directory at '%s'.\n", ex.outputDir);
             failed = true;
         }
 
-        if (!brahma_ensure_dir(ex.intermediateOutputDir))
+        if (!brahma_ensure_dir(brahma_sprintf("%s", ex.intermediateOutputDir)))
         {
             ex.log(BRAHMA_LOG_ERROR "Failed to create intermediate output directory at '%s'.\n", ex.intermediateOutputDir);
             failed = true;
@@ -2187,17 +2187,38 @@ bool brahma_dir_exists(const char* path)
     #endif
 }
 
-bool brahma_ensure_dir(const char* path)
+bool brahma_ensure_dir(char* path)
 {
-    #if defined(_WIN32)
+    size_t pathLenWithNullTerm = strlen(path) + 1;
+
+    bool success = true;
+    for (size_t i = 1; success && i < pathLenWithNullTerm; i++)
     {
-        return CreateDirectoryA(path, NULL) != 0 || GetLastError() == ERROR_ALREADY_EXISTS;
+        char originalChar = path[i];
+        if (originalChar == '/' || originalChar == '\\' || originalChar == '\0')
+        {
+            path[i] = '\0';
+            #if defined(_WIN32)
+            {
+                if (!CreateDirectoryA(path, NULL))
+                {
+                    if (GetLastError() != ERROR_ALREADY_EXISTS) { success = false; }
+                }
+            }
+            #elif defined(__linux__) || defined(__APPLE__)
+            {
+                if (mkdir(path, 0777) != 0)
+                {
+                    if (errno != EEXIST) { success = false; }
+                }
+                success = mkdir(path, 0755) == 0 || errno == EEXIST;
+            }
+            #endif
+            path[i] = originalChar;
+        }
     }
-    #elif defined(__linux__) || defined(__APPLE__)
-    {
-        return mkdir(path, 0755) == 0 || errno == EEXIST;
-    }
-    #endif
+
+    return success;
 }
 
 void brahma_iterate_directory(const char* path, bool recursive, void* visitorPayload, Brahma_Directory_Visitor_Delegate visitor)
@@ -2616,7 +2637,9 @@ void brahma_exec_log(const char* fmt, ...)
 
 int main(int argc, char* argv[])
 {
+    #if defined(_DEBUG) || defined(DEBUG) || !defined(NDEBUG)
     setvbuf(stdout, NULL, _IONBF, 0); // unbuffered stdout for better interleaving of logs and subprocess output
+    #endif
 
     Brahma_Args ex;
     ex.flags           = BRAHMA_ARGS_FLAG_NONE;

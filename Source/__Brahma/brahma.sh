@@ -114,7 +114,7 @@ else
 fi
 
 if [[ $SELF_DEBUG -eq 1 ]]; then
-    OPT_FLAGS="-D_DEBUG -g -O0"
+    OPT_FLAGS="-DDEBUG -g -O0"
 else
     OPT_FLAGS="-DNDEBUG -O2"
 fi
