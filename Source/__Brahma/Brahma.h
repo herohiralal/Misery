@@ -1398,12 +1398,6 @@ bool brahma_execute(Brahma_Args ex)
                 brahma_append_string_to_array_list(&commonCArgs, "/nologo");
                 brahma_append_string_to_array_list(&commonCArgs, "/Zc:preprocessor"); // conformant preprocessor
 
-                if (ex.flags & BRAHMA_ARGS_FLAG_SHOW_WARNINGS)
-                    brahma_append_string_to_array_list(&commonCArgs, "/Wall"); // all warnings
-
-                if (ex.flags & BRAHMA_ARGS_FLAG_WARNINGS_ARE_ERRORS)
-                    brahma_append_string_to_array_list(&commonCArgs, "/WX"); // warnings as errors
-
                 brahma_append_string_to_array_list(&commonCArgs, (ex.flags & BRAHMA_ARGS_FLAG_OPTIMISED) ? "/O2" : "/Od"); // optimised vs not
 
                 if (ex.flags & BRAHMA_ARGS_FLAG_DEBUG) // debug
@@ -1421,22 +1415,6 @@ bool brahma_execute(Brahma_Args ex)
             }
             else
             {
-                if (ex.flags & BRAHMA_ARGS_FLAG_SHOW_WARNINGS)
-                {
-                    brahma_append_string_to_array_list(&commonCArgs, "-Wall");
-                    brahma_append_string_to_array_list(&commonCArgs, "-Wextra");
-                    brahma_append_string_to_array_list(&commonCArgs, "-Wshadow");
-                    brahma_append_string_to_array_list(&commonCArgs, "-Wconversion");
-                    brahma_append_string_to_array_list(&commonCArgs, "-Wsign-conversion");
-                    brahma_append_string_to_array_list(&commonCArgs, "-Wdouble-promotion");
-                    brahma_append_string_to_array_list(&commonCArgs, "-Wfloat-equal");
-                    brahma_append_string_to_array_list(&commonCArgs, "-Wundef");
-                    brahma_append_string_to_array_list(&commonCArgs, "-Wswitch-enum");
-                }
-
-                if (ex.flags & BRAHMA_ARGS_FLAG_WARNINGS_ARE_ERRORS)
-                    brahma_append_string_to_array_list(&commonCArgs, "-Werror");
-
                 brahma_append_string_to_array_list(&commonCArgs, (ex.flags & BRAHMA_ARGS_FLAG_OPTIMISED) ? "-O2" : "-O0"); // optimised vs not
 
                 if (ex.flags & BRAHMA_ARGS_FLAG_DEBUG) // debug
@@ -1535,10 +1513,36 @@ bool brahma_execute(Brahma_Args ex)
                 {
                     brahma_append_string_to_array_list(&compileArgs, "/diagnostics:caret");
                     brahma_append_string_to_array_list(&compileArgs, "/c");
+
+                    // warnings
+                    if (ex.flags & BRAHMA_ARGS_FLAG_SHOW_WARNINGS)
+                        brahma_append_string_to_array_list(&commonCArgs, "/Wall"); // all warnings
+
+                    // w=e
+                    if (ex.flags & BRAHMA_ARGS_FLAG_WARNINGS_ARE_ERRORS)
+                        brahma_append_string_to_array_list(&commonCArgs, "/WX"); // warnings as errors
                 }
                 else
                 {
                     brahma_append_string_to_array_list(&compileArgs, "-c");
+
+                    // warnings
+                    if (ex.flags & BRAHMA_ARGS_FLAG_SHOW_WARNINGS)
+                    {
+                        brahma_append_string_to_array_list(&commonCArgs, "-Wall");
+                        brahma_append_string_to_array_list(&commonCArgs, "-Wextra");
+                        brahma_append_string_to_array_list(&commonCArgs, "-Wshadow");
+                        brahma_append_string_to_array_list(&commonCArgs, "-Wconversion");
+                        brahma_append_string_to_array_list(&commonCArgs, "-Wsign-conversion");
+                        brahma_append_string_to_array_list(&commonCArgs, "-Wdouble-promotion");
+                        brahma_append_string_to_array_list(&commonCArgs, "-Wfloat-equal");
+                        brahma_append_string_to_array_list(&commonCArgs, "-Wundef");
+                        brahma_append_string_to_array_list(&commonCArgs, "-Wswitch-enum");
+                    }
+
+                    // w=e
+                    if (ex.flags & BRAHMA_ARGS_FLAG_WARNINGS_ARE_ERRORS)
+                        brahma_append_string_to_array_list(&commonCArgs, "-Werror");
                 }
 
                 // add all includes
