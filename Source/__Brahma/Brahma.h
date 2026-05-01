@@ -642,7 +642,7 @@ bool brahma_append_all_library_deps(
     const Brahma_Library_Array_List* allLibs,
     const Brahma_Library* library,
     Brahma_Library_Idx_Paged_List* allLibDeps,
-    uint16_t firstLibDepIdx,
+    size_t firstLibDepIdx,
     bool ignoreInterfaceDeps,
     bool ignoreInternalDeps,
     char** error,
@@ -1124,7 +1124,7 @@ bool brahma_execute(Brahma_Args ex)
             size_t startCount =  allLibInterfaceDeps.count;
 
             char* error = NULL;
-            if (!brahma_append_all_library_deps(&libDefs, lib, &allLibInterfaceDeps, 0, false, true, &error, NULL))
+            if (!brahma_append_all_library_deps(&libDefs, lib, &allLibInterfaceDeps, startCount, false, true, &error, NULL))
             {
                 ex.log(BRAHMA_LOG_ERROR "Failed to resolve dependencies for library '%s'.\n\tDetails: %s.\n", lib->name, error ? error : "<unknown>");
                 failed = true;
@@ -1809,7 +1809,7 @@ bool brahma_append_all_library_deps(
     const Brahma_Library_Array_List* allLibs,
     const Brahma_Library* library,
     Brahma_Library_Idx_Paged_List* allLibDeps,
-    uint16_t firstLibDepIdx,
+    size_t firstLibDepIdx,
     bool ignoreInterfaceDeps,
     bool ignoreInternalDeps,
     char** error,
@@ -1874,7 +1874,7 @@ bool brahma_append_all_library_deps(
 
             // check if the direct dependency is already in the list of all dependencies
             bool alreadyInList = false;
-            for (size_t j = (size_t) firstLibDepIdx; j < allLibDeps->count; j++)
+            for (size_t j = firstLibDepIdx; j < allLibDeps->count; j++)
             {
                 int depIdx = (int) *brahma_index_library_idx_paged_list(allLibDeps, j);
                 if (depIdx == idxOfDirectDepLib)
