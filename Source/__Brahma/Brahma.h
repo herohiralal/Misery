@@ -475,12 +475,12 @@ BRAHMA_DECLARE_ARRAY_LIST(Library, library, Brahma_Library)
  * Implement a package.
  *
  * Usage:
- ```
- BRAHMA_IMPLEMENT_PACKAGE_DEF(packageName)
- {
-     package->someVariable = "my_package";
- }
- ```
+```
+BRAHMA_IMPLEMENT_PACKAGE(packageName)
+{
+    package->someVariable = "my_package";
+}
+```
  */
 #define BRAHMA_IMPLEMENT_PACKAGE(packageName) \
     void brahma_implement_package_##packageName(Brahma_Package* package)
@@ -489,12 +489,12 @@ BRAHMA_DECLARE_ARRAY_LIST(Library, library, Brahma_Library)
  * Implement a library.
  *
  * Usage:
- ```
- BRAHMA_IMPLEMENT_LIBRARY_DEF(libraryName)
- {
-     library->someVariable = "my_library";
- }
- ```
+```
+BRAHMA_IMPLEMENT_LIBRARY(libraryName)
+{
+    library->someVariable = "my_library";
+}
+```
  */
 #define BRAHMA_IMPLEMENT_LIBRARY(libraryName) \
     void brahma_implement_library_##libraryName(const Brahma_Package* package, Brahma_Library* library)
