@@ -1,7 +1,7 @@
-#ifndef PNSLR_PRIVATE_INLCUDES_H
-#define PNSLR_PRIVATE_INLCUDES_H
+#ifndef PNSLR_PRIVATE_INCLUDES_H
+#define PNSLR_PRIVATE_INCLUDES_H
 
-#include "Dependencies/PNSLR_Intrinsics/Platforms.h"
+#include "PNSLR_Intrinsics/Platforms.h"
 
 PNSLR_SUPPRESS_WARN
 
@@ -20,15 +20,6 @@ PNSLR_SUPPRESS_WARN
     #include <iphlpapi.h>
     #include <intrin.h>
     #include <malloc.h>
-
-    #if PNSLR_DBG
-        #if !defined(__cplusplus) && defined(PNSLR_IMPLEMENTATION) // only need the implementation in one of the files
-            #define RADDBG_MARKUP_IMPLEMENTATION
-        #endif
-        #include "Dependencies/raddbg/raddbg_markup.h"
-        #undef RADDBG_MARKUP_IMPLEMENTATION
-    #endif
-
     #include <stdio.h>
     #undef VC_EXTRALEAN
     #undef NOMINMAX
