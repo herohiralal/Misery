@@ -1,7 +1,7 @@
 #ifndef PNSLR_PRIVATE_INCLUDES_H
 #define PNSLR_PRIVATE_INCLUDES_H
 
-#include "PNSLR_Intrinsics/Platforms.h"
+#include "Citrin/Platforms.h"
 
 PNSLR_SUPPRESS_WARN
 

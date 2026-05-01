@@ -2,16 +2,16 @@
 #define PNSLR_ENTRY_H
 //+skipreflect
 
-#include "PNSLR_Intrinsics/Compiler.h"
-#include "PNSLR_Intrinsics/Warnings.h"
+#include "Citrin/Compiler.h"
+#include "Citrin/Warnings.h"
 
 #ifdef PNSLR_IMPLEMENTATION
     #include "__PrivateIncludes.h"
 #endif
 
-#include "PNSLR_Intrinsics/Primitives.h"
-#include "PNSLR_Intrinsics/Macros.h"
-#include "PNSLR_Intrinsics/Collections.h"
+#include "Citrin/Primitives.h"
+#include "Citrin/Macros.h"
+#include "Citrin/Collections.h"
 
 //-skipreflect
 #endif // PNSLR_ENTRY_H ============================================================
