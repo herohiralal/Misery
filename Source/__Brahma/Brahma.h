@@ -1081,6 +1081,27 @@ bool brahma_execute(Brahma_Args ex)
         PROFILE_SECTION_END("sort libraries");
     }
 
+    Brahma_String_Array_List allInterfacePaths = { NULL, 0, 0 };
+    if (!failed)
+    {
+        brahma_reserve_string_array_list_capacity(&allInterfacePaths, libDefs.count);
+        for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
+        {
+            Brahma_Library* lib = &(libDefs.data[libIdx]);
+            char* interfaceDir = brahma_sprintf("%s/Interface", lib->owningDir);
+            if (brahma_dir_exists(interfaceDir))
+            {
+                brahma_append_string_to_array_list(&allInterfacePaths, interfaceDir);
+            }
+            else
+            {
+                brahma_append_string_to_array_list(&allInterfacePaths, NULL);
+            }
+        }
+
+        PROFILE_SECTION_END("gather interface dirs");
+    }
+
     // gather all deps
     Brahma_Library_Idx_Paged_List allLibInterfaceDeps = { NULL, 0, 0 };
     Brahma_Data_Chunk_Array_List libInterfaceDepChunks = { NULL, 0, 0 };
@@ -1158,27 +1179,6 @@ bool brahma_execute(Brahma_Args ex)
         }
 
         PROFILE_SECTION_END("gather source files");
-    }
-
-    Brahma_String_Array_List allInterfacePaths = { NULL, 0, 0 };
-    if (!failed)
-    {
-        brahma_reserve_string_array_list_capacity(&allInterfacePaths, libDefs.count);
-        for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
-        {
-            Brahma_Library* lib = &(libDefs.data[libIdx]);
-            char* interfaceDir = brahma_sprintf("%s/Interface", lib->owningDir);
-            if (brahma_dir_exists(interfaceDir))
-            {
-                brahma_append_string_to_array_list(&allInterfacePaths, interfaceDir);
-            }
-            else
-            {
-                brahma_append_string_to_array_list(&allInterfacePaths, NULL);
-            }
-        }
-
-        PROFILE_SECTION_END("gather interface dirs");
     }
 
     // make dirs
