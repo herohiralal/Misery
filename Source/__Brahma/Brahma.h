@@ -1162,7 +1162,7 @@ bool brahma_execute(Brahma_Args ex)
             toProcess[0].fileChunks = &internalCFileChunks;
             toProcess[0].filePaths = &internalCFilePaths;
 
-            toProcess[1].searchPath = toProcess[1].searchPath; // same search path as internal C files
+            toProcess[1].searchPath = toProcess[0].searchPath; // same search path as internal C files
             toProcess[1].extension = ".cpp";
             toProcess[1].fileChunks = &internalCxxFileChunks;
             toProcess[1].filePaths = &internalCxxFilePaths;
