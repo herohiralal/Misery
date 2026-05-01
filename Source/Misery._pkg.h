@@ -4,5 +4,5 @@
 
 BRAHMA_IMPLEMENT_PACKAGE(Misery)
 {
-    package->primaryLibrary = "HelloWorld";
+    package->primaryLibrary = "Vizkaar";
 }
