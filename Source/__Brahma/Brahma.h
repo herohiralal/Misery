@@ -631,6 +631,7 @@ Brahma_Process brahma_start_process(Brahma_String_Array_List args, const char* w
 int brahma_wait_for_process(Brahma_Process process, char** outStdOut);
 
 BRAHMA_DECLARE_PAGED_LIST(Library_Idx, library_idx, uint16_t, ((64 - sizeof(void*)) / sizeof(uint16_t)))
+BRAHMA_DECLARE_ARRAY_LIST(Library_Idx, library_idx, uint16_t)
 
 // a chunk of library dependencies, which represents a contiguous range of dependencies in the list of all dependencies of a library
 typedef struct { uint16_t start, count; } Brahma_Data_Chunk;
@@ -1088,18 +1089,42 @@ bool brahma_execute(Brahma_Args ex)
         PROFILE_SECTION_END("sort libraries");
     }
 
+    // gather all deps
+    Brahma_Library_Idx_Paged_List allLibInterfaceDeps = { NULL, 0, 0 };
+    Brahma_Data_Chunk_Array_List libInterfaceDepChunks = { NULL, 0, 0 };
+    if (!failed)
+    {
+        brahma_reserve_data_chunk_array_list_capacity(&libInterfaceDepChunks, libDefs.count);
+
+        for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
+        {
+            Brahma_Library* lib = &(libDefs.data[libIdx]);
+
+            Brahma_Data_Chunk chunk;
+            size_t startCount =  allLibInterfaceDeps.count;
+
+            char* error = NULL;
+            if (!brahma_append_all_library_deps(&libDefs, lib, &allLibInterfaceDeps, 0, false, true, &error, NULL))
+            {
+                ex.log(BRAHMA_LOG_ERROR "Failed to resolve dependencies for library '%s'.\n\tDetails: %s.\n", lib->name, error ? error : "<unknown>");
+                failed = true;
+            }
+
+            chunk.start = (uint16_t) startCount;
+            chunk.count = (uint16_t) (allLibInterfaceDeps.count - startCount);
+            brahma_append_data_chunk_to_array_list(&libInterfaceDepChunks, chunk);
+        }
+
+        PROFILE_SECTION_END("gather library dependencies");
+    }
 
     // files gather
-    Brahma_Data_Chunk_Array_List interfaceFileChunks = { NULL, 0, 0 };
-    Brahma_String_Paged_List interfaceFilePaths; memset(&interfaceFilePaths, 0, sizeof(interfaceFilePaths));
     Brahma_Data_Chunk_Array_List internalCFileChunks = { NULL, 0, 0 };
     Brahma_String_Paged_List internalCFilePaths; memset(&internalCFilePaths, 0, sizeof(internalCFilePaths));
     Brahma_Data_Chunk_Array_List internalCxxFileChunks = { NULL, 0, 0 };
     Brahma_String_Paged_List internalCxxFilePaths; memset(&internalCxxFilePaths, 0, sizeof(internalCxxFilePaths));
     if (!failed)
     {
-        brahma_reserve_data_chunk_array_list_capacity(&interfaceFileChunks, libDefs.count);
-
         for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
         {
             Brahma_Library* lib = &(libDefs.data[libIdx]);
@@ -1110,27 +1135,24 @@ bool brahma_execute(Brahma_Args ex)
                 char* extension;
                 Brahma_Data_Chunk_Array_List* fileChunks;
                 Brahma_String_Paged_List* filePaths;
-            } toProcess[3];
+            } toProcess[2];
 
-            toProcess[0].searchPath = brahma_sprintf("%s/Interface", lib->owningDir);
-            toProcess[0].extension = ".h";
-            toProcess[0].fileChunks = &interfaceFileChunks;
-            toProcess[0].filePaths = &interfaceFilePaths;
+            toProcess[0].searchPath = brahma_sprintf("%s/Internal", lib->owningDir);
+            toProcess[0].extension = ".c";
+            toProcess[0].fileChunks = &internalCFileChunks;
+            toProcess[0].filePaths = &internalCFilePaths;
 
-            toProcess[1].searchPath = brahma_sprintf("%s/Internal", lib->owningDir);
-            toProcess[1].extension = ".c";
-            toProcess[1].fileChunks = &internalCFileChunks;
-            toProcess[1].filePaths = &internalCFilePaths;
-
-            toProcess[2].searchPath = toProcess[1].searchPath; // same search path as internal C files
-            toProcess[2].extension = ".cpp";
-            toProcess[2].fileChunks = &internalCxxFileChunks;
-            toProcess[2].filePaths = &internalCxxFilePaths;
+            toProcess[1].searchPath = toProcess[1].searchPath; // same search path as internal C files
+            toProcess[1].extension = ".cpp";
+            toProcess[1].fileChunks = &internalCxxFileChunks;
+            toProcess[1].filePaths = &internalCxxFilePaths;
 
             // performance: technically all three of these can be done on separate threads
             // they're technically writing to different arrays
             for (size_t i = 0; i < (sizeof(toProcess) / sizeof(toProcess[0])); i++)
             {
+                brahma_reserve_data_chunk_array_list_capacity(toProcess[i].fileChunks, libDefs.count);
+
                 Brahma_Data_Chunk chunk;
                 chunk.start = (uint16_t) toProcess[i].filePaths->count;
                 if (brahma_dir_exists(toProcess[i].searchPath))
@@ -1143,11 +1165,30 @@ bool brahma_execute(Brahma_Args ex)
             }
         }
 
-        PROFILE_SECTION_END("gather files");
+        PROFILE_SECTION_END("gather source files");
     }
 
+    Brahma_String_Array_List allInterfacePaths = { NULL, 0, 0 };
+    if (!failed)
+    {
+        brahma_reserve_string_array_list_capacity(&allInterfacePaths, libDefs.count);
+        for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
+        {
+            Brahma_Library* lib = &(libDefs.data[libIdx]);
+            char* interfaceDir = brahma_sprintf("%s/Interface", lib->owningDir);
+            if (brahma_dir_exists(interfaceDir))
+            {
+                brahma_append_string_to_array_list(&allInterfacePaths, interfaceDir);
+            }
+            else
+            {
+                brahma_append_string_to_array_list(&allInterfacePaths, NULL);
+            }
+        }
 
-    #if 0
+        PROFILE_SECTION_END("gather interface dirs");
+    }
+
     // make dirs
     Brahma_String_Array_List libArtifactDirs = { NULL, 0, 0 };
     if (!failed)
@@ -1169,7 +1210,6 @@ bool brahma_execute(Brahma_Args ex)
 
         PROFILE_SECTION_END("ensure directories");
     }
-    #endif
 
     // artifact generation - definitions
     if (!failed)
@@ -1286,11 +1326,16 @@ bool brahma_execute(Brahma_Args ex)
 
     // artifact generation - unity files
     Brahma_String_Array_List libUnityCFiles = { NULL, 0, 0 };
+    Brahma_Library_Idx_Array_List libUnityCFileLibIdxs = { NULL, 0, 0 };
     Brahma_String_Array_List libUnityCxxFiles = { NULL, 0, 0 };
+    Brahma_Library_Idx_Array_List libUnityCxxFileLibIdxs = { NULL, 0, 0 };
     if (!failed)
     {
         brahma_reserve_string_array_list_capacity(&libUnityCFiles, libDefs.count);
         brahma_reserve_string_array_list_capacity(&libUnityCxxFiles, libDefs.count);
+
+        brahma_reserve_library_idx_array_list_capacity(&libUnityCFileLibIdxs, libDefs.count);
+        brahma_reserve_library_idx_array_list_capacity(&libUnityCxxFileLibIdxs, libDefs.count);
 
         for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
         {
@@ -1302,17 +1347,20 @@ bool brahma_execute(Brahma_Args ex)
                 Brahma_Data_Chunk filesChunk;
                 const Brahma_String_Paged_List* filePaths;
                 Brahma_String_Array_List* filePathsOutput;
+                Brahma_Library_Idx_Array_List* fileLibIdxsOutput;
             } toProcess[2];
 
             toProcess[0].extension = ".c";
             toProcess[0].filesChunk = internalCFileChunks.data[libIdx];
             toProcess[0].filePaths = &internalCFilePaths;
             toProcess[0].filePathsOutput = &libUnityCFiles;
+            toProcess[0].fileLibIdxsOutput = &libUnityCFileLibIdxs;
 
             toProcess[1].extension = ".cpp";
             toProcess[1].filesChunk = internalCxxFileChunks.data[libIdx];
             toProcess[1].filePaths = &internalCxxFilePaths;
             toProcess[1].filePathsOutput = &libUnityCxxFiles;
+            toProcess[1].fileLibIdxsOutput = &libUnityCxxFileLibIdxs;
 
             for (size_t i = 0; i < (sizeof(toProcess) / sizeof(toProcess[0])); i++)
             {
@@ -1320,6 +1368,7 @@ bool brahma_execute(Brahma_Args ex)
 
                 char* artifactPath = brahma_sprintf("%s/%sUnity%s", pkgIntermediateOutputDir, lib->name, toProcess[i].extension);
                 brahma_append_string_to_array_list(toProcess[i].filePathsOutput, artifactPath);
+                brahma_append_library_idx_to_array_list(toProcess[i].fileLibIdxsOutput, (uint16_t) libIdx);
 
                 FILE* artifactFile = fopen(artifactPath, "w");
                 if (artifactFile)
@@ -1458,15 +1507,18 @@ bool brahma_execute(Brahma_Args ex)
         {
             char* compilerPath;
             const Brahma_String_Array_List* files;
+            const Brahma_Library_Idx_Array_List* fileLibIdxs;
             const Brahma_String_Array_List* commonArgs;
         } toProcess[2];
 
         toProcess[0].compilerPath = cCompilerPath;
         toProcess[0].files = &libUnityCFiles;
+        toProcess[0].fileLibIdxs = &libUnityCFileLibIdxs;
         toProcess[0].commonArgs = &commonCArgs;
 
         toProcess[1].compilerPath = cxxCompilerPath;
         toProcess[1].files = &libUnityCxxFiles;
+        toProcess[1].fileLibIdxs = &libUnityCxxFileLibIdxs;
         toProcess[1].commonArgs = &commonCxxArgs;
 
         for (size_t i = 0; i < (sizeof(toProcess) / sizeof(toProcess[0])); i++)
@@ -1487,18 +1539,53 @@ bool brahma_execute(Brahma_Args ex)
                     brahma_append_string_to_array_list(&compileArgs, commonArgs->data[k]);
                 }
 
-                // intermediate output dir as an include path
+                // compile-only; no link, and on windows, better diagnostics
                 if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
                 {
                     brahma_append_string_to_array_list(&compileArgs, "/diagnostics:caret");
-                    brahma_append_string_to_array_list(&compileArgs, brahma_sprintf("/I%s", ex.intermediateOutputDir));
                     brahma_append_string_to_array_list(&compileArgs, "/c");
                 }
                 else
                 {
-                    brahma_append_string_to_array_list(&compileArgs, "-I");
-                    brahma_append_string_to_array_list(&compileArgs, ex.intermediateOutputDir);
                     brahma_append_string_to_array_list(&compileArgs, "-c");
+                }
+
+                // add all includes
+                {
+                    uint16_t libIdx = toProcess[i].fileLibIdxs->data[j];
+                    Brahma_Data_Chunk libInterfaceDepsChunk = libInterfaceDepChunks.data[libIdx];
+                    for (size_t k = libInterfaceDepsChunk.start; k < (size_t) (libInterfaceDepsChunk.start + libInterfaceDepsChunk.count); k++)
+                    {
+                        uint16_t depLibIdx = *brahma_index_library_idx_paged_list(&allLibInterfaceDeps, k);
+                        char* includePath = allInterfacePaths.data[depLibIdx];
+                        if (includePath)
+                        {
+                            if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
+                            {
+                                brahma_append_string_to_array_list(&compileArgs, brahma_sprintf("/I%s", includePath));
+                            }
+                            else
+                            {
+                                brahma_append_string_to_array_list(&compileArgs, "-I");
+                                brahma_append_string_to_array_list(&compileArgs, includePath);
+                            }
+                        }
+                    }
+
+                    // add self include
+                    char* selfIncludePath = allInterfacePaths.data[libIdx];
+                    if (selfIncludePath)
+                    {
+                        if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
+                        {
+                            brahma_append_string_to_array_list(&compileArgs, brahma_sprintf("/I%s", selfIncludePath));
+                        }
+                        else
+                        {
+                            brahma_append_string_to_array_list(&compileArgs, "-I");
+                            brahma_append_string_to_array_list(&compileArgs, selfIncludePath);
+                        }
+                    }
                 }
 
                 brahma_append_string_to_array_list(&compileArgs, sourceFilePath);
