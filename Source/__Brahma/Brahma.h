@@ -756,6 +756,7 @@ bool brahma_execute(Brahma_Args ex)
     char* cxxCompilerPath = NULL;
     char* staticLinkerPath = NULL;
     char* windowsKitPath = NULL;
+    char* windowsKitVersion = NULL;
     if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
     {
         char* programFilesX86 = NULL;
@@ -880,9 +881,7 @@ bool brahma_execute(Brahma_Args ex)
                 if (RegQueryValueExA(hKey, "KitsRoot10", NULL, NULL,
                                     (LPBYTE) installDir, &installDirSize) == ERROR_SUCCESS)
                 {
-                    char bestVer[64] = {0};
-                    char* bestPath = brahma_push_memory(MAX_PATH, 1);
-                    memset(bestPath, 0, MAX_PATH);
+                    char bestVer[64]; memset(bestVer, 0, sizeof(bestVer));
 
                     for (DWORD i = 0; ; i++)
                     {
@@ -898,20 +897,22 @@ bool brahma_execute(Brahma_Args ex)
 
                         // no existing version or newer version found
                         if (bestVer[0] == '\0' || strcmp(subkeyName, bestVer) > 0)
-                        {
                             strncpy(bestVer, subkeyName, sizeof(bestVer) - 1);
-                            snprintf(bestPath, MAX_PATH, "%s", installDir);
-                        }
                     }
 
-                    if (bestPath[0] != '\0')
+                    if (bestVer[0] != '\0')
                     {
-                        windowsKitPath = brahma_sprintf("%s%s", bestPath, bestVer);
+                        windowsKitVersion = brahma_sprintf("%s", bestVer);
+                        windowsKitPath = installDir;
 
                         // change slashes
-                        for (char* i = windowsKitPath; *i; i++)
-                            if (*i == '\\')
-                                *i = '/';
+                        if (windowsKitPath)
+                            for (char* i = windowsKitPath; *i; i++)
+                                if (*i == '\\')
+                                    *i = '/';
+
+                        if (windowsKitPath && windowsKitPath[0] && windowsKitPath[strlen(windowsKitPath) - 1] == '/')
+                            windowsKitPath[strlen(windowsKitPath) - 1] = '\0'; // remove trailing slash
                     }
                 }
                 RegCloseKey(hKey);
@@ -921,10 +922,9 @@ bool brahma_execute(Brahma_Args ex)
 
         #undef BRAHMA_TEMP_SEARCH_FILE
 
-        if (!windowsKitPath)
+        if (!windowsKitPath || !windowsKitVersion)
         {
-            ex.log(BRAHMA_LOG_ERROR "Failed to find Windows SDK installation path. Make sure you have Windows SDK installed.\n");
-            failed = true;
+            ex.log(BRAHMA_LOG_WARNING "Failed to find Windows SDK installation path. Dependencies to it will not be resolved.");
         }
     }
     else if (ex.platform == BRAHMA_PLATFORM_LINUX)
@@ -1181,6 +1181,13 @@ bool brahma_execute(Brahma_Args ex)
         ex.log(BRAHMA_LOG_INFO "\tOptimised:        %s.\n", (ex.flags & BRAHMA_ARGS_FLAG_OPTIMISED) ? "on" : "off");
         ex.log(BRAHMA_LOG_INFO "\tOutput dir:       %s.\n", ex.outputDir);
         ex.log(BRAHMA_LOG_INFO "\tIntermediate dir: %s.\n", ex.intermediateOutputDir);
+
+        if (windowsKitPath)
+            ex.log(BRAHMA_LOG_INFO "\tWindows SDK:      %s.\n", windowsKitPath);
+
+        if (windowsKitVersion)
+            ex.log(BRAHMA_LOG_INFO "\tWindows SDK ver:  %s.\n", windowsKitVersion);
+
         ex.log(BRAHMA_LOG_INFO "-----------------------------------------\n");
         ex.log(BRAHMA_LOG_INFO "Libraries to build (in order):\n");
         for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
@@ -1612,6 +1619,17 @@ bool brahma_execute(Brahma_Args ex)
                     // w=e
                     if (ex.flags & BRAHMA_ARGS_FLAG_WARNINGS_ARE_ERRORS)
                         brahma_append_string_to_array_list(&commonCArgs, "-Werror");
+                }
+
+                // include windows sdk dirs
+                if (ex.platform == BRAHMA_PLATFORM_WINDOWS && windowsKitPath && windowsKitVersion)
+                {
+                    brahma_append_string_to_array_list(&compileArgs, brahma_sprintf("/I%s\\include", toolchainPath));
+
+                    brahma_append_string_to_array_list(&compileArgs, brahma_sprintf("/I%s/Include/%s/um", windowsKitPath, windowsKitVersion));
+                    brahma_append_string_to_array_list(&compileArgs, brahma_sprintf("/I%s/Include/%s/shared", windowsKitPath, windowsKitVersion));
+                    brahma_append_string_to_array_list(&compileArgs, brahma_sprintf("/I%s/Include/%s/winrt", windowsKitPath, windowsKitVersion));
+                    brahma_append_string_to_array_list(&compileArgs, brahma_sprintf("/I%s/Include/%s/ucrt", windowsKitPath, windowsKitVersion));
                 }
 
                 // add all includes
