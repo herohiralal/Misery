@@ -281,18 +281,27 @@ BRAHMA_DECLARE_PAGED_LIST(String, string, char*, 15)
 char* brahma_sprintf(const char* format, ...);
 
 /**
- * Key-value pair of a definition.
- * This is used to store the definitions that a library (or a package) declares.
- * The key is the name of the definition, and the value is the value.
- * The value can include new lines, but will need to add backslashes for escaping, since the value is stored as a single string.
+ * Key-Value pairs of strings.
+ * Used for a variety of things.
  */
 typedef struct
 {
     const char* key;
     const char* value;
-} Brahma_Definition;
+} Brahma_String_KVP;
 
-BRAHMA_DECLARE_PAGED_LIST(Definition, definition, Brahma_Definition, 7)
+/**
+ * This is used to store the definitions that a library (or a package) declares.
+ * The key is the name of the definition, and the value is the value.
+ * The value can include new lines, but will need to add backslashes for escaping, since the value is stored as a single string.
+ */
+BRAHMA_DECLARE_PAGED_LIST(Definition, definition, Brahma_String_KVP, 7)
+
+/**
+ * This is used to store the files that need to be copied from one location to another.
+ * The key is the source path, and the value is the destination path.
+ */
+BRAHMA_DECLARE_PAGED_LIST(Files_To_Copy, files_to_copy, Brahma_String_KVP, 7)
 
 /**
  * The platforms that can be targeted.
@@ -416,6 +425,12 @@ typedef struct
      * to build the package.
      */
     const char* primaryLibrary;
+
+    /**
+     * If this package fails to be created, for whatever reason, this should be filled with the error message.
+     * Otherwise, it should be null. This will fail the build process.
+     */
+    const char* error;
 } Brahma_Package;
 
 BRAHMA_DECLARE_ARRAY_LIST(Package, package, Brahma_Package)
@@ -467,6 +482,20 @@ typedef struct
      * library, but not the source files in the libraries that depend on this library.
      */
     Brahma_Definition_Paged_List internalDefinitions;
+
+    /**
+     * List of file paths (relative to library's owning directory) that belong to this library.
+     * These files will be copied next the output of the package (with the same relative path) when building the package.
+     *
+     * This can be useful for including prebuilt dynamic libraries or other executables that the library needs to function.
+     */
+    Brahma_Files_To_Copy_Paged_List filesToCopyNextToOutput;
+
+    /**
+     * If this library fails to be created, for whatever reason, this should be filled with the error message.
+     * Otherwise, it should be null. This will fail the build process.
+     */
+    const char* error;
 } Brahma_Library;
 
 BRAHMA_DECLARE_ARRAY_LIST(Library, library, Brahma_Library)
@@ -933,6 +962,12 @@ bool brahma_execute(Brahma_Args ex)
             }
         }
 
+        if (selectedPkg && selectedPkg->error && selectedPkg->error[0])
+        {
+            ex.log(BRAHMA_LOG_ERROR "The package '%s' has an error: %s\n", selectedPkg->name, selectedPkg->error);
+            failed = true;
+        }
+
         PROFILE_SECTION_END("create packages");
     }
 
@@ -1052,11 +1087,22 @@ bool brahma_execute(Brahma_Args ex)
                 libDefs = libsToProcess;
                 primaryLibIdx = (libsToProcess.count - 1);
             }
-
-            PROFILE_SECTION_END("sort libraries");
         }
 
-        PROFILE_SECTION_END("create libraries");
+        if (!failed)
+        {
+            for (size_t i = 0; i < libDefs.count; i++)
+            {
+                Brahma_Library* lib = &(libDefs.data[i]);
+                if (lib->error && lib->error[0])
+                {
+                    ex.log(BRAHMA_LOG_ERROR "The library '%s' has an error: %s\n", lib->name, lib->error);
+                    failed = true;
+                }
+            }
+        }
+
+        PROFILE_SECTION_END("create (& sort) libraries");
     }
 
     // print input summary
@@ -1204,7 +1250,7 @@ bool brahma_execute(Brahma_Args ex)
                 Brahma_Definition_Paged_List* pkgDefinitions = &selectedPkg->definitions;
                 for (size_t j = 0; j < pkgDefinitions->count; j++)
                 {
-                    const Brahma_Definition* define = brahma_index_definition_paged_list(pkgDefinitions, j);
+                    const Brahma_String_KVP* define = brahma_index_definition_paged_list(pkgDefinitions, j);
                     fprintf(packageDefinitionsFile, "\n#undef %s\n", define->key);
                     fprintf(packageDefinitionsFile, "#define %s %s\n", define->key, define->value);
                 }
@@ -1261,26 +1307,11 @@ bool brahma_execute(Brahma_Args ex)
                         // include interface definitions in internal definitions, obviously
                         fprintf(artifactFile, "#include \"%s/%sInterfaceLibDefinitions.h\"\n", ex.intermediateOutputDir, lib->name);
                     }
-                    else
-                    {
-                        // define api macros (dllimport/dllexport)
-                        fprintf(artifactFile, "\n#if defined(_MSC_VER)\n");
-                        fprintf(artifactFile, "    #ifdef BRAHMA_%s_IMPLEMENTATION\n", allCapsLibName);
-                        fprintf(artifactFile, "        #define BRAHMA_%s_API __declspec(dllexport)\n", allCapsLibName);
-                        fprintf(artifactFile, "    #else\n");
-                        fprintf(artifactFile, "        #define BRAHMA_%s_API __declspec(dllimport)\n", allCapsLibName);
-                        fprintf(artifactFile, "    #endif\n");
-                        fprintf(artifactFile, "#elif defined(__GNUC__) || defined(__clang__)\n");
-                        fprintf(artifactFile, "    #define BRAHMA_%s_API __attribute__((visibility(\"default\")))\n", allCapsLibName);
-                        fprintf(artifactFile, "#else\n");
-                        fprintf(artifactFile, "    #define BRAHMA_%s_API\n", allCapsLibName);
-                        fprintf(artifactFile, "#endif\n");
-                    }
 
                     const Brahma_Definition_Paged_List* definitions = toProcess[i].definitions;
                     for (size_t j = 0; j < definitions->count; j++)
                     {
-                        const Brahma_Definition* define = brahma_index_definition_paged_list(definitions, j);
+                        const Brahma_String_KVP* define = brahma_index_definition_paged_list(definitions, j);
                         fprintf(artifactFile, "\n#undef %s\n", define->key);
                         fprintf(artifactFile, "#define %s %s\n", define->key, define->value);
                     }
@@ -1745,6 +1776,79 @@ bool brahma_execute(Brahma_Args ex)
         }
 
         PROFILE_SECTION_END("linking");
+    }
+
+    // copy all the "files to copy" as requested
+    if (!failed)
+    {
+        size_t fileCopyBufferSize = 16384;
+        char* fileCopyBuffer = brahma_push_memory(fileCopyBufferSize, 1);
+
+        for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
+        {
+            Brahma_Library* lib = &(libDefs.data[libIdx]);
+            for (size_t i = 0; i < lib->filesToCopyNextToOutput.count; i++)
+            {
+                Brahma_String_KVP* fileToCopy = brahma_index_files_to_copy_paged_list(&lib->filesToCopyNextToOutput, i);
+                char* srcPath = brahma_sprintf("%s/%s", lib->owningDir, fileToCopy->key);
+                char* dstPath = brahma_sprintf("%s/%s", ex.outputDir, fileToCopy->value);
+
+                FILE* srcFile = fopen(srcPath, "rb");
+                if (!srcFile)
+                {
+                    ex.log(BRAHMA_LOG_ERROR "Failed to open source file for copying dependency '%s' to '%s'.\n", srcPath, dstPath);
+                    failed = true;
+                    continue;
+                }
+
+                // first find the last slash in dstPath, add a null terminator there,
+                // and pass to the function that create the directory tree
+                bool failedToCreateDir = false;
+                {
+                    char* lastFwdSlash = strrchr(dstPath, '/');
+                    char* lastBackSlash = strrchr(dstPath, '\\');
+                    char* lastSlash = (lastFwdSlash > lastBackSlash) ? lastFwdSlash : lastBackSlash;
+                    char lastSlashChar = *lastSlash;
+                    *lastSlash = '\0';
+                    if (!brahma_ensure_dir(dstPath))
+                        failedToCreateDir = true;
+                    *lastSlash = lastSlashChar;
+                }
+
+                if (failedToCreateDir)
+                {
+                    ex.log(BRAHMA_LOG_ERROR "Failed to create directory for copying dependency '%s' to '%s'.\n", srcPath, dstPath);
+                    fclose(srcFile);
+                    failed = true;
+                    continue;
+                }
+
+                FILE* dstFile = fopen(dstPath, "wb");
+                if (!dstFile)
+                {
+                    ex.log(BRAHMA_LOG_ERROR "Failed to open destination file for copying dependency '%s' to '%s'.\n", srcPath, dstPath);
+                    fclose(srcFile);
+                    failed = true;
+                    continue;
+                }
+
+                size_t bytesRead = 0;
+                while ((bytesRead = fread(fileCopyBuffer, 1, fileCopyBufferSize, srcFile)) > 0)
+                {
+                    if (fwrite(fileCopyBuffer, 1, bytesRead, dstFile) != bytesRead)
+                    {
+                        ex.log(BRAHMA_LOG_ERROR "Failed to write to destination file for copying dependency '%s' to '%s'.\n", srcPath, dstPath);
+                        failed = true;
+                        break;
+                    }
+                }
+
+                fclose(srcFile);
+                fclose(dstFile);
+            }
+        }
+
+        PROFILE_SECTION_END("copy dependencies");
     }
 
     Brahma_Memory_Usage_Report report = brahma_shutdown_internal_allocator();

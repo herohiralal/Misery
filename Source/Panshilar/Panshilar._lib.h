@@ -3,6 +3,6 @@
 
 BRAHMA_IMPLEMENT_LIBRARY(Panshilar)
 {
-    Brahma_Definition def = {"PNSLR_IMPLEMENTATION", ""};
+    Brahma_String_KVP def = {"PNSLR_IMPLEMENTATION", ""};
     brahma_append_definition_to_paged_list(&library->internalDefinitions, def);
 }
