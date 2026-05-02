@@ -1,0 +1,47 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Misery",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Binaries/windows-x64-dbg/Misery.exe",
+            "preLaunchTask": "Build",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "logging": {
+                "engineLogging": false,
+                "moduleLoad": false,
+                "exceptions": true,
+                "processExit": true,
+                "programOutput": true,
+                "threadExit": true
+            }
+        },
+        {
+            "name": "Brahma Build Tool (Debug)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Intermediate/__Brahma/brahma.exe",
+            "preLaunchTask": "Build Debuggable Build Tool",
+            "args": [
+                "-intermediate_output",
+                "${workspaceFolder}/Intermediate/__Brahma",
+                "-out",
+                "${workspaceFolder}/Binaries",
+                "-warnings",
+                "-warn_as_err"
+            ],
+            "cwd": "${workspaceFolder}",
+            "logging": {
+                "engineLogging": false,
+                "moduleLoad": false,
+                "exceptions": true,
+                "processExit": true,
+                "programOutput": true,
+                "threadExit": true
+            }
+        }
+    ]
+}

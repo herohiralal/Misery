@@ -1832,19 +1832,28 @@ bool brahma_execute(Brahma_Args ex)
                     continue;
                 }
 
+                bool failedToCopy = false;
                 size_t bytesRead = 0;
                 while ((bytesRead = fread(fileCopyBuffer, 1, fileCopyBufferSize, srcFile)) > 0)
                 {
                     if (fwrite(fileCopyBuffer, 1, bytesRead, dstFile) != bytesRead)
                     {
-                        ex.log(BRAHMA_LOG_ERROR "Failed to write to destination file for copying dependency '%s' to '%s'.\n", srcPath, dstPath);
-                        failed = true;
+                        failedToCopy = true;
                         break;
                     }
                 }
 
                 fclose(srcFile);
                 fclose(dstFile);
+
+                if (failedToCopy)
+                {
+                    ex.log(BRAHMA_LOG_ERROR "Failed to write to destination file for copying dependency '%s' to '%s'.\n", srcPath, dstPath);
+                    failed = true;
+                    continue;
+                }
+
+                ex.log(BRAHMA_LOG_SUCCESS "Copied dependency '%s' to '%s' successfully.\n", srcPath, dstPath);
             }
         }
 

@@ -3,14 +3,7 @@
 
 #if MZNT_DX12
     __declspec(dllexport) extern const UINT D3D12SDKVersion = D3D12_SDK_VERSION;
-
-    #if PNSLR_X64
-        __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\x64\\";
-    #elif PNSLR_ARM64
-        __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\arm64\\";
-    #else
-        #error "Unsupported architecture."
-    #endif
+    __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
 #endif
 
 const MZNT_RendererType k_RendererTypes[] =

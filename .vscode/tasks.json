@@ -1,0 +1,45 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build",
+            "type": "shell",
+            "windows": {
+                "command": "${workspaceFolder}/build.bat"
+            },
+            "osx": {
+                "command": "${workspaceFolder}/build.sh"
+            },
+            "linux": {
+                "command": "${workspaceFolder}/build.sh"
+            },
+            "args": [],
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Build Debuggable Build Tool",
+            "type": "shell",
+            "windows": {
+                "command": "${workspaceFolder}/build.bat"
+            },
+            "osx": {
+                "command": "${workspaceFolder}/build.sh"
+            },
+            "linux": {
+                "command": "${workspaceFolder}/build.sh"
+            },
+            "args": [
+                "-debug_build_tool"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        }
+    ]
+}
