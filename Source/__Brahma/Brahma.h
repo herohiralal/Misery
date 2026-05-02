@@ -875,7 +875,7 @@ bool brahma_execute(Brahma_Args ex)
                             "SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots",
                             0, KEY_READ, &hKey) == ERROR_SUCCESS)
             {
-                char* installDir = brahma_push_memory(MAX_PATH, 1);
+                char* installDir = (char*) brahma_push_memory(MAX_PATH, 1);
                 DWORD installDirSize = MAX_PATH;
 
                 if (RegQueryValueExA(hKey, "KitsRoot10", NULL, NULL,
@@ -1860,7 +1860,7 @@ bool brahma_execute(Brahma_Args ex)
     if (!failed)
     {
         size_t fileCopyBufferSize = 16384;
-        char* fileCopyBuffer = brahma_push_memory(fileCopyBufferSize, 1);
+        char* fileCopyBuffer = (char*) brahma_push_memory(fileCopyBufferSize, 1);
 
         for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
         {
