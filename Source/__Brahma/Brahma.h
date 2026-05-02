@@ -77,7 +77,7 @@
 #endif//BRAHMA_NO_WARNINGS
 
 // =============================================================================================================================
-// Includes
+// Includes / Links
 #if 1
 
 #ifdef _WIN32
@@ -85,6 +85,7 @@
     #define VC_EXTRALEAN
     #define NOMINMAX
     #define _CRT_SECURE_NO_WARNINGS
+    #pragma comment(lib, "advapi32.lib") // for registry access
 #endif
 
 #ifdef __linux__
@@ -754,6 +755,7 @@ bool brahma_execute(Brahma_Args ex)
     char* cCompilerPath = NULL;
     char* cxxCompilerPath = NULL;
     char* staticLinkerPath = NULL;
+    char* windowsKitPath = NULL;
     if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
     {
         char* programFilesX86 = NULL;
@@ -865,7 +867,65 @@ bool brahma_execute(Brahma_Args ex)
             staticLinkerPath = brahma_sprintf("%s\\link.exe", vsBinaries);
         }
 
+        #ifdef _WIN32
+        {
+            HKEY hKey;
+            if (RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+                            "SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots",
+                            0, KEY_READ, &hKey) == ERROR_SUCCESS)
+            {
+                char* installDir = brahma_push_memory(MAX_PATH, 1);
+                DWORD installDirSize = MAX_PATH;
+
+                if (RegQueryValueExA(hKey, "KitsRoot10", NULL, NULL,
+                                    (LPBYTE) installDir, &installDirSize) == ERROR_SUCCESS)
+                {
+                    char bestVer[64] = {0};
+                    char* bestPath = brahma_push_memory(MAX_PATH, 1);
+                    memset(bestPath, 0, MAX_PATH);
+
+                    for (DWORD i = 0; ; i++)
+                    {
+                        char subkeyName[64] = {0};
+                        DWORD subkeyNameSize = sizeof(subkeyName);
+                        if (RegEnumKeyExA(hKey, i, subkeyName, &subkeyNameSize,
+                                        NULL, NULL, NULL, NULL) != ERROR_SUCCESS)
+                            break;
+
+                        // Only consider version-like subkeys (start with "10.")
+                        if (strncmp(subkeyName, "10.", 3) != 0)
+                            continue;
+
+                        // no existing version or newer version found
+                        if (bestVer[0] == '\0' || strcmp(subkeyName, bestVer) > 0)
+                        {
+                            strncpy(bestVer, subkeyName, sizeof(bestVer) - 1);
+                            snprintf(bestPath, MAX_PATH, "%s", installDir);
+                        }
+                    }
+
+                    if (bestPath[0] != '\0')
+                    {
+                        windowsKitPath = brahma_sprintf("%s%s", bestPath, bestVer);
+
+                        // change slashes
+                        for (char* i = windowsKitPath; *i; i++)
+                            if (*i == '\\')
+                                *i = '/';
+                    }
+                }
+                RegCloseKey(hKey);
+            }
+        }
+        #endif
+
         #undef BRAHMA_TEMP_SEARCH_FILE
+
+        if (!windowsKitPath)
+        {
+            ex.log(BRAHMA_LOG_ERROR "Failed to find Windows SDK installation path. Make sure you have Windows SDK installed.\n");
+            failed = true;
+        }
     }
     else if (ex.platform == BRAHMA_PLATFORM_LINUX)
     {
