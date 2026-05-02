@@ -1,7 +1,7 @@
 #ifndef PNSLR_RENDERER_PRIVATE_H
 #define PNSLR_RENDERER_PRIVATE_H
 #include "Muzent/__Prelude.h"
-#include "Muzent/Renderer.h"
+#include "Muzent/RendererFns.h"
 #include "zzz_impl_vk/VkTypes.h"
 #include "zzz_impl_vk/VkDbgReflect.h"
 #include "zzz_impl_vk/VkFns.h"

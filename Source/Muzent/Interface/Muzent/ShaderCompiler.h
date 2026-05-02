@@ -1,7 +1,7 @@
 #ifndef MZNT_SHADER_COMPILER_H // ==================================================
 #define MZNT_SHADER_COMPILER_H
 #include "__Prelude.h"
-#include "Renderer.h"
+#include "RendererObjects.h"
 EXTERN_C_BEGIN
 
 /**

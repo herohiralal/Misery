@@ -1,7 +1,7 @@
 #ifndef MZNT_DX12_FNS_H
 #define MZNT_DX12_FNS_H
 #include "Muzent/__Prelude.h"
-#include "Muzent/Renderer.h"
+#include "Muzent/RendererFns.h"
 #include "Dx12Types.h"
 EXTERN_C_BEGIN
 #if defined(MZNT_IMPLEMENTATION) && MZNT_DX12
