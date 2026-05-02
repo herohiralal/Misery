@@ -64,6 +64,18 @@ i32 VzkrMain(DVRPL_App app, PNSLR_ArraySlice(utf8str) args)
         return -1;
     }
 
+    PNSLR_Path rootDir = {0};
+    {
+        PNSLR_Path rootDirTemp = {0};
+        PNSLR_Path executableFile = PNSLR_NormalisePath(args.data[0], PNSLR_PathNormalisationType_File, tempAllocator);
+        PNSLR_Path binariesDir = {0};
+        PNSLR_SplitPath(executableFile, &binariesDir, nil, nil, nil);
+        PNSLR_SplitPath(binariesDir, &rootDirTemp, nil, nil, nil);
+
+        rootDir.path = PNSLR_MakeString(rootDirTemp.path.count, false, PNSLR_GetAllocator_DefaultHeap(), PNSLR_GET_LOC(), nil);
+        PNSLR_MemCopy(rootDir.path.data, rootDirTemp.path.data, (i32) rootDirTemp.path.count);
+    }
+
     i64 prevTime = PNSLR_NanosecondsSinceUnixEpoch();
 
     struct {
@@ -115,16 +127,6 @@ i32 VzkrMain(DVRPL_App app, PNSLR_ArraySlice(utf8str) args)
             tempAllocator);
 
         G_RenderData.swapChains[i] = openWindows[i].swapChain;
-
-        PNSLR_Path rootDir = {0};
-        {
-            PNSLR_Path executableFile = PNSLR_NormalisePath(args.data[0], PNSLR_PathNormalisationType_File, tempAllocator);
-            PNSLR_Path binariesDir = {0};
-            PNSLR_SplitPath(executableFile, &binariesDir, nil, nil, nil);
-            PNSLR_SplitPath(binariesDir, &rootDir, nil, nil, nil);
-        }
-
-        // PNSLR_Path shadersDir = PNSLR_GetPathForSubdirectory(rootDir, PNSLR_StringLiteral("Shaders"), tempAllocator);
     }
 
     PNSLR_FreeAll(tempAllocator, PNSLR_GET_LOC(), nil);
@@ -261,6 +263,7 @@ i32 VzkrMain(DVRPL_App app, PNSLR_ArraySlice(utf8str) args)
 
     MZNT_DestroyShaderCompiler(shaderCompiler, tempAllocator);
 
+    PNSLR_FreeString(rootDir.path, PNSLR_GetAllocator_DefaultHeap(), PNSLR_GET_LOC(), nil);
     PNSLR_DestroyAllocator_Arena(tempAllocator, PNSLR_GET_LOC(), nil);
 
     PNSLR_DestroyEvent(&G_RenderThreadDone);

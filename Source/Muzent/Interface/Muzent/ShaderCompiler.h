@@ -58,7 +58,7 @@ typedef struct MZNT_ShaderCompilationOptions
 /**
  * Compile an input HLSL shader, into its corresponding bytecode.
  */
-b8 CompileShader(MZNT_ShaderCompiler compiler, PNSLR_Path file, PNSLR_ArraySlice(u8)* output, MZNT_ShaderCompilationOptions options);
+b8 CompileShader(MZNT_ShaderCompiler compiler, PNSLR_Path file, MZNT_ShaderByteCode* output, MZNT_ShaderCompilationOptions options);
 
 EXTERN_C_END
 #endif // MZNT_SHADER_COMPILER_H ===================================================

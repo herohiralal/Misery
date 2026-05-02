@@ -100,5 +100,15 @@ MZNT_RendererCommandBuffer* MZNT_GetSwapChainCommandBuffer(
  */
 b8 MZNT_PresentSwapChain(MZNT_SwapChain* swapChain, PNSLR_Allocator tempAllocator);
 
+/**
+ * Configuration structure for program creation.
+ */
+typedef struct MZNT_GraphicsProgramConfiguration
+{
+    PNSLR_ArraySlice(MZNT_ShaderByteCode) shaders;
+} MZNT_GraphicsProgramConfiguration;
+
+MZNT_Program* MZNT_CreateGraphicsProgram(MZNT_Renderer* renderer, MZNT_GraphicsProgramConfiguration cfg, PNSLR_Allocator tempAllocator);
+
 EXTERN_C_END
 #endif // MZNT_RENDERER_H ==========================================================

@@ -83,7 +83,7 @@ void MZNT_DestroyShaderCompiler(MZNT_ShaderCompiler compiler, PNSLR_Allocator te
     #endif
 }
 
-b8 CompileShader(MZNT_ShaderCompiler compiler, PNSLR_Path file, PNSLR_ArraySlice(u8)* output, MZNT_ShaderCompilationOptions options)
+b8 CompileShader(MZNT_ShaderCompiler compiler, PNSLR_Path file, MZNT_ShaderByteCode* output, MZNT_ShaderCompilationOptions options)
 {
     #if PNSLR_WINDOWS || PNSLR_LINUX
     {
@@ -193,8 +193,9 @@ b8 CompileShader(MZNT_ShaderCompiler compiler, PNSLR_Path file, PNSLR_ArraySlice
 
         if (output)
         {
-            *output = PNSLR_MakeSlice(u8, tempOutput.count, false, options.allocator, PNSLR_GET_LOC(), nil);
-            PNSLR_MemCopy(output->data, tempOutput.data, (i32) tempOutput.count);
+            output->type = options.shaderType;
+            output->byteCode = PNSLR_MakeSlice(u8, tempOutput.count, false, options.allocator, PNSLR_GET_LOC(), nil);
+            PNSLR_MemCopy(output->byteCode.data, tempOutput.data, (i32) tempOutput.count);
         }
 
         output2->Release();
