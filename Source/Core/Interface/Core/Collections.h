@@ -42,6 +42,7 @@ struct Allocator
     void* Allocate(size_t size, size_t alignment, SrcLoc loc) const
     {
         if (!impl) return nullptr;
+        if (!size) return nullptr;
         return impl->Allocate(loc, size, alignment, false);
     }
 
@@ -52,6 +53,7 @@ struct Allocator
     void* AllocateZeroed(size_t size, size_t alignment, SrcLoc loc) const
     {
         if (!impl) return nullptr;
+        if (!size) return nullptr;
         return impl->Allocate(loc, size, alignment, true);
     }
 
@@ -64,6 +66,8 @@ struct Allocator
     void* Reallocate(void* ptr, size_t oldSize, size_t newSize, size_t alignment, SrcLoc loc) const
     {
         if (!impl) return nullptr;
+        if (!newSize) { impl->Deallocate(loc, ptr); return nullptr; }
+        if (!oldSize) { if (ptr) impl->Deallocate(loc, ptr); return Allocate(newSize, alignment, loc); }
         return impl->Reallocate(loc, ptr, oldSize, newSize, alignment, false);
     }
 
@@ -74,6 +78,8 @@ struct Allocator
     void* ReallocateZeroed(void* ptr, size_t oldSize, size_t newSize, size_t alignment, SrcLoc loc) const
     {
         if (!impl) return nullptr;
+        if (!newSize) { impl->Deallocate(loc, ptr); return nullptr; }
+        if (!oldSize) { if (ptr) impl->Deallocate(loc, ptr); return AllocateZeroed(newSize, alignment, loc); }
         return impl->Reallocate(loc, ptr, oldSize, newSize, alignment, true);
     }
 
@@ -84,6 +90,7 @@ struct Allocator
     void Deallocate(void* ptr, SrcLoc loc) const
     {
         if (!impl) return;
+        if (!ptr) return;
         impl->Deallocate(loc, ptr);
     }
 
@@ -147,6 +154,65 @@ struct Allocator
      */
     template <typename T>
     void ResizeSlice(Slice<T>* slice, size_t newSize, SrcLoc loc);
+
+    /**
+     * Clone a slice of type T using the specified allocator. This function will create a new slice that is a copy of the given slice, with its own
+     * memory allocation. The contents of the slice will be copied to the new memory block. If the allocator is null, this function will return an
+     * empty slice.
+     */
+    template <typename T>
+    Slice<T> CloneSlice(const Slice<T>& slice, SrcLoc loc);
+
+    /**
+     * Create a new String with the specified length using the given allocator. This function will allocate memory for the string using the allocator,
+     * and then construct the string in-place with the given length. The allocated memory will be zero-initialized before constructing the string, so
+     * that any padding bytes are also zeroed. If the allocator is null, this function will return an empty string.
+     */
+    String MakeString(size_t length, SrcLoc loc);
+
+    /**
+     * Free a String using the specified allocator. This function will free the memory used by the string back to the allocator, and then reset the
+     * string to an empty state. If the allocator is null, this function will return without doing anything.
+     */
+    void FreeString(String* str, SrcLoc loc);
+
+    /**
+     * Clone a String using the specified allocator. This function will create a new string that is a copy of the given string, with its own memory
+     * allocation. The contents of the string will be copied to the new memory block. If the allocator is null, this function will return an empty string.
+     */
+    String CloneString(const String& str, SrcLoc loc);
+
+    /**
+     * Create a new CString with the specified length using the given allocator. This function will allocate memory for the C string using the allocator,
+     * and then construct the C string in-place with the given length. The allocated memory will be zero-initialized before constructing the C string, so
+     * that any padding bytes are also zeroed. The resulting C string will be null-terminated. If the allocator is null, this function will return a null
+     * C string.
+     *
+     * Note that the length parameter specifies the length of the string excluding the null terminator.
+     * The function will allocate length + 1 bytes to accommodate the null terminator.
+     */
+    CString MakeCString(size_t length, SrcLoc loc);
+
+    /**
+     * Create a new CString by cloning the given String using the specified allocator. This function will allocate memory for the C string using the
+     * allocator, and then construct the C string in-place by copying the contents of the given String. The allocated memory will be zero-initialized
+     * before constructing the C string, so that any padding bytes are also zeroed. The resulting C string will be null-terminated. If the allocator is
+     * null, this function will return a null C string.
+     */
+    CString MakeCString(const String& str, SrcLoc loc);
+
+    /**
+     * Free a CString using the specified allocator. This function will free the memory used by the C string back to the allocator, and then reset the
+     * C string to a null state. If the allocator is null, this function will return without doing anything.
+     */
+    void FreeCString(CString* str, SrcLoc loc);
+
+    /**
+     * Clone a CString using the specified allocator. This function will create a new C string that is a copy of the given C string, with its own memory
+     * allocation. The contents of the C string will be copied to the new memory block, and the new C string will be null-terminated. If the allocator is null,
+     * this function will return a null C string.
+     */
+    CString CloneCString(const CString& str, SrcLoc loc);
 };
 
 /**
@@ -222,7 +288,8 @@ private:
     const char* data;
 
 public:
-    CString() : data(nullptr) { }
+    CString() = default;
+
     constexpr CString(const char* str) : data(str) { }
 
     template <size_t N>
@@ -236,6 +303,12 @@ public:
     operator bool() const { return data != nullptr && data[0] != '\0'; }
     operator char*() { return Data(); }
     operator const char*() const { return Data(); }
+
+    String AsString();
+    const String AsString() const;
+
+    Slice<char> AsSlice();
+    const Slice<char> AsSlice() const;
 };
 
 /**
@@ -244,6 +317,8 @@ public:
  */
 struct String
 {
+    friend struct Allocator;
+
 private:
     Slice<uint8_t> slice;
 
@@ -258,7 +333,7 @@ public:
 
     String(Slice<uint8_t> slice) : slice(slice) { }
 
-    String(CString str) : slice((uint8_t*) str.Data(), str.Length()) { }
+    String(const CString& str) : slice((uint8_t*) str.Data(), str.Length()) { }
 
     Slice<uint8_t> AsSlice() { return slice; }
     const Slice<uint8_t> AsSlice() const { return slice; }
@@ -269,6 +344,8 @@ public:
     size_t Length() const { return slice.Count(); }
 
     operator bool() const { return slice; }
+
+    String SubString(size_t start, size_t subCount);
 };
 
 template <typename T, typename... Args>
@@ -324,4 +401,15 @@ void Allocator::ResizeSlice(Slice<T>* slice, size_t newSize, SrcLoc loc)
     if (!newMem) { return; }
     slice->data = (T*) newMem;
     slice->count = newSize;
+}
+
+template <typename T>
+Slice<T> Allocator::CloneSlice(const Slice<T>& slice, SrcLoc loc)
+{
+    if (!impl) { return Slice<T>(); }
+    if (!slice) { return Slice<T>(); }
+    Slice<T> newSlice = MakeSlice<T>(slice.Count(), loc);
+    if (!newSlice) { return Slice<T>(); }
+    memcpy(newSlice.Data(), slice.Data(), sizeof(T) * slice.Count());
+    return newSlice;
 }
