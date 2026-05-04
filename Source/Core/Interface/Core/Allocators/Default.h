@@ -1,6 +1,6 @@
 #pragma once
 #include <__init.h>
-#include <Core/Primitives.h>
+#include <Core/Collections.h>
 
 /**
  * Default allocator that uses the standard library's malloc/free for memory management.

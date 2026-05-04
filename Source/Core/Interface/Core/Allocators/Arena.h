@@ -1,6 +1,6 @@
 #pragma once
 #include <__init.h>
-#include <Core/Primitives.h>
+#include <Core/Collections.h>
 
 /**
  * Arena allocator that uses a linked-list of memory blocks to manage allocations.

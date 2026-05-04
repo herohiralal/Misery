@@ -1,52 +1,11 @@
 #pragma once
 #include <__init.h>
+#include "SrcLoc.h"
 
 template <typename T>
 struct Slice;
 struct CString;
 struct String;
-
-namespace DeferInternals
-{
-    struct Helper
-    {
-        template <typename Callable>
-        struct Defer
-        {
-            Callable func;
-            ~Defer() { func(); }
-        };
-
-        template <typename Callable>
-        Defer<Callable> operator+(Callable&& func)
-        {
-            return Defer<Callable>{ std::forward<Callable>(func) };
-        }
-    };
-}
-
-#define DEFER_CONCAT_IMPL(x, y) x##y
-#define DEFER_CONCAT(x, y) DEFER_CONCAT_IMPL(x, y)
-#define DEFER auto DEFER_CONCAT(defer_, __COUNTER__) = DeferInternals::Helper() + [&]()
-
-/**
- * Defines the source code location for debugging purposes.
- * Primarily used for logging/reporting the location where a call might have been made from.
- * General-purpose.
- */
-struct SrcLoc
-{
-    const char* file;
-    int32_t     line;
-    int32_t     column;
-    const char* function;
-};
-
-/**
- * Helper macro to get the current source code location. Used with functions that take a SrcLoc
- * parameter, so that the caller doesn't have to manually specify the file and line number every time.
- */
-#define SRC_LOC() (::SrcLoc {.file = __FILE__, .line = __LINE__, .column = 0, .function = __FUNCTION__})
 
 /**
  * General interface for an allocator. This is used to abstract away the details of memory allocation and allow for different
@@ -283,16 +242,33 @@ public:
  * UTF-8 strings (not null-terminated). Simple wrapper around Slice<uint8_t> with some utility functions
  * for convenience.
  */
-struct String : public Slice<uint8_t>
+struct String
 {
-    String() : Slice() { };
+private:
+    Slice<uint8_t> slice;
+
+public:
+    String() = default;
 
     // converting constructor
     template <size_t N>
-    String(const char (&str)[N]) : Slice((uint8_t*) str, N - 1) { }
+    String(const char (&str)[N]) : slice((uint8_t*) str, N - 1) { }
 
-    String(Slice<uint8_t> slice) : Slice(slice) { }
-    String(CString str) : Slice((uint8_t*) str.Data(), str.Length()) { }
+    String(uint8_t* data, size_t length) : slice(data, length) { }
+
+    String(Slice<uint8_t> slice) : slice(slice) { }
+
+    String(CString str) : slice((uint8_t*) str.Data(), str.Length()) { }
+
+    Slice<uint8_t> AsSlice() { return slice; }
+    const Slice<uint8_t> AsSlice() const { return slice; }
+
+    uint8_t* Data() { return slice.Data(); }
+    const uint8_t* Data() const { return slice.Data(); }
+
+    size_t Length() const { return slice.Count(); }
+
+    operator bool() const { return slice; }
 };
 
 template <typename T, typename... Args>
