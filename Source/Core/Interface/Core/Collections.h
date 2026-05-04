@@ -115,7 +115,7 @@ struct Allocator
      * The allocated memory will be zero-initialized before constructing the object, so that any padding bytes are also zeroed.
      */
     template <typename T, typename... Args>
-    T* New(Args&&... args, SrcLoc loc);
+    T* New(SrcLoc loc, Args&&... args);
 
     /**
      * Delete an object of type T using the specified allocator. This function will call the destructor of the object, and then free the memory
@@ -213,6 +213,12 @@ struct Allocator
      * this function will return a null C string.
      */
     CString CloneCString(const CString& str, SrcLoc loc);
+
+    template <typename... Args>
+    String FormatString(SrcLoc loc, const char* fmt, Args&&... args);
+
+    template <size_t N, typename... Args>
+    CString FormatCString(SrcLoc loc, const char (&fmt)[N], Args&&... args);
 };
 
 /**
@@ -349,7 +355,7 @@ public:
 };
 
 template <typename T, typename... Args>
-T* Allocator::New(Args&&... args, SrcLoc loc)
+T* Allocator::New(SrcLoc loc, Args&&... args)
 {
     if (!impl) { return nullptr; }
     void* mem = AllocateZeroed(sizeof(T), alignof(T), loc);

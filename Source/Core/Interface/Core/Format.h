@@ -115,8 +115,9 @@ struct FormatArg
 
 namespace Misery::Format::Internal
 {
-    size_t FormatStr(Slice<uint8_t> buffer, String formatStr, Slice<FormatArg> args);
+    size_t FormatStr(Slice<uint8_t> buffer, String formatStr, Slice<FormatArg> args, bool addNullTerm);
     size_t FormatStr(FILE* stream, String formatStr, Slice<FormatArg> args);
+    Slice<uint8_t> FormatSlice(Allocator allocator, String formatStr, Slice<FormatArg> args, bool addNullTerm, SrcLoc loc);
 }
 
 template <size_t N, typename... Args>
@@ -131,4 +132,36 @@ size_t Format(FILE* stream, const char (&formatStr)[N], Args&&... args)
 {
     FormatArg argArray[] = { FormatArg(std::forward<Args>(args))... };
     return Misery::Format::Internal::FormatStr(stream, String(formatStr), Slice<FormatArg>(argArray, sizeof...(Args)));
+}
+
+template <typename... Args>
+String Allocator::FormatString(SrcLoc loc, const char* fmt, Args&&... args)
+{
+    if constexpr (!sizeof...(Args))
+    {
+        return CloneString(CString(fmt), loc);
+    }
+    else
+    {
+        FormatArg argArray[] = { FormatArg(std::forward<Args>(args))... };
+        Slice<uint8_t> formattedSlice = Misery::Format::Internal::FormatSlice(*this, String(fmt), Slice<FormatArg>(argArray, sizeof...(Args)), false, loc);
+        if (!formattedSlice) { return String(); }
+        return String(formattedSlice);
+    }
+}
+
+template <size_t N, typename... Args>
+CString Allocator::FormatCString(SrcLoc loc, const char (&fmt)[N], Args&&... args)
+{
+    if constexpr (!sizeof...(Args))
+    {
+        return CloneCString(CString(fmt), loc);
+    }
+    else
+    {
+        FormatArg argArray[] = { FormatArg(std::forward<Args>(args))... };
+        Slice<uint8_t> formattedSlice = Misery::Format::Internal::FormatSlice(*this, fmt, Slice<FormatArg>(argArray, sizeof...(Args)), true, loc);
+        if (!formattedSlice) { return CString(); }
+        return CString((const char*) formattedSlice.Data());
+    }
 }

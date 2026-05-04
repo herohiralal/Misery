@@ -308,11 +308,11 @@ namespace Misery::Format::Internal
 
         size_t bulkFlushSize = 0;
 
-        auto bulkFlush = [&]() -> bool
+        auto bulkFlush = [&](size_t i) -> bool
         {
             if (bulkFlushSize > 0)
             {
-                bool success = Append(sink, start, bulkFlushSize);
+                bool success = Append(sink, start + i - bulkFlushSize, bulkFlushSize);
                 bulkFlushSize = 0;
                 return success;
             }
@@ -324,49 +324,49 @@ namespace Misery::Format::Internal
         for (size_t i = 0; i < len; ++i)
         {
             char c = start[i];
-            if (c == '%')
+            if (c != '%')
             {
-                if (i + 1 < len && start[i + 1] == '%')
-                {
-                    bulkFlushSize++; // include the '%' in the bulk flush
-                    success = bulkFlush() && success;
-                    i++; // skip the next '%'
-                }
-                else
-                {
-                    // flush any pending literals
-                    success = bulkFlush() && success;
-
-                    // format argument
-                    if (argIndex >= args.Count())
-                    {
-                        success = Append(sink, "(%MISSING_ARG%)") && success;
-                        continue;
-                    }
-
-                    success = Append(sink, args[argIndex]) && success;
-                    argIndex++;
-                }
-
+                bulkFlushSize++;
                 continue;
+            }
+
+            if (i + 1 < len && start[i + 1] == '%')
+            {
+                bulkFlushSize++; // include the '%' in the bulk flush
+                success = bulkFlush(i) && success;
+                i++; // skip the next '%'
             }
             else
             {
-                bulkFlushSize++;
+                // flush any pending literals
+                success = bulkFlush(i) && success;
+
+                // format argument
+                if (argIndex >= args.Count())
+                {
+                    success = Append(sink, "(%MISSING_ARG%)") && success;
+                    continue;
+                }
+
+                success = Append(sink, args[argIndex]) && success;
+                argIndex++;
             }
+
+            continue;
         }
 
         // flush any remaining literals
-        success = bulkFlush() && success;
+        success = bulkFlush(len) && success;
 
         return success;
     }
 
-    size_t FormatStr(Slice<uint8_t> buffer, String formatStr, Slice<FormatArg> args)
+    size_t FormatStr(Slice<uint8_t> buffer, String formatStr, Slice<FormatArg> args, bool addNullTerm)
     {
         BufferFormatSink bufferSink = BufferFormatSink((char*) buffer.Data(), buffer.Count());
         FormatSink sink = FormatSink(bufferSink);
         Format(sink, formatStr, args);
+        if (addNullTerm) Append(sink, '\0');
         return sink.totalWritten;
     }
 
@@ -376,5 +376,33 @@ namespace Misery::Format::Internal
         FormatSink sink = FormatSink(fileSink);
         Format(sink, formatStr, args);
         return sink.totalWritten;
+    }
+
+    Slice<uint8_t> FormatSlice(Allocator allocator, String formatStr, Slice<FormatArg> args, bool addNullTerm, SrcLoc loc)
+    {
+        uint8_t buffer[8192]; // 8KB flash-format buffer
+
+        size_t len = FormatStr(Slice<uint8_t>(buffer, sizeof(buffer)), formatStr, args, addNullTerm);
+        if (!len) { return Slice<uint8_t>(); }
+
+        Slice<uint8_t> output = allocator.MakeSlice<uint8_t>(len, loc);
+        if (!output) { return Slice<uint8_t>(); }
+
+        if (len <= sizeof(buffer)) // formatting into the buffer was successful, just memcpy
+        {
+            memcpy(output.Data(), buffer, len);
+        }
+        else // format again!
+        {
+            size_t len2 = Misery::Format::Internal::FormatStr(output, formatStr, args, addNullTerm);
+            if (len2 != len)
+            {
+                // this should never happen, but if it does, we can at least return a truncated string instead of crashing or returning garbage
+                MSR_ASSERT(false && "Inconsistent formatting length between buffer and output string");
+                return output.SubSlice(0, len2 < len ? len2 : len);
+            }
+        }
+
+        return output;
     }
 }
