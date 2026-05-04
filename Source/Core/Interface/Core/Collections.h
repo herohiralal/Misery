@@ -418,12 +418,28 @@ public:
         data[count++] = std::move(item);
     }
 
+    void Push(const T& item, SrcLoc loc)
+    {
+        Add(item, loc);
+    }
+
+    void Push(T&& item, SrcLoc loc)
+    {
+        Add(std::move(item), loc);
+    }
+
     void RemoveAt(size_t index, SrcLoc loc)
     {
         MSR_ASSERT(index >= 0 && index < count && "Index out of bounds in List");
         if (index < count - 1)
             memmove(data + index, data + index + 1, sizeof(T) * (count - index - 1));
         count--;
+    }
+
+    T Pop(SrcLoc loc)
+    {
+        MSR_ASSERT(count > 0 && "Cannot pop from an empty List");
+        return data[--count];
     }
 
     void Clear(SrcLoc loc)
