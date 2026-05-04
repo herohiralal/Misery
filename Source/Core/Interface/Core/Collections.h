@@ -273,11 +273,21 @@ struct Allocator
 Allocator GetDefaultAllocator();
 
 /**
+ * Short-hand for `GetDefaultAllocator()`.
+ */
+#define alloc_main (GetDefaultAllocator())
+
+/**
  * Get a temporary allocator instance. This is a general-purpose allocator that is optimised for short-term allocations that
  * will be freed in bulk. It uses a thread-local arena allocator under the hood, so it is not thread-safe and should only be used
  * for allocations with a small lifetime ( < 1 function / frame).
  */
 Allocator GetTempAllocator();
+
+/**
+ * Short-hand for `GetTempAllocator()`.
+ */
+#define alloc_temp (GetTempAllocator())
 
 /**
  * A simple slice structure that represents a contiguous sequence of elements in memory. It is not responsible for managing the memory
