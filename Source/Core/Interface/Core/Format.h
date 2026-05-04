@@ -87,12 +87,47 @@ struct FormatArg
     {
     }
 
+    FormatArg(uint32_t val, IntFormatBase base = FMT_INT_DECIMAL)
+        : FormatArg((uint64_t) val, base)
+    {
+    }
+
+    FormatArg(uint16_t val, IntFormatBase base = FMT_INT_DECIMAL)
+        : FormatArg((uint64_t) val, base)
+    {
+    }
+
+    FormatArg(uint8_t val, IntFormatBase base = FMT_INT_DECIMAL)
+        : FormatArg((uint64_t) val, base)
+    {
+    }
+
     FormatArg(int64_t val, IntFormatBase base = FMT_INT_DECIMAL)
         : intValue {.type = FMT_ARG_INT, .isNegative = (val < 0), .base = base, .value = (val == INT64_MIN) ? (((uint64_t) INT64_MAX) + 1) : (uint64_t) ((val < 0) ? -val : val)}
     {
     }
 
+    FormatArg(int32_t val, IntFormatBase base = FMT_INT_DECIMAL)
+        : FormatArg((int64_t) val, base)
+    {
+    }
+
+    FormatArg(int16_t val, IntFormatBase base = FMT_INT_DECIMAL)
+        : FormatArg((int64_t) val, base)
+    {
+    }
+
+    FormatArg(int8_t val, IntFormatBase base = FMT_INT_DECIMAL)
+        : FormatArg((int64_t) val, base)
+    {
+    }
+
     FormatArg(double val, uint16_t minDecimalPlaces = 0, uint16_t maxDecimalPlaces = 6)
+        : doubleValue {.type = FMT_ARG_DOUBLE, .minDecimalPlaces = minDecimalPlaces, .maxDecimalPlaces = maxDecimalPlaces, .value = val}
+    {
+    }
+
+    FormatArg(float val, uint16_t minDecimalPlaces = 0, uint16_t maxDecimalPlaces = 6)
         : doubleValue {.type = FMT_ARG_DOUBLE, .minDecimalPlaces = minDecimalPlaces, .maxDecimalPlaces = maxDecimalPlaces, .value = val}
     {
     }
@@ -104,6 +139,12 @@ struct FormatArg
 
     FormatArg(CString val, StringFormatStyle format = FMT_STRING_DEFAULT)
         : stringValue {.type = FMT_ARG_STRING, .format = format, .value = val.AsString()}
+    {
+    }
+
+    template <size_t N>
+    FormatArg(const char (&val)[N], StringFormatStyle format = FMT_STRING_DEFAULT)
+        : stringValue {.type = FMT_ARG_STRING, .format = format, .value = String(val)}
     {
     }
 
