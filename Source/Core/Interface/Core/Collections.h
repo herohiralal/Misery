@@ -4,6 +4,8 @@
 
 template <typename T>
 struct Slice;
+template <typename T>
+struct List;
 struct CString;
 struct String;
 
@@ -117,11 +119,14 @@ struct Allocator
     template <typename T, typename... Args>
     T* New(SrcLoc loc, Args&&... args);
 
+    template <typename T>
+    T* New(SrcLoc loc);
+
     /**
      * Delete an object of type T using the specified allocator. This function will call the destructor of the object, and then free the memory
      * back to the allocator. If the allocator is null, this function will return without doing anything.
      */
-    template <typename T, typename... Args>
+    template <typename T>
     void Delete(T* obj, SrcLoc loc);
 
     /**
@@ -162,6 +167,36 @@ struct Allocator
      */
     template <typename T>
     Slice<T> CloneSlice(const Slice<T>& slice, SrcLoc loc);
+
+    /**
+     * Create a new list of type T using the specified allocator. This function will allocate memory for the list using the allocator, and then
+     * construct the list in-place. The allocated memory will be zero-initialized before constructing the list, so that any padding bytes are also
+     * zeroed. If the allocator is null, this function will return an empty list.
+     */
+    template <typename T>
+    List<T> MakeList();
+
+    /**
+     * Create a new list of type T using the specified allocator. This function will allocate memory for the list using the allocator, and then
+     * construct the list in-place with the given initial capacity. The allocated memory will be zero-initialized before constructing the list,
+     * so that any padding bytes are also zeroed.
+     */
+    template <typename T>
+    List<T> MakeList(size_t initialCapacity, SrcLoc loc);
+
+    /**
+     * Free a list of type T using the specified allocator. This function will free the memory used by the list back to the allocator, and then reset the
+     * list to an empty state. If the allocator is null, this function will return without doing anything.
+     */
+    template <typename T>
+    void FreeList(List<T>* list, SrcLoc loc);
+
+    /**
+     * Clone a list of type T using the specified allocator. This function will create a new list that is a copy of the given list, with its own memory
+     * allocation. The contents of the list will be copied to the new memory block. If the allocator is null, this function will return an empty list.
+     */
+    template <typename T>
+    List<T> CloneList(const List<T>& list, SrcLoc loc);
 
     /**
      * Create a new String with the specified length using the given allocator. This function will allocate memory for the string using the allocator,
@@ -214,9 +249,19 @@ struct Allocator
      */
     CString CloneCString(const CString& str, SrcLoc loc);
 
+    /**
+     * Format a string using the specified allocator. This function will create a new String that contains the formatted text, using the given format string
+     * and arguments. The allocated memory for the string will be managed by the allocator, and will be freed when the string is destroyed. If the allocator
+     * is null, this function will return an empty string.
+     */
     template <typename... Args>
     String FormatString(SrcLoc loc, const char* fmt, Args&&... args);
 
+    /**
+     * Format a C string using the specified allocator. This function will create a new CString that contains the formatted text, using the given format string
+     * and arguments. The allocated memory for the C string will be managed by the allocator, and will be freed when the C string is destroyed. The resulting C
+     * string will be null-terminated. If the allocator is null, this function will return a null C string.
+     */
     template <size_t N, typename... Args>
     CString FormatCString(SrcLoc loc, const char (&fmt)[N], Args&&... args);
 };
@@ -280,6 +325,101 @@ public:
     }
 
     operator bool() const { return data != nullptr && count > 0; }
+};
+
+template <typename T>
+struct List
+{
+    static_assert(std::is_pod_v<T>, "List only supports POD types");
+    static_assert(std::is_trivially_copyable_v<T>, "List only supports trivially copyable types");
+    static_assert(std::is_trivially_destructible_v<T>, "List only supports trivially destructible types");
+    friend struct Allocator;
+
+private:
+    T*        data;
+    size_t    count;
+    size_t    capacity;
+    Allocator allocator;
+
+public:
+    List() = default;
+
+    T& operator[](size_t index)
+    {
+        MSR_ASSERT(index >= 0 && index < count && "Index out of bounds in List");
+        return data[index];
+    }
+
+    const T& operator[](size_t index) const
+    {
+        MSR_ASSERT(index >= 0 && index < count && "Index out of bounds in List");
+        return data[index];
+    }
+
+    T* Data() { return data; }
+    const T* Data() const { return data; }
+
+    size_t Count() const { return count; }
+    size_t Capacity() const { return capacity; }
+
+    Slice<T> AsSlice() { return Slice<T>(data, count); }
+    const Slice<T> AsSlice() const { return Slice<T>(data, count); }
+
+    Slice<T> SubSlice(size_t start, size_t subCount)
+    {
+        MSR_ASSERT(start >= 0 && subCount >= 0 && start + subCount <= count && "Invalid subslice range");
+        return Slice<T>(data + start, subCount);
+    }
+
+    operator bool() const { return data != nullptr && count > 0; }
+
+    void Reserve(size_t newCapacity, SrcLoc loc)
+    {
+        if (newCapacity <= capacity) return;
+        size_t newSize = sizeof(T) * newCapacity;
+        size_t oldSize = sizeof(T) * capacity;
+        void* newMem = allocator.ReallocateZeroed(data, oldSize, newSize, alignof(T), loc);
+        if (!newMem) return;
+        data = (T*) newMem;
+        capacity = newCapacity;
+    }
+
+    void Add(const T& item, SrcLoc loc)
+    {
+        if (capacity < count + 1)
+        {
+            size_t newCap = capacity == 0 ? 16 : capacity * 2;
+            Reserve(newCap, loc);
+        }
+
+        MSR_ASSERT(count < capacity && "Failed to reserve enough capacity in List");
+        data[count++] = item;
+    }
+
+    void Add(T&& item, SrcLoc loc)
+    {
+        if (capacity < count + 1)
+        {
+            size_t newCap = capacity == 0 ? 16 : capacity * 2;
+            Reserve(newCap, loc);
+        }
+
+        MSR_ASSERT(count < capacity && "Failed to reserve enough capacity in List");
+        data[count++] = std::move(item);
+    }
+
+    void RemoveAt(size_t index, SrcLoc loc)
+    {
+        MSR_ASSERT(index >= 0 && index < count && "Index out of bounds in List");
+        if (index < count - 1)
+            memmove(data + index, data + index + 1, sizeof(T) * (count - index - 1));
+        count--;
+    }
+
+    void Clear(SrcLoc loc)
+    {
+        count = 0;
+    }
 };
 
 /**
@@ -363,7 +503,16 @@ T* Allocator::New(SrcLoc loc, Args&&... args)
     return new (mem) T(std::forward<Args>(args)...);
 }
 
-template <typename T, typename... Args>
+template <typename T>
+T* Allocator::New(SrcLoc loc)
+{
+    if (!impl) { return nullptr; }
+    void* mem = AllocateZeroed(sizeof(T), alignof(T), loc);
+    if (!mem) { return nullptr; }
+    return new (mem) T();
+}
+
+template <typename T>
 void Allocator::Delete(T* obj, SrcLoc loc)
 {
     if (!impl) { return; }
@@ -418,4 +567,40 @@ Slice<T> Allocator::CloneSlice(const Slice<T>& slice, SrcLoc loc)
     if (!newSlice) { return Slice<T>(); }
     memcpy(newSlice.Data(), slice.Data(), sizeof(T) * slice.Count());
     return newSlice;
+}
+
+template <typename T>
+List<T> Allocator::MakeList()
+{
+    List<T> list = List<T>();
+    list.allocator = *this;
+    return list;
+}
+
+template <typename T>
+List<T> Allocator::MakeList(size_t initialCapacity, SrcLoc loc)
+{
+    List<T> list = MakeList<T>();
+    list.Reserve(initialCapacity, loc);
+    return list;
+}
+
+template <typename T>
+void Allocator::FreeList(List<T>* list, SrcLoc loc)
+{
+    if (!impl) { return; }
+    if (list->data) Deallocate(list->data, loc);
+    *list = List<T>();
+}
+
+template <typename T>
+List<T> Allocator::CloneList(const List<T>& list, SrcLoc loc)
+{
+    if (!impl) { return List<T>(); }
+    if (!list) { return List<T>(); }
+    List<T> newList = MakeList<T>(list.Capacity(), loc);
+    if (!newList) { return List<T>(); }
+    newList.count = list.Count();
+    memcpy(newList.Data(), list.Data(), sizeof(T) * list.Count());
+    return newList;
 }
