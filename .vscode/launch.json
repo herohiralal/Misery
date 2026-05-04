@@ -17,7 +17,8 @@
                 "processExit": true,
                 "programOutput": true,
                 "threadExit": true
-            }
+            },
+            "visualizerFile": "${workspaceFolder}/Binaries/windows-x64-dbg/Natvis/Core.natvis"
         },
         {
             "name": "Brahma Build Tool (Debug)",

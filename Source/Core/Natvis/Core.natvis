@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+    <Type Name="CString">
+        <DisplayString Condition="data == nullptr">&lt;null&gt;</DisplayString>
+        <DisplayString>{data,s}</DisplayString>
+        <StringView>data,s</StringView>
+        <Expand>
+            <Item Name="data">data</Item>
+        </Expand>
+    </Type>
+
+    <Type Name="String">
+        <DisplayString Condition="slice.data == nullptr || slice.count == 0">&lt;empty&gt;</DisplayString>
+        <DisplayString>{(const char*)slice.data,[slice.count]s8}</DisplayString>
+        <StringView>(const char*)slice.data,[slice.count]s8</StringView>
+        <Expand>
+            <Item Name="length">slice.count</Item>
+            <Item Name="data">slice.data</Item>
+        </Expand>
+    </Type>
+
+    <Type Name="Slice&lt;*&gt;">
+        <DisplayString Condition="data == nullptr || count == 0">&lt;empty&gt;</DisplayString>
+        <DisplayString>{{ count={count} }}</DisplayString>
+        <Expand>
+            <Item Name="count">count</Item>
+            <ArrayItems>
+                <Size>count</Size>
+                <ValuePointer>data</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+
+    <Type Name="Slice&lt;char&gt;">
+        <DisplayString Condition="data == nullptr || count == 0">&lt;empty&gt;</DisplayString>
+        <DisplayString>{data,[count]s8}</DisplayString>
+        <StringView>data,[count]s8</StringView>
+        <Expand>
+            <Item Name="count">count</Item>
+            <Item Name="data">data</Item>
+        </Expand>
+    </Type>
+
+    <Type Name="Slice&lt;unsigned char&gt;">
+        <DisplayString Condition="data == nullptr || count == 0">&lt;empty&gt;</DisplayString>
+        <DisplayString>{(const char*)data,[count]s8}</DisplayString>
+        <StringView>(const char*)data,[count]s8</StringView>
+        <Expand>
+            <Item Name="count">count</Item>
+            <ArrayItems>
+                <Size>count</Size>
+                <ValuePointer>data</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+
+    <Type Name="List&lt;*&gt;">
+        <DisplayString Condition="data == nullptr || count == 0">&lt;empty&gt;</DisplayString>
+        <DisplayString>{{ count={count}, capacity={capacity} }}</DisplayString>
+        <Expand>
+            <Item Name="count">count</Item>
+            <Item Name="capacity">capacity</Item>
+            <ArrayItems>
+                <Size>count</Size>
+                <ValuePointer>data</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+
+</AutoVisualizer>
