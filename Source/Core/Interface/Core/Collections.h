@@ -199,6 +199,14 @@ struct Allocator
     List<T> CloneList(const List<T>& list, SrcLoc loc);
 
     /**
+     * Change the allocator used by a list of type T. This function will attempt to change the allocator used by the list to the new allocator, while preserving
+     * the existing information.
+     * It allocates new memory for the list using the new allocator, copies the existing data to it, and frees the old block of memory back to the old allocator.
+     */
+    template <typename T>
+    void ChangeAllocator(List<T>* list, Allocator newAllocator, SrcLoc loc);
+
+    /**
      * Create a new String with the specified length using the given allocator. This function will allocate memory for the string using the allocator,
      * and then construct the string in-place with the given length. The allocated memory will be zero-initialized before constructing the string, so
      * that any padding bytes are also zeroed. If the allocator is null, this function will return an empty string.
@@ -629,4 +637,40 @@ List<T> Allocator::CloneList(const List<T>& list, SrcLoc loc)
     newList.count = list.Count();
     memcpy(newList.Data(), list.Data(), sizeof(T) * list.Count());
     return newList;
+}
+
+template <typename T>
+void Allocator::ChangeAllocator(List<T>* list, Allocator newAllocator, SrcLoc loc)
+{
+    if (!impl || !list) { return; }
+    if (!list->data) // no data at all
+    {
+        *list = newAllocator.MakeList<T>();
+        return;
+    }
+
+    if (!list->capacity) // has some data but no capacity (?)
+    {
+        FreeList(list, loc);
+        *list = MakeList<T>();
+        return;
+    }
+
+    if (!list->count) // has capacity but no info, basically a preallocated buffer
+    {
+        size_t oldCapacity = list->capacity;
+        FreeList(list, loc);
+        *list = MakeList<T>(oldCapacity, loc);
+        return;
+    }
+
+    // has info and capacity
+    auto newList = newAllocator.MakeList<T>(list->capacity, loc);
+    if (!newList) { return; }
+
+    memcpy(newList.Data(), list->Data(), sizeof(T) * list->Count());
+    newList.count = list->count;
+
+    FreeList(list, loc);
+    *list = newList;
 }
