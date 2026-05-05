@@ -380,6 +380,8 @@ public:
     size_t Count() const { return count; }
     size_t Capacity() const { return capacity; }
 
+    Allocator GetAllocator() const { return allocator; }
+
     Slice<T> AsSlice() { return Slice<T>(data, count); }
     const Slice<T> AsSlice() const { return Slice<T>(data, count); }
 
@@ -454,6 +456,11 @@ public:
     {
         count = 0;
     }
+
+    void Free(SrcLoc loc)
+    {
+        allocator.FreeList(this, loc);
+    }
 };
 
 /**
@@ -483,6 +490,18 @@ public:
     operator bool() const { return data != nullptr && data[0] != '\0'; }
     operator char*() { return Data(); }
     operator const char*() const { return Data(); }
+
+    char& operator[](size_t index)
+    {
+        MSR_ASSERT(index >= 0 && index < Length() && "Index out of bounds in CString");
+        return const_cast<char*>(data)[index];
+    }
+
+    const char& operator[](size_t index) const
+    {
+        MSR_ASSERT(index >= 0 && index < Length() && "Index out of bounds in CString");
+        return data[index];
+    }
 
     String AsString();
     const String AsString() const;
@@ -527,6 +546,18 @@ public:
     size_t Length() const { return slice.Count(); }
 
     operator bool() const { return slice; }
+
+    uint8_t& operator[](size_t index)
+    {
+        MSR_ASSERT(index >= 0 && index < Length() && "Index out of bounds in String");
+        return slice[index];
+    }
+
+    const uint8_t& operator[](size_t index) const
+    {
+        MSR_ASSERT(index >= 0 && index < Length() && "Index out of bounds in String");
+        return slice[index];
+    }
 
     String SubString(size_t start, size_t subCount);
 
