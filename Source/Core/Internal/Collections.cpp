@@ -111,6 +111,13 @@ String String::SubString(size_t start, size_t subCount)
     return String(slice.SubSlice(start, subCount));
 }
 
+const String String::SubString(size_t start, size_t subCount) const
+{
+    MSR_ASSERT(start <= Length() && "Start index out of bounds in String::SubString");
+    MSR_ASSERT(start + subCount <= Length() && "SubString range out of bounds");
+    return String(slice.SubSlice(start, subCount));
+}
+
 bool String::operator==(const String& other) const
 {
     if (!slice && !other.slice) return true;
@@ -122,4 +129,50 @@ bool String::operator==(const String& other) const
 bool String::operator!=(const String& other) const
 {
     return !(*this == other);
+}
+
+bool String::Equals(const String& other, bool ignoreCase) const
+{
+    if (!ignoreCase)
+        return *this == other;
+
+    if (!slice && !other.slice) return true;
+    if (!slice || !other.slice) return false;
+    if (Length() != other.Length()) return false;
+
+    for (size_t i = 0; i < Length(); i++)
+    {
+        if (tolower(slice[i]) != tolower(other[i]))
+            return false;
+    }
+
+    return true;
+}
+
+int64_t String::FirstIndexOf(const String& substring, bool ignoreCase) const
+{
+    if (!(*this) || !substring) return -1;
+
+    for (int64_t i = 0; i <= (int64_t) Length() - (int64_t) substring.Length(); i++)
+    {
+        String actualSubstring = SubString(i, substring.Length());
+        if (actualSubstring.Equals(substring, ignoreCase))
+            return i;
+    }
+
+    return -1; // not found
+}
+
+int64_t String::LastIndexOf(const String& substring, bool ignoreCase) const
+{
+    if (!(*this) || !substring) return -1;
+
+    for (int64_t i = (int64_t) Length() - (int64_t) substring.Length(); i >= 0; i--)
+    {
+        String actualSubstring = SubString(i, substring.Length());
+        if (actualSubstring.Equals(substring, ignoreCase))
+            return i;
+    }
+
+    return -1; // not found
 }

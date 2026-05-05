@@ -342,6 +342,12 @@ public:
         return Slice<T>(data + start, subCount);
     }
 
+    const Slice<T> SubSlice(size_t start, size_t subCount) const
+    {
+        MSR_ASSERT(start >= 0 && subCount >= 0 && start + subCount <= count && "Invalid subslice range");
+        return Slice<T>(data + start, subCount);
+    }
+
     operator bool() const { return data != nullptr && count > 0; }
 };
 
@@ -560,9 +566,15 @@ public:
     }
 
     String SubString(size_t start, size_t subCount);
+    const String SubString(size_t start, size_t subCount) const;
 
     bool operator==(const String& other) const;
     bool operator!=(const String& other) const;
+
+    bool Equals(const String& other, bool ignoreCase = false) const;
+
+    int64_t FirstIndexOf(const String& substring, bool ignoreCase = false) const;
+    int64_t LastIndexOf(const String& substring, bool ignoreCase = false) const;
 };
 
 template <typename T, typename... Args>
