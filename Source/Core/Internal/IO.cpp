@@ -554,3 +554,29 @@ bool FilePath::Exists() const
     }
     #endif
 }
+
+int64_t FilePath::LastUpdated() const
+{
+    CString str = alloc_temp.MakeCString(actual, SRC_LOC());
+
+    #if MSR_WINDOWS
+    {
+        WIN32_FILE_ATTRIBUTE_DATA fileAttrData;
+        if (!GetFileAttributesExA(str, GetFileExInfoStandard, &fileAttrData)) { return -1; }
+
+        // convert FILETIME to nanoseconds since unix epoch
+        uint64_t fileTime = ((uint64_t) fileAttrData.ftLastWriteTime.dwHighDateTime << 32) | fileAttrData.ftLastWriteTime.dwLowDateTime;
+        return (int64_t) (fileTime * 100); // FILETIME is in 100-nanosecond intervals
+    }
+    #elif MSR_UNIX
+    {
+        struct stat statBuf;
+        if (stat(str, &statBuf) != 0) { return -1; }
+
+        // convert seconds to nanoseconds and add the nanosecond part
+        return (int64_t) statBuf.st_mtime * 1000000000 + statBuf.st_mtim.tv_nsec;
+    }
+    #endif
+
+    return -1;
+}

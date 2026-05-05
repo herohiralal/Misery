@@ -39,4 +39,7 @@ struct FilePath
     String Extension() const;
 
     bool Exists() const;
+
+    // nanoseconds since unix epoch
+    int64_t LastUpdated() const;
 };
