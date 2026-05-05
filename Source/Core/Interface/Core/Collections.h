@@ -489,6 +489,9 @@ public:
 
     Slice<char> AsSlice();
     const Slice<char> AsSlice() const;
+
+    bool operator==(const CString& other) const;
+    bool operator!=(const CString& other) const;
 };
 
 /**
@@ -526,6 +529,9 @@ public:
     operator bool() const { return slice; }
 
     String SubString(size_t start, size_t subCount);
+
+    bool operator==(const String& other) const;
+    bool operator!=(const String& other) const;
 };
 
 template <typename T, typename... Args>

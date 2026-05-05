@@ -19,45 +19,6 @@ void* IAllocator::Reallocate(SrcLoc loc, void* ptr, size_t oldSize, size_t newSi
     return newMem;
 }
 
-Allocator GetDefaultAllocator()
-{
-    static DefaultAllocator defaultAllocator = { };
-    return &defaultAllocator;
-}
-
-Allocator GetTempAllocator()
-{
-    using CleanupDelegate = void(*)();
-    struct StaticCleanup
-    {
-        StaticCleanup(CleanupDelegate cleanupFunc) : func(cleanupFunc) { }
-        ~StaticCleanup() { func(); }
-        CleanupDelegate func;
-    };
-
-    static thread_local ArenaAllocator tempAllocator = ArenaAllocator(4 * 1024 * 1024, GetDefaultAllocator());
-    static thread_local StaticCleanup cleanup = StaticCleanup([]() { tempAllocator.Destroy(); });
-    return &tempAllocator;
-}
-
-size_t CString::Length() const
-{
-    return Data() ? strlen(Data()) : 0;
-}
-
-String CString::AsString() { return String(*this); }
-const String CString::AsString() const { return String(*this); }
-
-Slice<char> CString::AsSlice() { return Slice<char>(const_cast<char*>(data), Length()); }
-const Slice<char> CString::AsSlice() const { return Slice<char>(const_cast<char*>(data), Length()); }
-
-String String::SubString(size_t start, size_t subCount)
-{
-    MSR_ASSERT(start <= Length() && "Start index out of bounds in String::SubString");
-    MSR_ASSERT(start + subCount <= Length() && "SubString range out of bounds");
-    return String(slice.SubSlice(start, subCount));
-}
-
 String Allocator::MakeString(size_t length, SrcLoc loc)
 {
     return String(MakeSlice<uint8_t>(length, loc));
@@ -98,4 +59,68 @@ void Allocator::FreeCString(CString* str, SrcLoc loc)
 CString Allocator::CloneCString(const CString& str, SrcLoc loc)
 {
     return MakeCString(str.AsString(), loc);
+}
+
+Allocator GetDefaultAllocator()
+{
+    static DefaultAllocator defaultAllocator = { };
+    return &defaultAllocator;
+}
+
+Allocator GetTempAllocator()
+{
+    using CleanupDelegate = void(*)();
+    struct StaticCleanup
+    {
+        StaticCleanup(CleanupDelegate cleanupFunc) : func(cleanupFunc) { }
+        ~StaticCleanup() { func(); }
+        CleanupDelegate func;
+    };
+
+    static thread_local ArenaAllocator tempAllocator = ArenaAllocator(4 * 1024 * 1024, GetDefaultAllocator());
+    static thread_local StaticCleanup cleanup = StaticCleanup([]() { tempAllocator.Destroy(); });
+    return &tempAllocator;
+}
+
+size_t CString::Length() const
+{
+    return Data() ? strlen(Data()) : 0;
+}
+
+String CString::AsString() { return String(*this); }
+const String CString::AsString() const { return String(*this); }
+
+Slice<char> CString::AsSlice() { return Slice<char>(const_cast<char*>(data), Length()); }
+const Slice<char> CString::AsSlice() const { return Slice<char>(const_cast<char*>(data), Length()); }
+
+bool CString::operator==(const CString& other) const
+{
+    if (!Data() && !other.Data()) return true;
+    if (!Data() || !other.Data()) return false;
+    return strcmp(Data(), other.Data()) == 0;
+}
+
+bool CString::operator!=(const CString& other) const
+{
+    return !(*this == other);
+}
+
+String String::SubString(size_t start, size_t subCount)
+{
+    MSR_ASSERT(start <= Length() && "Start index out of bounds in String::SubString");
+    MSR_ASSERT(start + subCount <= Length() && "SubString range out of bounds");
+    return String(slice.SubSlice(start, subCount));
+}
+
+bool String::operator==(const String& other) const
+{
+    if (!slice && !other.slice) return true;
+    if (!slice || !other.slice) return false;
+    if (Length() != other.Length()) return false;
+    return memcmp(Data(), other.Data(), Length()) == 0;
+}
+
+bool String::operator!=(const String& other) const
+{
+    return !(*this == other);
 }
