@@ -6,4 +6,5 @@
 #include "Collections.h"
 #include "Allocators/Default.h"
 #include "Allocators/Arena.h"
+#include "IO.h"
 #include "Format.h"
