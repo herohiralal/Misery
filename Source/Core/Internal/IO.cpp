@@ -265,7 +265,59 @@ DirectoryPath DirectoryPath::Normalise(String path, Allocator allocator)
     return DirectoryPath(Misery::IO::Internal::NormalisePath(path ? path : String("."), true, allocator));
 }
 
+DirectoryPath DirectoryPath::GetParentDirectory() const
+{
+    String s = actual;
+    if (s.Length() && s[s.Length() - 1] == '/')
+         s = actual.SubString(0, actual.Length() - 1); // skip trailing slash
+
+    int32_t lastSlashIdx = s.LastIndexOf("/");
+    if (lastSlashIdx == -1)
+        return DirectoryPath(String("/"));
+
+    String parentPath = actual.SubString(0, lastSlashIdx + 1); // include the slash
+    return DirectoryPath(parentPath);
+}
+
 FilePath FilePath::Normalise(String path, Allocator allocator)
 {
     return FilePath(Misery::IO::Internal::NormalisePath(path ? path : String("unknown.file"), false, allocator));
+}
+
+DirectoryPath FilePath::GetParentDirectory() const
+{
+    int32_t lastSlashIdx = actual.LastIndexOf("/");
+    if (lastSlashIdx == -1)
+        return DirectoryPath(String("/"));
+
+    String parentPath = actual.SubString(0, lastSlashIdx + 1); // include the slash
+    return DirectoryPath(parentPath);
+}
+
+String FilePath::FileNameWithExtension() const
+{
+    int32_t lastSlashIdx = actual.LastIndexOf("/");
+    if (lastSlashIdx == -1)
+        return actual;
+
+    return actual.SubString(lastSlashIdx + 1, actual.Length() - lastSlashIdx - 1); // skip the slash
+}
+
+String FilePath::FileNameWithoutExtension() const
+{
+    String fileNameWithExt = FileNameWithExtension();
+    int32_t lastDotIdx = fileNameWithExt.LastIndexOf(".");
+    if (lastDotIdx == -1)
+        return fileNameWithExt;
+
+    return fileNameWithExt.SubString(0, lastDotIdx); // skip the dot and extension
+}
+
+String FilePath::Extension() const
+{
+    int32_t lastDotIdx = actual.LastIndexOf(".");
+    if (lastDotIdx == -1)
+        return String();
+
+    return actual.SubString(lastDotIdx + 1, actual.Length() - lastDotIdx - 1); // skip the dot
 }
