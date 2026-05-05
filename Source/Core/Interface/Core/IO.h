@@ -14,6 +14,12 @@ struct DirectoryPath
     static DirectoryPath Normalise(String path, Allocator allocator);
 
     DirectoryPath GetParentDirectory() const;
+
+    using VisitorDelegate = bool (*)(String path, bool recursive, void* userData, bool* exploreCurrentDirectory);
+    void IterateDirectory(VisitorDelegate visitor, void* userData = nullptr, bool recursive = false);
+
+    DirectoryPath GetSubdirectory(String dirName, Allocator allocator) const;
+    FilePath GetFile(String fileNameWithExtension, Allocator allocator) const;
 };
 
 struct FilePath
