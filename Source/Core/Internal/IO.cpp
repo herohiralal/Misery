@@ -1,6 +1,7 @@
 #include <Core/Defer.h>
 #include <Core/IO.h>
 #include <Core/Allocators/Arena.h>
+#include "IO.h"
 
 namespace Misery::IO::Internal
 {
@@ -19,7 +20,7 @@ namespace Misery::IO::Internal
 
         if (path.Length() >= 5 && IS_SLASH(path[0]) && IS_SLASH(path[1]) && !IS_SLASH(path[2]) && (path[2] != '.'))
         {
-            for (int32_t i = 3; i < path.Length(); ++i)
+            for (int32_t i = 3; i < path.Length(); i++)
             {
                 if (IS_SLASH(path[i]))
                 {
@@ -32,7 +33,7 @@ namespace Misery::IO::Internal
                         }
                     }
 
-                    for (; i < path.Length(); ++i)
+                    for (; i < path.Length(); i++)
                     {
                         if (IS_SLASH(path[i]))
                         {
@@ -228,7 +229,7 @@ namespace Misery::IO::Internal
             }
 
             String output = outputBuffer.ToString();
-            for (int32_t i = 0; i < output.Length(); ++i)
+            for (int32_t i = 0; i < output.Length(); i++)
             {
                 if (output[i] == '\\') { output[i] = '/'; } // normalise path separators
             }
@@ -281,7 +282,7 @@ DirectoryPath DirectoryPath::GetParentDirectory() const
     return DirectoryPath(parentPath);
 }
 
-void DirectoryPath::IterateDirectory(VisitorDelegate visitor, void* userData, bool recursive)
+void DirectoryPath::IterateDirectory(VisitorDelegate visitor, void* userData, bool recursive) const
 {
     Slice<char> tempBuffer = alloc_temp.MakeSlice<char>(actual.Length() + 3, SRC_LOC()); // +3 for potential wildcard and null terminator
     memcpy(tempBuffer.Data(), actual.Data(), actual.Length());
@@ -367,7 +368,7 @@ void DirectoryPath::IterateDirectory(VisitorDelegate visitor, void* userData, bo
 
                 #if MSR_WINDOWS
                 {
-                    for (uint32_t i = 0; i < foundPath.Length(); ++i)
+                    for (uint32_t i = 0; i < foundPath.Length(); i++)
                     {
                         if (foundPath[i] == '\\') { foundPath[i] = '/'; } // normalise path separators
                     }
@@ -425,6 +426,18 @@ void DirectoryPath::IterateDirectory(VisitorDelegate visitor, void* userData, bo
     #endif
 }
 
+DirectoryPath DirectoryPath::GetSubdirectory(String dirName, Allocator allocator) const
+{
+    String combinedPath = allocator.MakeString(actual.Length() + dirName.Length() + 1, SRC_LOC()); // +1 for trailing slash
+    if (!combinedPath.Data()) { return DirectoryPath(String()); } // failed to allocate memory for the combined path
+
+    memcpy(combinedPath.Data(), actual.Data(), actual.Length());
+    memcpy(combinedPath.Data() + actual.Length(), dirName.Data(), dirName.Length());
+    combinedPath[actual.Length() + dirName.Length()] = '/'; // add trailing slash
+
+    return DirectoryPath(combinedPath);
+}
+
 FilePath DirectoryPath::GetFile(String fileNameWithExtension, Allocator allocator) const
 {
     String combinedPath = allocator.MakeString(actual.Length() + fileNameWithExtension.Length(), SRC_LOC());
@@ -436,16 +449,48 @@ FilePath DirectoryPath::GetFile(String fileNameWithExtension, Allocator allocato
     return FilePath(combinedPath);
 }
 
-DirectoryPath DirectoryPath::GetSubdirectory(String dirName, Allocator allocator) const
+bool DirectoryPath::Exists() const
 {
-    String combinedPath = allocator.MakeString(actual.Length() + dirName.Length() + 1, SRC_LOC()); // +1 for trailing slash
-    if (!combinedPath.Data()) { return DirectoryPath(String()); } // failed to allocate memory for the combined path
+    CString str = alloc_temp.MakeCString(actual, SRC_LOC());
 
-    memcpy(combinedPath.Data(), actual.Data(), actual.Length());
-    memcpy(combinedPath.Data() + actual.Length(), dirName.Data(), dirName.Length());
-    combinedPath[actual.Length() + dirName.Length()] = '/'; // add trailing slash
+    #if MSR_WINDOWS
+    {
+        DWORD fileAttrs = GetFileAttributesA(str);
+        if (fileAttrs == INVALID_FILE_ATTRIBUTES) { return false; }
+        return (fileAttrs & FILE_ATTRIBUTE_DIRECTORY) != 0;
+    }
+    #elif MSR_UNIX
+    {
+        struct stat statBuf;
+        if (stat(str, &statBuf) != 0) { return false; }
+        return S_ISDIR(statBuf.st_mode);
+    }
+    #endif
+}
 
-    return DirectoryPath(combinedPath);
+bool DirectoryPath::Ensure() const
+{
+    if (Exists())
+        return true;
+
+    CString alt = alloc_temp.MakeCString(actual, SRC_LOC());
+
+    bool success = true;
+    for (int32_t i = 1; success && i < (int32_t) actual.Length(); i++)
+    {
+        if (alt[i] == '/')
+        {
+            alt[i] = '\0';
+            #if MSR_WINDOWS
+                success = CreateDirectoryA(alt, nullptr) || GetLastError() == ERROR_ALREADY_EXISTS;
+            #elif MSR_UNIX
+                success = mkdir(alt, 0755) == 0 || errno == EEXIST;
+            #endif
+            alt[i] = '/';
+        }
+    }
+
+    return success;
 }
 
 FilePath FilePath::Normalise(String path, Allocator allocator)
@@ -489,4 +534,23 @@ String FilePath::Extension() const
         return String();
 
     return actual.SubString(lastDotIdx + 1, actual.Length() - lastDotIdx - 1); // skip the dot
+}
+
+bool FilePath::Exists() const
+{
+    CString str = alloc_temp.MakeCString(actual, SRC_LOC());
+
+    #if MSR_WINDOWS
+    {
+        DWORD fileAttrs = GetFileAttributesA(str);
+        if (fileAttrs == INVALID_FILE_ATTRIBUTES) { return false; }
+        return (fileAttrs & FILE_ATTRIBUTE_DIRECTORY) == 0;
+    }
+    #elif MSR_UNIX
+    {
+        struct stat statBuf;
+        if (stat(str, &statBuf) != 0) { return false; }
+        return S_ISREG(statBuf.st_mode);
+    }
+    #endif
 }

@@ -16,10 +16,13 @@ struct DirectoryPath
     DirectoryPath GetParentDirectory() const;
 
     using VisitorDelegate = bool (*)(String path, bool recursive, void* userData, bool* exploreCurrentDirectory);
-    void IterateDirectory(VisitorDelegate visitor, void* userData = nullptr, bool recursive = false);
+    void IterateDirectory(VisitorDelegate visitor, void* userData = nullptr, bool recursive = false) const;
 
     DirectoryPath GetSubdirectory(String dirName, Allocator allocator) const;
     FilePath GetFile(String fileNameWithExtension, Allocator allocator) const;
+
+    bool Exists() const;
+    bool Ensure() const;
 };
 
 struct FilePath
@@ -34,4 +37,6 @@ struct FilePath
     String FileNameWithExtension() const;
     String FileNameWithoutExtension() const;
     String Extension() const;
+
+    bool Exists() const;
 };
