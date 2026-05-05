@@ -164,6 +164,8 @@ static_assert(MSR_DBG + MSR_REL == 1, "Exactly one configuration must be defined
     #define MSR_SWITCH 0
 #endif
 
+#define MSR_UNIX (MSR_LINUX || MSR_OSX || MSR_ANDROID || MSR_IOS)
+
 static_assert(MSR_WINDOWS + MSR_LINUX + MSR_OSX + MSR_ANDROID + MSR_IOS + MSR_PS5 + MSR_XSERIES + MSR_SWITCH == 1, "Exactly one platform must be defined.");
 
 // architectures ---------------------------------------------------------------------------------------------------------------

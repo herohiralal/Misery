@@ -16,9 +16,9 @@ void* DefaultAllocator::Allocate(SrcLoc loc, size_t size, size_t alignment, bool
     size = (size + (alignment - 1)) & ~(alignment - 1);
 
     void* memory = nullptr;
-    #if defined(_WIN32)
+    #if MSR_WINDOWS
         memory = _aligned_malloc(size, alignment);
-    #elif defined(__APPLE__) || defined(__linux__)
+    #elif MSR_UNIX
         memory = aligned_alloc(alignment, size);
     #else
         #error "unsupported platform"
@@ -35,9 +35,9 @@ void DefaultAllocator::Deallocate(SrcLoc loc, void* ptr)
     if (!ptr)
         return;
 
-    #if defined(_WIN32)
+    #if MSR_WINDOWS
         _aligned_free(ptr);
-    #elif defined(__APPLE__) || defined(__linux__)
+    #elif MSR_UNIX
         free(ptr);
     #else
         #error "unsupported platform"
