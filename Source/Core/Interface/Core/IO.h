@@ -15,7 +15,7 @@ struct DirectoryPath
 
     DirectoryPath GetParentDirectory() const;
 
-    using VisitorDelegate = bool (*)(String path, bool recursive, void* userData, bool* exploreCurrentDirectory);
+    using VisitorDelegate = bool (*)(String path, bool isDirectory, void* userData, bool* exploreCurrentDirectory);
     void IterateDirectory(VisitorDelegate visitor, void* userData = nullptr, bool recursive = false) const;
 
     DirectoryPath GetSubdirectory(String dirName, Allocator allocator) const;
@@ -23,6 +23,8 @@ struct DirectoryPath
 
     bool Exists() const;
     bool Ensure() const;
+
+    bool Delete() const;
 };
 
 struct FilePath
@@ -42,4 +44,6 @@ struct FilePath
 
     // nanoseconds since unix epoch
     int64_t LastUpdated() const;
+
+    bool Delete() const;
 };

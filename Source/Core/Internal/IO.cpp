@@ -261,6 +261,42 @@ namespace Misery::IO::Internal
 
         return String();
     }
+
+    struct DeleteAllContentsPayload
+    {
+        Allocator allocator;
+        bool failedAtSomething;
+    };
+
+    static bool DeleteAllContents(String path, bool isDirectory, void* userData, bool* exploreCurrentDirectory)
+    {
+        DeleteAllContentsPayload* payload = (DeleteAllContentsPayload*) userData;
+
+        if (isDirectory)
+        {
+            /**
+             * The reason for doing things weirdly like this is because of how the directory iterator function works
+             * it performs a top-down approach where the callback is given for the directory before its contents.
+             * But we cannot delete the directory before its contents. So we kind of hack it by recursing the directory
+             * iterator function ourselves.
+             */
+            *exploreCurrentDirectory = false;
+
+            DirectoryPath(path).IterateDirectory(DeleteAllContents, userData, false);
+            CString path2 = payload->allocator.MakeCString(path, SRC_LOC());
+            #if MSR_WINDOWS
+                payload->failedAtSomething = (RemoveDirectoryA(path2) == 0) || payload->failedAtSomething;
+            #elif MSR_UNIX
+                payload->failedAtSomething = (rmdir(path2)            != 0) || payload->failedAtSomething;
+            #endif
+        }
+        else
+        {
+            FilePath(path).Delete();
+        }
+
+        return true; // continue iterating
+    }
 }
 
 DirectoryPath DirectoryPath::Normalise(String path, Allocator allocator)
@@ -493,6 +529,23 @@ bool DirectoryPath::Ensure() const
     return success;
 }
 
+bool DirectoryPath::Delete() const
+{
+    bool throwaway = false;
+
+    ArenaAllocator tempAllocatorImpl = ArenaAllocator(8 * 1024, alloc_main);
+    DEFER { tempAllocatorImpl.Destroy(); };
+
+    Misery::IO::Internal::DeleteAllContentsPayload payload =
+    {
+        .allocator = &tempAllocatorImpl,
+        .failedAtSomething = false,
+    };
+
+    Misery::IO::Internal::DeleteAllContents(actual, true, &payload, &throwaway);
+    return !payload.failedAtSomething;
+}
+
 FilePath FilePath::Normalise(String path, Allocator allocator)
 {
     return FilePath(Misery::IO::Internal::NormalisePath(path ? path : String("unknown.file"), false, allocator));
@@ -579,4 +632,15 @@ int64_t FilePath::LastUpdated() const
     #endif
 
     return -1;
+}
+
+bool FilePath::Delete() const
+{
+    CString str = alloc_temp.MakeCString(actual, SRC_LOC());
+
+    #if MSR_WINDOWS
+        return DeleteFileA(str) != 0;
+    #elif MSR_UNIX
+        return unlink(str) == 0;
+    #endif
 }
