@@ -117,6 +117,18 @@ static_assert(MSR_MSVC + MSR_GCC + MSR_CLANG == 1, "Exactly one compiler must be
 
 static_assert(MSR_DBG + MSR_REL == 1, "Exactly one configuration must be defined.");
 
+enum class MSR_Configuration : unsigned char
+{
+    Unknown,
+    Debug,
+    Release,
+};
+
+static constexpr const MSR_Configuration MSR_CONFIGURATION =
+    MSR_DBG ? MSR_Configuration::Debug   :
+    MSR_REL ? MSR_Configuration::Release :
+    MSR_Configuration::Unknown;
+
 // platforms -------------------------------------------------------------------------------------------------------------------
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -168,6 +180,30 @@ static_assert(MSR_DBG + MSR_REL == 1, "Exactly one configuration must be defined
 
 static_assert(MSR_WINDOWS + MSR_LINUX + MSR_OSX + MSR_ANDROID + MSR_IOS + MSR_PS5 + MSR_XSERIES + MSR_SWITCH == 1, "Exactly one platform must be defined.");
 
+enum class MSR_Platform : unsigned char
+{
+    Unknown,
+    Windows,
+    Linux,
+    OSX,
+    Android,
+    iOS,
+    PS5,
+    XboxSeries,
+    Switch,
+};
+
+static constexpr const MSR_Platform MSR_PLATFORM =
+    MSR_WINDOWS ? MSR_Platform::Windows    :
+    MSR_LINUX   ? MSR_Platform::Linux      :
+    MSR_OSX     ? MSR_Platform::OSX        :
+    MSR_ANDROID ? MSR_Platform::Android    :
+    MSR_IOS     ? MSR_Platform::iOS        :
+    MSR_PS5     ? MSR_Platform::PS5        :
+    MSR_XSERIES ? MSR_Platform::XboxSeries :
+    MSR_SWITCH  ? MSR_Platform::Switch     :
+    MSR_Platform::Unknown;
+
 // architectures ---------------------------------------------------------------------------------------------------------------
 
 #if defined(__x86_64__) || defined(_M_X64)
@@ -194,6 +230,22 @@ static_assert(MSR_WINDOWS + MSR_LINUX + MSR_OSX + MSR_ANDROID + MSR_IOS + MSR_PS
 #endif
 
 static_assert(MSR_X64 + MSR_X86 + MSR_ARM64 + MSR_ARM == 1, "Exactly one architecture must be defined.");
+
+enum class MSR_Architecture : unsigned char
+{
+    Unknown,
+    x64,
+    x86,
+    ARM64,
+    ARM,
+};
+
+static constexpr const MSR_Architecture MSR_ARCHITECTURE =
+    MSR_X64   ? MSR_Architecture::x64   :
+    MSR_X86   ? MSR_Architecture::x86   :
+    MSR_ARM64 ? MSR_Architecture::ARM64 :
+    MSR_ARM   ? MSR_Architecture::ARM   :
+    MSR_Architecture::Unknown;
 
 // includes --------------------------------------------------------------------------------------------------------------------
 
