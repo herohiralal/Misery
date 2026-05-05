@@ -1691,6 +1691,27 @@ bool brahma_execute(Brahma_Args ex)
         PROFILE_SECTION_END("start compile processes");
     }
 
+    char* windowsManifestPath = NULL;
+    if (!failed && ex.platform == BRAHMA_PLATFORM_WINDOWS && selectedPkg->outputType == BRAHMA_PACKAGE_OUTPUT_TYPE_EXECUTABLE)
+    {
+        windowsManifestPath = brahma_sprintf("%s/AppManifest.manifest", ex.intermediateOutputDir);
+        FILE* manifestFile = fopen(windowsManifestPath, "w");
+        if (manifestFile)
+        {
+            fprintf(manifestFile, "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n");
+            fprintf(manifestFile, "<assembly xmlns=\"urn:schemas-microsoft-com:asm.v1\" manifestVersion=\"1.0\">\n");
+            fprintf(manifestFile, "  <assemblyIdentity version=\"1.0.0.0\" name=\"%s\" />\n", selectedPkg->name);
+            fprintf(manifestFile, "  <application xmlns=\"urn:schemas-microsoft-com:asm.v3\">\n");
+            fprintf(manifestFile, "    <windowsSettings>\n");
+            fprintf(manifestFile, "      <activeCodePage xmlns=\"http://schemas.microsoft.com/SMI/2019/WindowsSettings\">UTF-8</activeCodePage>\n");
+            fprintf(manifestFile, "    </windowsSettings>\n");
+            fprintf(manifestFile, "  </application>\n");
+            fprintf(manifestFile, "</assembly>\n");
+
+            fclose(manifestFile);
+        }
+    }
+
     // wait for compile processes
     if (!failed)
     {
@@ -1827,6 +1848,13 @@ bool brahma_execute(Brahma_Args ex)
                         brahma_append_string_to_array_list(&linkArgs, "-fPIC");
                     }
                 }
+            }
+
+            if (ex.platform == BRAHMA_PLATFORM_WINDOWS && windowsManifestPath)
+            {
+                brahma_append_string_to_array_list(&linkArgs, "/link");
+                brahma_append_string_to_array_list(&linkArgs, "/MANIFEST:embed");
+                brahma_append_string_to_array_list(&linkArgs, brahma_sprintf("/MANIFESTINPUT:%s", windowsManifestPath));
             }
         }
 
