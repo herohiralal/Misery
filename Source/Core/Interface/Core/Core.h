@@ -2,6 +2,7 @@
 #include <__init.h>
 #include "SrcLoc.h"
 #include "Defer.h"
+#include "Time.h"
 #include "Collections.h"
 #include "Allocators/Default.h"
 #include "Allocators/Arena.h"

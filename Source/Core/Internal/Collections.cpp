@@ -69,17 +69,16 @@ Allocator GetDefaultAllocator()
 
 Allocator GetTempAllocator()
 {
-    using CleanupDelegate = void(*)();
-    struct StaticCleanup
+    struct TempAllocator final
     {
-        StaticCleanup(CleanupDelegate cleanupFunc) : func(cleanupFunc) { }
-        ~StaticCleanup() { func(); }
-        CleanupDelegate func;
+        ArenaAllocator allocator;
+
+        TempAllocator() : allocator(4 * 1024 * 1024, GetDefaultAllocator()) { }
+        ~TempAllocator() { allocator.Destroy(); }
     };
 
-    static thread_local ArenaAllocator tempAllocator = ArenaAllocator(4 * 1024 * 1024, GetDefaultAllocator());
-    static thread_local StaticCleanup cleanup = StaticCleanup([]() { tempAllocator.Destroy(); });
-    return &tempAllocator;
+    static thread_local TempAllocator tempAllocator;
+    return &(tempAllocator.allocator);
 }
 
 size_t CString::Length() const
