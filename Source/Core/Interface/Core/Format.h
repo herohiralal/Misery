@@ -82,6 +82,11 @@ struct FormatArg
 
     FormatArg() = default;
 
+    FormatArg(bool val)
+        : stringValue {.type = FMT_ARG_STRING, .format = FMT_STRING_DEFAULT, .value = val ? String("true") : String("false")}
+    {
+    }
+
     FormatArg(uint64_t val, IntFormatBase base = FMT_INT_DECIMAL)
         : intValue {.type = FMT_ARG_INT, .isNegative = false, .base = base, .value = val}
     {
