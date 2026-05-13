@@ -679,7 +679,7 @@ void FilePath::WriteAll(Slice<uint8_t> data, bool append) const
 
 FileStream FileStream::OpenRead(const FilePath& path, bool allowWrite)
 {
-    if (!path.actual) { return FileStream(InvalidHandle); }
+    if (!path.actual) { return FileStream(k_InvalidHandle); }
     CString str = alloc_temp.MakeCString(path.actual, SRC_LOC());
 
     #if MSR_WINDOWS
@@ -706,7 +706,7 @@ FileStream FileStream::OpenRead(const FilePath& path, bool allowWrite)
 
 FileStream FileStream::OpenWrite(const FilePath& path, bool append, bool allowRead)
 {
-    if (!path.actual) { return FileStream(InvalidHandle); }
+    if (!path.actual) { return FileStream(k_InvalidHandle); }
     CString str = alloc_temp.MakeCString(path.actual, SRC_LOC());
 
     #if MSR_WINDOWS
@@ -927,5 +927,5 @@ void FileStream::Close()
         #error "Unsupported platform"
     #endif
 
-    handle = InvalidHandle;
+    handle = k_InvalidHandle;
 }

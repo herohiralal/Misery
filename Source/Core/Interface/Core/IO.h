@@ -59,10 +59,10 @@ struct FileStream : public IStream
 {
     #if MSR_WINDOWS
         using HandleType = HANDLE;
-        static constexpr const HandleType InvalidHandle = INVALID_HANDLE_VALUE;
+        static constexpr const HandleType k_InvalidHandle = INVALID_HANDLE_VALUE;
     #elif MSR_UNIX
         using HandleType = int;
-        static constexpr const HandleType InvalidHandle = -1;
+        static constexpr const HandleType k_InvalidHandle = -1;
     #else
         #error "Unsupported platform"
     #endif
@@ -75,7 +75,7 @@ struct FileStream : public IStream
     static FileStream OpenRead(const FilePath& path, bool allowWrite = false);
     static FileStream OpenWrite(const FilePath& path, bool append = false, bool allowRead = false);
 
-    bool IsValid() const { return handle != InvalidHandle; }
+    bool IsValid() const { return handle != k_InvalidHandle; }
     operator bool() const { return IsValid(); }
 
     virtual int64_t GetSize() override;
