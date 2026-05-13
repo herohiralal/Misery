@@ -1,6 +1,8 @@
 #pragma once
 #include <__init.h>
+#include "SrcLoc.h"
 #include "Collections.h"
+#include "Stream.h"
 
 /**
  * The type of format argument being passed.
@@ -163,21 +165,8 @@ namespace Misery::Format::Internal
 {
     size_t FormatStr(Slice<uint8_t> buffer, String formatStr, Slice<FormatArg> args, bool addNullTerm);
     size_t FormatStr(FILE* stream, String formatStr, Slice<FormatArg> args);
+    size_t FormatStr(Stream stream, String formatStr, Slice<FormatArg> args);
     Slice<uint8_t> FormatSlice(Allocator allocator, String formatStr, Slice<FormatArg> args, bool addNullTerm, SrcLoc loc);
-}
-
-template <size_t N, typename... Args>
-size_t Format(Slice<uint8_t> buffer, const char (&formatStr)[N], Args&&... args)
-{
-    FormatArg argArray[] = { FormatArg(std::forward<Args>(args))... };
-    return Misery::Format::Internal::FormatStr(buffer, String(formatStr), Slice<FormatArg>(argArray, sizeof...(Args)));
-}
-
-template <size_t N, typename... Args>
-size_t Format(FILE* stream, const char (&formatStr)[N], Args&&... args)
-{
-    FormatArg argArray[] = { FormatArg(std::forward<Args>(args))... };
-    return Misery::Format::Internal::FormatStr(stream, String(formatStr), Slice<FormatArg>(argArray, sizeof...(Args)));
 }
 
 template <typename... Args>
@@ -209,5 +198,20 @@ CString Allocator::FormatCString(SrcLoc loc, const char (&fmt)[N], Args&&... arg
         Slice<uint8_t> formattedSlice = Misery::Format::Internal::FormatSlice(*this, fmt, Slice<FormatArg>(argArray, sizeof...(Args)), true, loc);
         if (!formattedSlice) { return CString(); }
         return CString((const char*) formattedSlice.Data());
+    }
+}
+
+template <typename... Args>
+int64_t Stream::Write(SrcLoc loc, const char* fmt, Args&&... args)
+{
+    if constexpr (!sizeof...(Args))
+    {
+        return Write(String(CString(fmt)).AsSlice());
+    }
+    else
+    {
+        FormatArg argArray[] = { FormatArg(std::forward<Args>(args))... };
+        size_t written = Misery::Format::Internal::FormatStr(*this, String(fmt), Slice<FormatArg>(argArray, sizeof...(Args)));
+        return (int64_t) written;
     }
 }

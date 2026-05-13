@@ -57,6 +57,26 @@ namespace Misery::Format::Internal
         return written == len;
     }
 
+    struct StreamFormatSink
+    {
+        Stream stream;
+
+        StreamFormatSink(Stream s) : stream(s) { }
+    };
+
+    bool AppendToStreamFormatSink(void* userData, const char* data, size_t len)
+    {
+        if (!userData || !data || !len)
+            return false;
+
+        StreamFormatSink& sink = *(StreamFormatSink*) userData;
+        if (!sink.stream)
+            return false;
+
+        auto slice = Slice<uint8_t>(reinterpret_cast<uint8_t*>(const_cast<char*>(data)), len);
+        return sink.stream.Write(slice);
+    }
+
     typedef bool (*WriteProc)(void* userData, const char* data, size_t len);
 
     struct FormatSink
@@ -68,6 +88,7 @@ namespace Misery::Format::Internal
         FormatSink() : userData(nullptr), write(nullptr), totalWritten(0) { }
         FormatSink(BufferFormatSink& bufferSink) : userData(&bufferSink), write(AppendToBufferFormatSink), totalWritten(0) { }
         FormatSink(FileFormatSink& fileSink) : userData(&fileSink), write(AppendToFileFormatSink), totalWritten(0) { }
+        FormatSink(StreamFormatSink& streamSink) : userData(&streamSink), write(AppendToStreamFormatSink), totalWritten(0) { }
     };
 
     bool Append(FormatSink& sink, const char* data, size_t len)
@@ -374,6 +395,14 @@ namespace Misery::Format::Internal
     {
         FileFormatSink fileSink = FileFormatSink(stream);
         FormatSink sink = FormatSink(fileSink);
+        Format(sink, formatStr, args);
+        return sink.totalWritten;
+    }
+
+    size_t FormatStr(Stream stream, String formatStr, Slice<FormatArg> args)
+    {
+        StreamFormatSink streamSink = StreamFormatSink(stream);
+        FormatSink sink = FormatSink(streamSink);
         Format(sink, formatStr, args);
         return sink.totalWritten;
     }
