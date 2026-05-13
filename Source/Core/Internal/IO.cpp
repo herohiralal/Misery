@@ -89,7 +89,7 @@ namespace Misery::IO::Internal
                 }
 
                 writeBuffer.Reserve(writeIdx + 1, SRC_LOC());
-                if (!writeBuffer) { return false; } // failed to reserve memory for the buffer
+                if (!writeBuffer.Count()) { return false; } // failed to reserve memory for the buffer
                 memcpy(writeBuffer.Data(), originalStr.Data(), writeIdx);
             }
 
@@ -102,7 +102,7 @@ namespace Misery::IO::Internal
         {
             if (!writeBuffer)
             {
-                String toClone = String(originalStr.Data(), volumeLength + writeIdx);
+                String toClone = String(volAndPath.Data(), volumeLength + writeIdx);
                 return writeBuffer.GetAllocator().CloneString(toClone, SRC_LOC());
             }
 
@@ -140,6 +140,7 @@ namespace Misery::IO::Internal
             #define IS_SEPARATOR(c) ((c) == '/' || (c) == '\\')
 
             path = String(tempFullPath);
+            for (int32_t i = 0; i < path.Length(); i++) if (path[i] == '\\') path[i] = '/';
             String originalPath = path;
             int32_t volumeLength = GetVolumeLengthFromPath(path);
             path = String(path.Data() + volumeLength, path.Length() - volumeLength);

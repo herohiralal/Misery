@@ -202,7 +202,7 @@ CString Allocator::FormatCString(SrcLoc loc, const char (&fmt)[N], Args&&... arg
 }
 
 template <typename... Args>
-int64_t Stream::Write(SrcLoc loc, const char* fmt, Args&&... args)
+int64_t Stream::Write(const char* fmt, Args&&... args)
 {
     if constexpr (!sizeof...(Args))
     {

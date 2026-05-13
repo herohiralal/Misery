@@ -71,7 +71,7 @@ struct Stream
      * if the stream is null.
      */
     template <typename... Args>
-    int64_t Write(SrcLoc loc, const char* fmt, Args&&... args);
+    int64_t Write(const char* fmt, Args&&... args);
 
     /**
      * Truncate the stream at the current position. Returns true on success, false on failure or if the stream is null.
