@@ -812,7 +812,7 @@ PNSLR_File PNSLR_OpenFileToWrite(PNSLR_Path path, b8 append, b8 allowRead)
 
         HANDLE fileHandle = CreateFileW((LPCWSTR) tempBuffer2.data,
                                    GENERIC_WRITE | (allowRead ? GENERIC_READ : 0),
-                                   FILE_SHARE_READ | (allowRead ? FILE_SHARE_WRITE : 0),
+                                   FILE_SHARE_WRITE | (allowRead ? FILE_SHARE_READ : 0),
                                    NULL,
                                    append ? OPEN_ALWAYS : CREATE_ALWAYS,
                                    FILE_ATTRIBUTE_NORMAL,
@@ -828,9 +828,11 @@ PNSLR_File PNSLR_OpenFileToWrite(PNSLR_Path path, b8 append, b8 allowRead)
         cstring tempBuffer2 = PNSLR_CStringFromString(path.path, internalAllocator);
 
         i32 flags = allowRead ? O_RDWR : O_WRONLY;
-        if (append) {
+        if (append)
+        {
             flags |= O_CREAT | O_APPEND;
-        } else {
+        } else
+        {
             flags |= O_CREAT | O_TRUNC;
         }
         i32 fd = open(tempBuffer2, flags, 0666);
@@ -850,14 +852,16 @@ i64 PNSLR_GetSizeOfFile(PNSLR_File handle)
     #if PNSLR_WINDOWS
 
         LARGE_INTEGER fileSize;
-        if (GetFileSizeEx((HANDLE) handle.handle, &fileSize)) {
+        if (GetFileSizeEx((HANDLE) handle.handle, &fileSize))
+        {
             size = fileSize.QuadPart;
         }
 
     #elif PNSLR_UNIX
 
         struct stat st;
-        if (fstat((i32) (i64) handle.handle, &st) == 0) {
+        if (fstat((i32) (i64) handle.handle, &st) == 0)
+        {
             size = (i64) st.st_size;
         }
 
@@ -875,14 +879,16 @@ i64 PNSLR_GetCurrentPositionInFile(PNSLR_File handle)
 
         LARGE_INTEGER zero = {0};
         LARGE_INTEGER out;
-        if (SetFilePointerEx((HANDLE)handle.handle, zero, &out, FILE_CURRENT)) {
+        if (SetFilePointerEx((HANDLE)handle.handle, zero, &out, FILE_CURRENT))
+        {
             pos = out.QuadPart;
         }
 
     #elif PNSLR_UNIX
 
         off_t off = lseek((i32)(i64)handle.handle, 0, SEEK_CUR);
-        if (off >= 0) {
+        if (off >= 0)
+        {
             pos = (i64)off;
         }
 
@@ -900,7 +906,7 @@ b8 PNSLR_SeekPositionInFile(PNSLR_File handle, i64 newPos, b8 relative)
     b8 success = true;
     #if PNSLR_WINDOWS
 
-        LARGE_INTEGER li;
+        LARGE_INTEGER li = {0};
         li.QuadPart = newPos;
         success = SetFilePointerEx((HANDLE) handle.handle, li, NULL, relative ? FILE_CURRENT : FILE_BEGIN);
 
