@@ -12,6 +12,7 @@ public:
     virtual bool Seek(int64_t position, bool relative = false);
     virtual int64_t Read(Slice<uint8_t> dst);
     virtual int64_t Write(const Slice<uint8_t> src);
+    virtual bool Truncate();
     virtual bool Truncate(int64_t newSize);
     virtual bool Flush();
     virtual void Close();
@@ -52,6 +53,12 @@ struct Stream
     int64_t Read(Slice<uint8_t> dst) { return impl ? impl->Read(dst) : 0; }
 
     /**
+     * Read the entire contents of the stream into a newly allocated buffer, and return it as a Slice of bytes. The memory
+     * for the buffer is allocated using the provided allocator. Returns an empty slice on failure or if the stream is null.
+     */
+    Slice<uint8_t> ReadAll(Allocator allocator, bool keepOpen = false);
+
+    /**
      * Write data to the stream from the provided buffer. The buffer is specified as a Slice of bytes, which
      * contains a pointer to the data and the size of the buffer. Returns the number of bytes written, or 0 on failure
      * or if the stream is null.
@@ -65,6 +72,11 @@ struct Stream
      */
     template <typename... Args>
     int64_t Write(SrcLoc loc, const char* fmt, Args&&... args);
+
+    /**
+     * Truncate the stream at the current position. Returns true on success, false on failure or if the stream is null.
+     */
+    bool Truncate() { return impl ? impl->Truncate() : false; }
 
     /**
      * Truncate the stream to a specific size. Returns true on success, false on failure or if the stream is null.

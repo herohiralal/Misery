@@ -5,6 +5,7 @@
 
 struct FilePath;
 struct DirectoryPath;
+struct FileStream;
 
 struct DirectoryPath
 {
@@ -47,6 +48,11 @@ struct FilePath
     int64_t LastUpdated() const;
 
     bool Delete() const;
+
+    FileStream OpenRead(bool allowWrite = false) const;
+    FileStream OpenWrite(bool append = false, bool allowRead = false) const;
+    Slice<uint8_t> ReadAll(Allocator allocator) const;
+    void WriteAll(Slice<uint8_t> data, bool append = false) const;
 };
 
 struct FileStream : public IStream
@@ -77,6 +83,7 @@ struct FileStream : public IStream
     virtual bool Seek(int64_t position, bool relative = false) override;
     virtual int64_t Read(Slice<uint8_t> dst) override;
     virtual int64_t Write(const Slice<uint8_t> src) override;
+    virtual bool Truncate() override;
     virtual bool Truncate(int64_t newSize) override;
     virtual bool Flush() override;
     virtual void Close() override;

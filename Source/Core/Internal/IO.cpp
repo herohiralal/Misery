@@ -645,6 +645,37 @@ bool FilePath::Delete() const
     #endif
 }
 
+FileStream FilePath::OpenRead(bool allowWrite) const
+{
+    return FileStream::OpenRead(*this, allowWrite);
+}
+
+FileStream FilePath::OpenWrite(bool append, bool allowRead) const
+{
+    return FileStream::OpenWrite(*this, append, allowRead);
+}
+
+Slice<uint8_t> FilePath::ReadAll(Allocator allocator) const
+{
+    FileStream fs = OpenRead();
+    if (!fs) { return Slice<uint8_t>(); }
+    DEFER { fs.Close(); };
+
+    Stream s = &fs;
+    return s.ReadAll(allocator);
+}
+
+void FilePath::WriteAll(Slice<uint8_t> data, bool append) const
+{
+    FileStream fs = OpenWrite(append);
+    if (!fs) { return; }
+    DEFER { fs.Close(); };
+
+    Stream s = &fs;
+    s.Write(data);
+    s.Truncate();
+}
+
 FileStream FileStream::OpenRead(const FilePath& path, bool allowWrite)
 {
     if (!path.actual) { return FileStream(InvalidHandle); }
@@ -817,6 +848,28 @@ int64_t FileStream::Write(const Slice<uint8_t> src)
     #endif
 
     return 0;
+}
+
+bool FileStream::Truncate()
+{
+    if (!IsValid()) { return false; }
+
+    #if MSR_WINDOWS
+    {
+        LARGE_INTEGER zero = { };
+        if (!SetFilePointerEx(handle, zero, nullptr, FILE_CURRENT)) { return false; }
+        if (!SetEndOfFile(handle)) { return false; }
+        return true;
+    }
+    #elif MSR_UNIX
+    {
+        off_t cur = lseek(handle, 0, SEEK_CUR);
+        if (cur < 0) { return false; }
+        return ftruncate(handle, cur) == 0;
+    }
+    #else
+        #error "Unsupported platform"
+    #endif
 }
 
 bool FileStream::Truncate(int64_t newSize)
