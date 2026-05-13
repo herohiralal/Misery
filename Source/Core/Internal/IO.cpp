@@ -644,3 +644,234 @@ bool FilePath::Delete() const
         return unlink(str) == 0;
     #endif
 }
+
+FileStream FileStream::OpenRead(const FilePath& path, bool allowWrite)
+{
+    if (!path.actual) { return FileStream(InvalidHandle); }
+    CString str = alloc_temp.MakeCString(path.actual, SRC_LOC());
+
+    #if MSR_WINDOWS
+    {
+        HANDLE h = CreateFileA(str,
+                        GENERIC_READ | (allowWrite ? GENERIC_WRITE : 0),
+                        FILE_SHARE_READ | (allowWrite ? FILE_SHARE_WRITE : 0),
+                        nullptr,
+                        OPEN_EXISTING,
+                        FILE_ATTRIBUTE_NORMAL,
+                        nullptr);
+
+        return FileStream(h);
+    }
+    #elif MSR_UNIX
+    {
+        int fd = open(str, allowWrite ? O_RDWR : O_RDONLY);
+        return FileStream(fd);
+    }
+    #else
+        #error "Unsupported platform"
+    #endif
+}
+
+FileStream FileStream::OpenWrite(const FilePath& path, bool append, bool allowRead)
+{
+    if (!path.actual) { return FileStream(InvalidHandle); }
+    CString str = alloc_temp.MakeCString(path.actual, SRC_LOC());
+
+    #if MSR_WINDOWS
+    {
+        HANDLE h = CreateFileA(str,
+                        GENERIC_WRITE | (allowRead ? GENERIC_READ : 0),
+                        FILE_SHARE_WRITE | (allowRead ? FILE_SHARE_READ : 0),
+                        nullptr,
+                        append ? OPEN_ALWAYS : CREATE_ALWAYS,
+                        FILE_ATTRIBUTE_NORMAL,
+                        nullptr);
+
+        if (INVALID_HANDLE_VALUE != h && append)
+        {
+            SetFilePointer(h, 0, nullptr, FILE_END);
+        }
+
+        return FileStream(h);
+    }
+    #elif MSR_UNIX
+    {
+        int flags = allowRead ? O_RDWR : O_WRONLY;
+        flags |= O_CREAT;
+        if (append) { flags |= O_APPEND; }
+        else        { flags |= O_TRUNC;  }
+
+        int fd = open(str, flags, 0666);
+        return FileStream(fd);
+    }
+    #else
+        #error "Unsupported platform"
+    #endif
+}
+
+int64_t FileStream::GetSize()
+{
+    if (!IsValid()) { return -1; }
+
+    #if MSR_WINDOWS
+    {
+        LARGE_INTEGER fileSize;
+        if (!GetFileSizeEx(handle, &fileSize)) { return -1; }
+        return fileSize.QuadPart;
+    }
+    #elif MSR_UNIX
+    {
+        struct stat st;
+        if (fstat(handle, &st) != 0) { return -1; }
+        return st.st_size;
+    }
+    #else
+        #error "Unsupported platform"
+    #endif
+}
+
+int64_t FileStream::GetCurrentPosition()
+{
+    if (!IsValid()) { return -1; }
+
+    #if MSR_WINDOWS
+    {
+        LARGE_INTEGER zero = { };
+        LARGE_INTEGER out;
+        if (!SetFilePointerEx(handle, zero, &out, FILE_CURRENT)) { return -1; }
+        return out.QuadPart;
+    }
+    #elif MSR_UNIX
+    {
+        off_t off = lseek(handle, 0, SEEK_CUR);
+        if (off < 0) { return -1; }
+        return (int64_t) off;
+    }
+    #else
+        #error "Unsupported platform"
+    #endif
+}
+
+bool FileStream::Seek(int64_t position, bool relative)
+{
+    if (!IsValid()) { return false; }
+
+    #if MSR_WINDOWS
+    {
+        LARGE_INTEGER li = { };
+        li.QuadPart = position;
+        if (!SetFilePointerEx(handle, li, nullptr, relative ? FILE_CURRENT : FILE_BEGIN)) { return false; }
+        return true;
+    }
+    #elif MSR_UNIX
+    {
+        return lseek(handle, position, relative ? SEEK_CUR : SEEK_SET) != -1;
+    }
+    #else
+        #error "Unsupported platform"
+    #endif
+}
+
+int64_t FileStream::Read(Slice<uint8_t> dst)
+{
+    if (!IsValid()) { return 0; }
+    if (!dst) { return 0; }
+
+    #if MSR_WINDOWS
+    {
+        DWORD bytesRead;
+        if (!ReadFile(handle, dst.Data(), (DWORD) dst.Count(), &bytesRead, nullptr)) { return 0; }
+        return (int64_t) bytesRead;
+    }
+    #elif MSR_UNIX
+    {
+        ssize_t result = read(handle, dst.Data(), dst.Count());
+        if (result < 0) { return 0; }
+        return (int64_t) result;
+    }
+    #else
+        #error "Unsupported platform"
+    #endif
+
+    return 0;
+}
+
+int64_t FileStream::Write(const Slice<uint8_t> src)
+{
+    if (!IsValid()) { return 0; }
+
+    #if MSR_WINDOWS
+    {
+        DWORD bytesWritten;
+        if (!WriteFile(handle, src.Data(), (DWORD) src.Count(), &bytesWritten, nullptr)) { return 0; }
+        return (int64_t) bytesWritten;
+    }
+    #elif MSR_UNIX
+    {
+        ssize_t result = write(handle, src.Data(), src.Count());
+        if (result < 0) { return 0; }
+        return (int64_t) result;
+    }
+    #else
+        #error "Unsupported platform"
+    #endif
+
+    return 0;
+}
+
+bool FileStream::Truncate(int64_t newSize)
+{
+    if (!IsValid()) { return false; }
+
+    #if MSR_WINDOWS
+    {
+        LARGE_INTEGER li = { };
+        li.QuadPart = newSize;
+        if (!SetFilePointerEx(handle, li, nullptr, FILE_BEGIN)) { return false; }
+        if (!SetEndOfFile(handle)) { return false; }
+        return true;
+    }
+    #elif MSR_UNIX
+    {
+        return ftruncate(handle, newSize) == 0;
+    }
+    #else
+        #error "Unsupported platform"
+    #endif
+}
+
+bool FileStream::Flush()
+{
+    if (!IsValid()) { return false; }
+
+    #if MSR_WINDOWS
+    {
+        return FlushFileBuffers(handle) != 0;
+    }
+    #elif MSR_UNIX
+    {
+        return fsync(handle) == 0;
+    }
+    #else
+        #error "Unsupported platform"
+    #endif
+}
+
+void FileStream::Close()
+{
+    if (!IsValid()) { return; }
+
+    #if MSR_WINDOWS
+    {
+        CloseHandle(handle);
+    }
+    #elif MSR_UNIX
+    {
+        close(handle);
+    }
+    #else
+        #error "Unsupported platform"
+    #endif
+
+    handle = InvalidHandle;
+}

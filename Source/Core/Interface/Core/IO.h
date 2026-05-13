@@ -1,6 +1,7 @@
 #pragma once
 #include <__init.h>
 #include "Collections.h"
+#include "Stream.h"
 
 struct FilePath;
 struct DirectoryPath;
@@ -46,4 +47,37 @@ struct FilePath
     int64_t LastUpdated() const;
 
     bool Delete() const;
+};
+
+struct FileStream : public IStream
+{
+    #if MSR_WINDOWS
+        using HandleType = HANDLE;
+        static constexpr const HandleType InvalidHandle = INVALID_HANDLE_VALUE;
+    #elif MSR_UNIX
+        using HandleType = int;
+        static constexpr const HandleType InvalidHandle = -1;
+    #else
+        #error "Unsupported platform"
+    #endif
+
+    HandleType handle;
+
+    FileStream() = default;
+    explicit FileStream(HandleType h) : handle(h) { }
+
+    static FileStream OpenRead(const FilePath& path, bool allowWrite = false);
+    static FileStream OpenWrite(const FilePath& path, bool append = false, bool allowRead = false);
+
+    bool IsValid() const { return handle != InvalidHandle; }
+    operator bool() const { return IsValid(); }
+
+    virtual int64_t GetSize() override;
+    virtual int64_t GetCurrentPosition() override;
+    virtual bool Seek(int64_t position, bool relative = false) override;
+    virtual int64_t Read(Slice<uint8_t> dst) override;
+    virtual int64_t Write(const Slice<uint8_t> src) override;
+    virtual bool Truncate(int64_t newSize) override;
+    virtual bool Flush() override;
+    virtual void Close() override;
 };
