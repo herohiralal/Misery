@@ -1,7 +1,6 @@
 #include <Core/Defer.h>
 #include <Core/IO.h>
 #include <Core/Allocators/Arena.h>
-#include "IO.h"
 
 namespace Misery::IO::Internal
 {
