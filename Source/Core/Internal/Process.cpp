@@ -1,5 +1,6 @@
 #include <Core/Process.h>
 #include <Core/Defer.h>
+#include <Core/Allocators/Arena.h>
 
 bool PipeHandle::Create(PipeHandle* outR, PipeHandle* outW)
 {
@@ -251,9 +252,9 @@ namespace Misery::Internal::Process
 {
 #if MSR_WINDOWS
 
-    CString BuildWindowsProcessCmdLine(Slice<String> execAndArgs)
+    CString BuildWindowsProcessCmdLine(Slice<String> execAndArgs, Allocator allocator)
     {
-        List<char> sb = alloc_temp.MakeList<char>();
+        List<char> sb = allocator.MakeList<char>();
 
         size_t minLen = 25; // adjusting for maybe 25 chars of extra backslashes and the null terminator
         for (const auto& arg : execAndArgs)
@@ -340,9 +341,9 @@ namespace Misery::Internal::Process
         return CString(sb.Data());
     }
 
-    CString BuildWindowsProcessEnvBlock(Slice<String> envVars)
+    CString BuildWindowsProcessEnvBlock(Slice<String> envVars, Allocator allocator)
     {
-        List<char> sb = alloc_temp.MakeList<char>();
+        List<char> sb = allocator.MakeList<char>();
 
         size_t minLen = 0;
         for (const auto& kv : envVars)
@@ -381,7 +382,7 @@ namespace Misery::Internal::Process
 
 #elif MSR_UNIX
 
-    Slice<String> SplitUnixPathList(String pathStr)
+    Slice<String> SplitUnixPathList(String pathStr, Allocator allocator)
     {
         if (!pathStr) { return Slice<String>(); }
 
@@ -398,7 +399,7 @@ namespace Misery::Internal::Process
         start = 0;
         quote = false;
 
-        auto paths = alloc_temp.MakeSlice<String>(count + 1, SRC_LOC());
+        auto paths = allocator.MakeSlice<String>(count + 1, SRC_LOC());
         if (!paths) { return Slice<String>(); }
 
         size_t idx = 0;
@@ -436,4 +437,85 @@ Process Process::Run(
     PipeHandle* stdOutPipe,
     PipeHandle* stdErrPipe)
 {
+    Process output = Process(k_InvalidPID, k_InvalidProcessHandle);
+    if (!execAndArgs) return output;
+
+    ArenaAllocator tempAllocImpl = ArenaAllocator(4096, alloc_main);
+    DEFER { tempAllocImpl.Destroy(); };
+    Allocator tempAlloc = &tempAllocImpl;
+
+    bool success = false;
+    #if MSR_WINDOWS
+    {
+        CString cmdLine = Misery::Internal::Process::BuildWindowsProcessCmdLine(execAndArgs, tempAlloc);
+        if (!environmentVariables)
+        {
+            auto kvps = GetEnvironmentVariables(tempAlloc);
+            environmentVariables = tempAlloc.MakeSlice<String>(kvps.Count(), SRC_LOC());
+            for (size_t i = 0; i < kvps.Count(); i++)
+                environmentVariables[i] = kvps[i].kvp;
+        }
+
+        CString envBlock = { };
+        if (environmentVariables)
+            envBlock = Misery::Internal::Process::BuildWindowsProcessEnvBlock(environmentVariables, tempAlloc);
+
+        HANDLE nullHandle = nullptr;
+        if (!stdOutPipe || !stdErrPipe)
+        {
+            SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
+            nullHandle = CreateFileA("NUL", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+            MSR_ASSERT(nullHandle != INVALID_HANDLE_VALUE && "Failed to open NUL device");
+        }
+
+        DEFER { if (nullHandle) CloseHandle(nullHandle); };
+
+        HANDLE stdOutHandle = stdOutPipe && stdOutPipe->IsValid() ? stdOutPipe->handle : nullHandle;
+        HANDLE stdErrHandle = stdErrPipe && stdErrPipe->IsValid() ? stdErrPipe->handle : nullHandle;
+        HANDLE stdInHandle = nullHandle;
+
+        STARTUPINFOA si =
+        {
+            .cb = sizeof(STARTUPINFOA),
+            .dwFlags = STARTF_USESTDHANDLES,
+            .hStdInput = stdInHandle,
+            .hStdOutput = stdOutHandle,
+            .hStdError = stdErrHandle,
+        };
+
+        PROCESS_INFORMATION pi = { };
+        success = (bool) CreateProcessA(
+            nullptr,
+            cmdLine.Data(),
+            nullptr,
+            nullptr,
+            true, // inherit handles
+            CREATE_UNICODE_ENVIRONMENT | NORMAL_PRIORITY_CLASS,
+            envBlock ? envBlock.Data() : nullptr,
+            workingDirectory.actual ? tempAlloc.MakeCString(workingDirectory.actual, SRC_LOC()) : nullptr,
+            &si,
+            &pi
+        );
+
+        if (pi.hThread) { CloseHandle(pi.hThread); }
+
+        if (!success)
+        {
+            if (pi.hProcess) { CloseHandle(pi.hProcess); }
+        }
+        else
+        {
+            output.pid = pi.dwProcessId;
+            output.handle = pi.hProcess;
+        }
+    }
+    #elif MSR_UNIX
+    {
+        #error "unimplemented"
+    }
+    #else
+        #error "unsupported platform"
+    #endif
+
+    return output;
 }
