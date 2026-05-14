@@ -294,6 +294,15 @@ Allocator GetTempAllocator();
  */
 #define alloc_temp (GetTempAllocator())
 
+template <typename T>
+struct SliceIterator
+{
+    T* ptr; // var
+    T& operator*() const { return *ptr; } // deref
+    SliceIterator& operator++() { ++ptr; return *this; } // increment
+    bool operator!=(const SliceIterator& other) const { return ptr != other.ptr; } // inequal
+};
+
 /**
  * A simple slice structure that represents a contiguous sequence of elements in memory. It is not responsible for managing the memory
  * itself, but provides utility functions for accessing and manipulating the data. It is a general-purpose structure that can be used
@@ -346,6 +355,12 @@ public:
     }
 
     operator bool() const { return data != nullptr && count > 0; }
+
+    SliceIterator<T> begin() { return { data }; }
+    SliceIterator<T> end()   { return { data + count }; }
+
+    SliceIterator<const T> begin() const { return { data }; }
+    SliceIterator<const T> end()   const { return { data + count }; }
 };
 
 template <typename T>
@@ -468,6 +483,12 @@ public:
     {
         allocator.FreeList(this, loc);
     }
+
+    SliceIterator<T> begin() { return { data }; }
+    SliceIterator<T> end()   { return { data + count }; }
+
+    SliceIterator<const T> begin() const { return { data }; }
+    SliceIterator<const T> end()   const { return { data + count }; }
 };
 
 /**
