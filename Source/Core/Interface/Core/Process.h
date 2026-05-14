@@ -2,6 +2,7 @@
 #include <__init.h>
 #include "Collections.h"
 #include "Stream.h"
+#include "IO.h"
 
 /**
  * Read or Write handle of a pipe.
@@ -67,4 +68,48 @@ struct Process
      * while the `key` and `value` fields are just 'views' into that string.
      */
     static Slice<EnvVarKVP> GetEnvironmentVariables(Allocator allocator);
+
+    #if MSR_WINDOWS
+        using PIDType = DWORD;
+        using ProcessHandleType = HANDLE;
+
+        static constexpr const PIDType k_InvalidPID = (DWORD) -1;
+        static constexpr const ProcessHandleType k_InvalidProcessHandle = INVALID_HANDLE_VALUE;
+    #elif MSR_UNIX
+        using PIDType = pid_t;
+        using ProcessHandleType = pid_t; // on Unix, the PID itself is used as the handle
+
+        static constexpr const PIDType k_InvalidPID = (pid_t) -1;
+        static constexpr const ProcessHandleType k_InvalidProcessHandle = (pid_t) -1;
+    #else
+        #error "Unsupported platform"
+    #endif
+
+    PIDType pid;
+    ProcessHandleType handle;
+
+    Process() = default;
+    Process(PIDType p, ProcessHandleType h) : pid(p), handle(h) { }
+
+    bool IsValid() const { return pid != k_InvalidPID && handle != k_InvalidProcessHandle; }
+    operator bool() const { return IsValid(); }
+
+    /**
+     * Starts a new process with the specified executable and arguments.
+     * Optionally, environment variables, working directory, and pipes for
+     * standard output and error can be provided.
+     *
+     * If not provided, environment variables and working directory are inherited
+     * from the current process. If provided, they must be in a 'KEY=VALUE' format.
+     *
+     * The pipe handles provided must be read ends for stdout and stderr respectively.
+     * If null, the respective output is discarded.
+     */
+    static Process Run(
+        Slice<String> execAndArgs,
+        Slice<String> environmentVariables = Slice<String>(),
+        DirectoryPath workingDirectory = DirectoryPath(String()),
+        PipeHandle* stdOutPipe = nullptr,
+        PipeHandle* stdErrPipe = nullptr
+    );
 };
