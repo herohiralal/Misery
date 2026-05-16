@@ -713,7 +713,7 @@ List<T> Allocator::CloneList(const List<T>& list, SrcLoc loc)
 template <typename T>
 void List<T>::UpdateAllocator(Allocator newAllocator, SrcLoc loc)
 {
-    auto l = newAllocator.CloneList(*this, loc);
+    List<T> l = newAllocator.CloneList(*this, loc);
     if (!l) { return; }
     allocator.FreeList(this, loc);
     *this = l;

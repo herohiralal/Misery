@@ -8,7 +8,7 @@ bool IAllocator::DeallocateAll(SrcLoc loc) { return false; }
 
 void* IAllocator::Reallocate(SrcLoc loc, void* ptr, size_t oldSize, size_t newSize, size_t alignment, bool zeroed)
 {
-    auto newMem = Allocate(loc, newSize, alignment, zeroed);
+    void* newMem = Allocate(loc, newSize, alignment, zeroed);
     if (newMem && ptr)
     {
         size_t copySize = oldSize < newSize ? oldSize : newSize;

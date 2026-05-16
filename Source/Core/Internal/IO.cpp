@@ -155,7 +155,7 @@ namespace Misery::IO::Internal
 
             bool isRooted = IS_SEPARATOR(path[0]);
             n = (int32_t) path.Length();
-            auto outputBuffer = LazyPathBuffer(path, originalPath, volumeLength, allocator);
+            LazyPathBuffer outputBuffer = LazyPathBuffer(path, originalPath, volumeLength, allocator);
 
             int32_t r = 0, dotDot = 0;
             if (isRooted)

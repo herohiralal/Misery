@@ -22,6 +22,7 @@ struct PipeHandle : public IStream
 
     HandleType handle;
 
+    PipeHandle() = default;
     explicit PipeHandle(HandleType h) : handle(h) { }
 
     bool IsValid() const { return handle != k_InvalidHandle; }

@@ -399,7 +399,7 @@ namespace Misery::Internal::Process
         start = 0;
         quote = false;
 
-        auto paths = allocator.MakeSlice<String>(count + 1, SRC_LOC());
+        Slice<String> paths = allocator.MakeSlice<String>(count + 1, SRC_LOC());
         if (!paths) { return Slice<String>(); }
 
         size_t idx = 0;
@@ -450,7 +450,7 @@ Process Process::Run(
         CString cmdLine = Misery::Internal::Process::BuildWindowsProcessCmdLine(execAndArgs, tempAlloc);
         if (!environmentVariables)
         {
-            auto kvps = GetEnvironmentVariables(tempAlloc);
+            Slice<EnvVarKVP> kvps = GetEnvironmentVariables(tempAlloc);
             environmentVariables = tempAlloc.MakeSlice<String>(kvps.Count(), SRC_LOC());
             for (size_t i = 0; i < kvps.Count(); i++)
                 environmentVariables[i] = kvps[i].kvp;

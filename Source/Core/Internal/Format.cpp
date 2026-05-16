@@ -73,7 +73,7 @@ namespace Misery::Format::Internal
         if (!sink.stream)
             return false;
 
-        auto slice = Slice<uint8_t>(reinterpret_cast<uint8_t*>(const_cast<char*>(data)), len);
+        Slice<uint8_t> slice = Slice<uint8_t>(reinterpret_cast<uint8_t*>(const_cast<char*>(data)), len);
         return sink.stream.Write(slice);
     }
 

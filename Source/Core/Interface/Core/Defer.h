@@ -15,7 +15,7 @@ namespace DeferInternals
         template <typename TCallable>
         Defer<TCallable> operator+(TCallable&& func)
         {
-            return Defer<TCallable>{ std::forward<TCallable>(func) };
+            return Defer<TCallable>{.func = std::forward<TCallable>(func)};
         }
     };
 }
