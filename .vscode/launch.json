@@ -5,7 +5,16 @@
             "name": "Misery",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/Binaries/windows-x64-dbg/Misery.exe",
+            "program": "",
+            "windows": {
+                "program": "${workspaceFolder}/Binaries/windows-x64-dbg/Misery.exe"
+            },
+            "linux": {
+                "program": "${workspaceFolder}/Binaries/linux-x64-dbg/Misery"
+            },
+            "osx": {
+                "program": "${workspaceFolder}/Binaries/osx-x64-dbg/Misery"
+            },
             "preLaunchTask": "Build",
             "args": [],
             "cwd": "${workspaceFolder}",
@@ -24,7 +33,16 @@
             "name": "Brahma Build Tool (Debug)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/Intermediate/__Brahma/brahma.exe",
+            "program": "",
+            "windows": {
+                "program": "${workspaceFolder}/Intermediate/__Brahma/brahma.exe"
+            },
+            "linux": {
+                "program": "${workspaceFolder}/Intermediate/__Brahma/brahma"
+            },
+            "osx": {
+                "program": "${workspaceFolder}/Intermediate/__Brahma/brahma"
+            },
             "preLaunchTask": "Build Debuggable Build Tool",
             "args": [
                 "-intermediate_output",
