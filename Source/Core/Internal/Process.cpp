@@ -345,7 +345,7 @@ namespace Misery::Internal::Process
     {
         List<char> sb = allocator.MakeList<char>();
 
-        size_t minLen = 0;
+        size_t minLen = 16; // some buffer?
         for (const auto& kv : envVars)
             minLen += kv.Length() + 1; // +1 for null terminator
         minLen += 1; // for the double null terminator
@@ -490,7 +490,7 @@ Process Process::Run(
             nullptr,
             nullptr,
             true, // inherit handles
-            CREATE_UNICODE_ENVIRONMENT | NORMAL_PRIORITY_CLASS,
+            NORMAL_PRIORITY_CLASS,
             envBlock ? envBlock.Data() : nullptr,
             workingDirectory.actual ? tempAlloc.MakeCString(workingDirectory.actual, SRC_LOC()) : nullptr,
             &si,
@@ -518,4 +518,88 @@ Process Process::Run(
     #endif
 
     return output;
+}
+
+bool Process::Wait(int32_t* outExitCode)
+{
+    if (!IsValid()) { return false; }
+
+#if MSR_WINDOWS
+    {
+        DWORD waitResult = WaitForSingleObject(handle, INFINITE);
+        if (waitResult != WAIT_OBJECT_0) { return false; }
+
+        if (outExitCode)
+        {
+            DWORD code;
+            if (!GetExitCodeProcess(handle, &code)) { return false; }
+            *outExitCode = (int32_t) code;
+        }
+
+        return true;
+    }
+#elif MSR_UNIX
+    {
+        int status;
+        pid_t result = waitpid(pid, &status, 0);
+        if (result == -1) { return false; }
+        if (outExitCode)
+        {
+            if (WIFEXITED(status))
+                *outExitCode = WEXITSTATUS(status);
+            else if (WIFSIGNALED(status))
+                *outExitCode = -WTERMSIG(status); // negative signal number to indicate termination by signal
+            else
+                *outExitCode = -1; // unknown exit status
+        }
+        return true;
+    }
+#else
+    {
+        #error "unsupported platform"
+        return false;
+    }
+#endif
+}
+
+bool Process::Kill()
+{
+    if (!IsValid()) { return false; }
+
+#if MSR_WINDOWS
+    {
+        return !!TerminateProcess(handle, 1);
+    }
+#elif MSR_UNIX
+    {
+        return kill(pid, SIGKILL) == 0;
+    }
+#else
+    {
+        #error "unsupported platform"
+        return false;
+    }
+#endif
+}
+
+void Process::Close()
+{
+    if (!IsValid()) { return; }
+
+#if MSR_WINDOWS
+    {
+        CloseHandle(handle);
+        handle = k_InvalidProcessHandle;
+        pid = k_InvalidPID;
+    }
+#elif MSR_UNIX
+    {
+        // No handles to close on Unix, just invalidate the PID
+        pid = k_InvalidPID;
+    }
+#else
+    {
+        #error "unsupported platform"
+    }
+#endif
 }

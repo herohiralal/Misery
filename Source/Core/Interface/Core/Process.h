@@ -113,4 +113,24 @@ struct Process
         PipeHandle* stdOutPipe = nullptr,
         PipeHandle* stdErrPipe = nullptr
     );
+
+    /**
+     * Waits for the process to exit and retrieves its exit code.
+     *
+     * Returns true if the process exited cleanly or false on failure.
+     * The exit code is stored in *outExitCode if provided.
+     */
+    bool Wait(int32_t* outExitCode = nullptr);
+
+    /**
+     * Kills the  process immediately.
+     * Returns true if the signal/termination request succeeded.
+     */
+    bool Kill();
+
+    /**
+     * Closes the handle associated with the process.
+     * Does not terminate or wait for the process.
+     */
+    void Close();
 };
