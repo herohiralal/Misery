@@ -345,5 +345,6 @@ MSR_SUPPRESS_WARN
 #include <type_traits>
 #include <assert.h>
 #include <memory>
+#include <math.h>
 
 MSR_UNSUPPRESS_WARN

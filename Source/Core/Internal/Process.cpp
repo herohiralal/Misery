@@ -194,7 +194,7 @@ Slice<EnvVarKVP> Process::GetEnvironmentVariables(Allocator allocator)
 
 #elif MSR_UNIX
 
-    for (cstring* var = environ; *var; var++)
+    for (char** var = environ; *var; var++)
         envVarsCount++;
 
 #else
@@ -204,7 +204,7 @@ Slice<EnvVarKVP> Process::GetEnvironmentVariables(Allocator allocator)
     envVars = allocator.MakeSlice<EnvVarKVP>(envVarsCount, SRC_LOC());
     if (!envVars) return envVars;
 
-    int64_t index = 0;
+    size_t index = 0;
 
     size_t fullLen = 0;
 #if MSR_WINDOWS

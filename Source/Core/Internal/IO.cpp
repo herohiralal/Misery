@@ -243,7 +243,7 @@ namespace Misery::IO::Internal
             CString pathPtr = realpath(str, nullptr);
             DEFER { free(pathPtr); };
 
-            if (pathPtr)
+            if (pathPtr.IsValid())
             {
                 String tempAlias = String(pathPtr);
                 size_t tgtLen = tempAlias.Length() + (isDir ? 1 : 0);
@@ -310,11 +310,11 @@ DirectoryPath DirectoryPath::GetParentDirectory() const
     if (s.Length() && s[s.Length() - 1] == '/')
          s = actual.SubString(0, actual.Length() - 1); // skip trailing slash
 
-    int32_t lastSlashIdx = s.LastIndexOf("/");
+    int64_t lastSlashIdx = s.LastIndexOf("/");
     if (lastSlashIdx == -1)
         return DirectoryPath(String("/"));
 
-    String parentPath = actual.SubString(0, lastSlashIdx + 1); // include the slash
+    String parentPath = actual.SubString(0, (size_t) lastSlashIdx + 1); // include the slash
     return DirectoryPath(parentPath);
 }
 
@@ -378,26 +378,26 @@ void DirectoryPath::IterateDirectory(VisitorDelegate visitor, void* userData, bo
 
                 DEFER { tempAllocator.DeallocateAll(SRC_LOC()); }; // free any temp allocs
 
-                int32_t fileNameLen = nextFileName.Length();
+                size_t fileNameLen = nextFileName.Length();
                 if (fileNameLen == 0                                                    ) { continue; } // skip empty names
                 if (fileNameLen == 1 && nextFileName[0] == '.'                          ) { continue; } // skip current directory
                 if (fileNameLen == 2 && nextFileName[0] == '.' && nextFileName[1] == '.') { continue; } // skip parent directory
 
                 String foundPath = tempAllocator.MakeString(actual.Length() + fileNameLen + 3, SRC_LOC()); // +3 for potential slash, null terminator, and just in case
                 memcpy(foundPath.Data(), actual.Data(), actual.Length());
-                uint32_t iterator = (uint32_t) actual.Length() - 1;
+                size_t iterator = actual.Length() - 1;
                 if (foundPath[iterator] == '/' || foundPath[iterator] == '\\')
                 {
-                    iterator = (uint32_t) actual.Length();
+                    iterator = actual.Length();
                 }
                 else
                 {
                     foundPath[actual.Length()] = '/'; // add slash at the end
-                    iterator = (uint32_t) actual.Length() + 1;
+                    iterator = actual.Length() + 1;
                 }
 
                 memcpy(foundPath.Data() + iterator, nextFileName.Data(), fileNameLen);
-                iterator += (uint32_t) fileNameLen;
+                iterator += fileNameLen;
                 foundPath[iterator] = '\0'; // null-terminate the string, just in case
 
                 foundPath = String(foundPath.Data(), iterator); // update count
@@ -512,7 +512,7 @@ bool DirectoryPath::Ensure() const
     CString alt = alloc_temp.MakeCString(actual, SRC_LOC());
 
     bool success = true;
-    for (int32_t i = 1; success && i < (int32_t) actual.Length(); i++)
+    for (size_t i = 1; success && i < actual.Length(); i++)
     {
         if (alt[i] == '/')
         {
@@ -553,40 +553,40 @@ FilePath FilePath::Normalise(String path, Allocator allocator)
 
 DirectoryPath FilePath::GetParentDirectory() const
 {
-    int32_t lastSlashIdx = actual.LastIndexOf("/");
+    int64_t lastSlashIdx = actual.LastIndexOf("/");
     if (lastSlashIdx == -1)
         return DirectoryPath(String("/"));
 
-    String parentPath = actual.SubString(0, lastSlashIdx + 1); // include the slash
+    String parentPath = actual.SubString(0, (size_t) lastSlashIdx + 1); // include the slash
     return DirectoryPath(parentPath);
 }
 
 String FilePath::FileNameWithExtension() const
 {
-    int32_t lastSlashIdx = actual.LastIndexOf("/");
+    int64_t lastSlashIdx = actual.LastIndexOf("/");
     if (lastSlashIdx == -1)
         return actual;
 
-    return actual.SubString(lastSlashIdx + 1, actual.Length() - lastSlashIdx - 1); // skip the slash
+    return actual.SubString((size_t) lastSlashIdx + 1, actual.Length() - (size_t) lastSlashIdx - 1); // skip the slash
 }
 
 String FilePath::FileNameWithoutExtension() const
 {
     String fileNameWithExt = FileNameWithExtension();
-    int32_t lastDotIdx = fileNameWithExt.LastIndexOf(".");
+    int64_t lastDotIdx = fileNameWithExt.LastIndexOf(".");
     if (lastDotIdx == -1)
         return fileNameWithExt;
 
-    return fileNameWithExt.SubString(0, lastDotIdx); // skip the dot and extension
+    return fileNameWithExt.SubString(0, (size_t) lastDotIdx); // skip the dot and extension
 }
 
 String FilePath::Extension() const
 {
-    int32_t lastDotIdx = actual.LastIndexOf(".");
+    int64_t lastDotIdx = actual.LastIndexOf(".");
     if (lastDotIdx == -1)
         return String();
 
-    return actual.SubString(lastDotIdx + 1, actual.Length() - lastDotIdx - 1); // skip the dot
+    return actual.SubString((size_t) lastDotIdx + 1, actual.Length() - (size_t) lastDotIdx - 1); // skip the dot
 }
 
 bool FilePath::Exists() const

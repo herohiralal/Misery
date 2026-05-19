@@ -163,22 +163,22 @@ namespace Misery::Format::Internal
             return false;
         }
 
-        if (value != value)
+        if (isnan(value))
         {
             return Append(sink, "NaN");
         }
-        else if (value == std::numeric_limits<double>::infinity())
+        else if (isinf(value) && value > 0.0)
         {
             return Append(sink, "+inf");
         }
-        else if (value == -std::numeric_limits<double>::infinity())
+        else if (isinf(value) && value < 0.0)
         {
             return Append(sink, "-inf");
         }
         else
         {
             bool success = true;
-            if (!value)
+            if (fpclassify(value) == FP_ZERO)
             {
                 success = Append(sink, '0') && success;
                 if (minDecimalPlaces > 0 && maxDecimalPlaces > 0)

@@ -155,7 +155,7 @@ int64_t String::FirstIndexOf(const String& substring, bool ignoreCase) const
 
     for (int64_t i = 0; i <= (int64_t) Length() - (int64_t) substring.Length(); i++)
     {
-        String actualSubstring = SubString(i, substring.Length());
+        String actualSubstring = SubString((size_t) i, substring.Length());
         if (actualSubstring.Equals(substring, ignoreCase))
             return i;
     }
@@ -169,7 +169,7 @@ int64_t String::LastIndexOf(const String& substring, bool ignoreCase) const
 
     for (int64_t i = (int64_t) Length() - (int64_t) substring.Length(); i >= 0; i--)
     {
-        String actualSubstring = SubString(i, substring.Length());
+        String actualSubstring = SubString((size_t) i, substring.Length());
         if (actualSubstring.Equals(substring, ignoreCase))
             return i;
     }

@@ -3,9 +3,6 @@
 
 void* DefaultAllocator::Allocate(SrcLoc loc, size_t size, size_t alignment, bool zeroed)
 {
-    if (size < 0)
-        return nullptr; // size cannot be negative
-
     if ((alignment < 1) || !!(alignment & (alignment - 1)))
         return nullptr; // alignment must be a power of two
 
@@ -164,6 +161,8 @@ bool ArenaAllocator::DeallocateAll(SrcLoc loc)
         backingAllocator.Deallocate(block, loc);
         block = prevBlock;
     }
+
+    return true;
 }
 
 void ArenaAllocator::Destroy()

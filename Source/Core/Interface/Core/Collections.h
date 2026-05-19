@@ -311,7 +311,8 @@ struct SliceIterator
 template <typename T>
 struct Slice
 {
-    static_assert(std::is_pod_v<T>, "Slice only supports POD types");
+    static_assert(std::is_standard_layout_v<T>, "Slice only supports standard layout types");
+    static_assert(std::is_trivial_v<T>, "Slice only supports trivial types");
     static_assert(std::is_trivially_copyable_v<T>, "Slice only supports trivially copyable types");
     static_assert(std::is_trivially_destructible_v<T>, "Slice only supports trivially destructible types");
     friend struct Allocator;
@@ -327,13 +328,13 @@ public:
 
     T& operator[](size_t index)
     {
-        MSR_ASSERT(index >= 0 && index < count && "Index out of bounds in Slice");
+        MSR_ASSERT(index < count && "Index out of bounds in Slice");
         return data[index];
     }
 
     const T& operator[](size_t index) const
     {
-        MSR_ASSERT(index >= 0 && index < count && "Index out of bounds in Slice");
+        MSR_ASSERT(index < count && "Index out of bounds in Slice");
         return data[index];
     }
 
@@ -344,13 +345,13 @@ public:
 
     Slice<T> SubSlice(size_t start, size_t subCount)
     {
-        MSR_ASSERT(start >= 0 && subCount >= 0 && start + subCount <= count && "Invalid subslice range");
+        MSR_ASSERT(start + subCount <= count && "Invalid subslice range");
         return Slice<T>(data + start, subCount);
     }
 
     const Slice<T> SubSlice(size_t start, size_t subCount) const
     {
-        MSR_ASSERT(start >= 0 && subCount >= 0 && start + subCount <= count && "Invalid subslice range");
+        MSR_ASSERT(start + subCount <= count && "Invalid subslice range");
         return Slice<T>(data + start, subCount);
     }
 
@@ -409,7 +410,7 @@ public:
 
     Slice<T> SubSlice(size_t start, size_t subCount)
     {
-        MSR_ASSERT(start >= 0 && subCount >= 0 && start + subCount <= count && "Invalid subslice range");
+        MSR_ASSERT(start + subCount <= count && "Invalid subslice range");
         return Slice<T>(data + start, subCount);
     }
 
@@ -462,7 +463,7 @@ public:
 
     void RemoveAt(size_t index, SrcLoc loc)
     {
-        MSR_ASSERT(index >= 0 && index < count && "Index out of bounds in List");
+        MSR_ASSERT(index < count && "Index out of bounds in List");
         if (index < count - 1)
             memmove(data + index, data + index + 1, sizeof(T) * (count - index - 1));
         count--;
@@ -515,19 +516,20 @@ public:
 
     size_t Length() const;
 
-    operator bool() const { return data != nullptr && data[0] != '\0'; }
+    bool IsValid() const { return data != nullptr && data[0] != '\0'; }
+    operator bool() const { return IsValid(); }
     operator char*() { return Data(); }
     operator const char*() const { return Data(); }
 
     char& operator[](size_t index)
     {
-        MSR_ASSERT(index >= 0 && index < Length() && "Index out of bounds in CString");
+        MSR_ASSERT(index < Length() && "Index out of bounds in CString");
         return const_cast<char*>(data)[index];
     }
 
     const char& operator[](size_t index) const
     {
-        MSR_ASSERT(index >= 0 && index < Length() && "Index out of bounds in CString");
+        MSR_ASSERT(index < Length() && "Index out of bounds in CString");
         return data[index];
     }
 
@@ -561,7 +563,7 @@ public:
 
     String(uint8_t* data, size_t length) : slice(data, length) { }
 
-    String(Slice<uint8_t> slice) : slice(slice) { }
+    String(Slice<uint8_t> inSlice) : slice(inSlice) { }
 
     String(const CString& str) : slice((uint8_t*) str.Data(), str.Length()) { }
 
@@ -577,13 +579,13 @@ public:
 
     uint8_t& operator[](size_t index)
     {
-        MSR_ASSERT(index >= 0 && index < Length() && "Index out of bounds in String");
+        MSR_ASSERT(index < Length() && "Index out of bounds in String");
         return slice[index];
     }
 
     const uint8_t& operator[](size_t index) const
     {
-        MSR_ASSERT(index >= 0 && index < Length() && "Index out of bounds in String");
+        MSR_ASSERT(index < Length() && "Index out of bounds in String");
         return slice[index];
     }
 

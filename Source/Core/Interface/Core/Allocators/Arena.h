@@ -25,9 +25,9 @@ public:
 
     // if backing allocator is null, this will use the default allocator for allocating blocks
     // if default block size is less than 16KB, it will be rounded up to 16 KB to avoid fragmentation
-    ArenaAllocator(size_t defaultBlockSize, Allocator backingAllocator)
-        : defaultBlockSize(defaultBlockSize),
-          backingAllocator(backingAllocator),
+    ArenaAllocator(size_t inDefaultBlockSize, Allocator inBackingAllocator)
+        : defaultBlockSize(inDefaultBlockSize),
+          backingAllocator(inBackingAllocator),
           currentBlock(nullptr),
           currentBlockCapacity(0),
           currentBlockOffset(0)
