@@ -240,22 +240,56 @@ namespace Misery::IO::Internal
         }
         #elif MSR_UNIX
         {
-            CString pathPtr = realpath(str, nullptr);
-            DEFER { free(pathPtr); };
+            char cwd[PATH_MAX];
+            if (!getcwd(cwd, sizeof(cwd))) { return String(); }
 
-            if (pathPtr.IsValid())
+            char combined[PATH_MAX];
+
+            int length = 0;
+            const char* trailingSlash = isDir ? "/" : "";
+            if (path.Length() && path[0] == '/')
+                length = snprintf(combined, sizeof(combined), "%s%s", str.Data(), trailingSlash);
+            else
+                length = snprintf(combined, sizeof(combined), "%s/%s%s", cwd, str.Data(), trailingSlash);
+
+            if (length < 0 || length >= (int) sizeof(combined)) { return String(); }
+
+            CString out = allocator.MakeCString((size_t) length + 64, SRC_LOC());
+            if (!out.Data()) { return String(); }
+
+            strcpy(out.Data(), combined);
+
+            for (char* p = out; *p; p++)
+                if (*p == '\\') { *p = '/'; } // normalise path separators
+
+            // remove duplicate-slashes in-place
+            char* src = out.Data();
+            char* dst = out.Data();
+            bool lastWasSlash = false;
+
+            #define IS_SEPARATOR(c) ((c) == '/')
+            while (*src)
             {
-                String tempAlias = String(pathPtr);
-                size_t tgtLen = tempAlias.Length() + (isDir ? 1 : 0);
-                String output = allocator.MakeString(tgtLen, SRC_LOC());
-
-                if (output.Data())
+                if (IS_SEPARATOR(*src))
                 {
-                    memcpy(output.Data(), tempAlias.Data(), tempAlias.Length());
-                    if (isDir) { output[tempAlias.Length()] = '/'; }
-                    return String(output.Data(), tgtLen);
+                    if (!lastWasSlash)
+                    {
+                        *dst++ = '/';
+                        lastWasSlash = true;
+                    }
                 }
+                else
+                {
+                    *dst++ = *src;
+                    lastWasSlash = false;
+                }
+                src++;
             }
+            #undef IS_SEPARATOR
+
+            *dst = '\0'; // null-terminate the string, just in case
+
+            return String(out);
         }
         #endif
 
