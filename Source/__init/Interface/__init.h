@@ -275,7 +275,7 @@ MSR_SUPPRESS_WARN
     #include <hidusage.h>
 #endif
 
-#if MSR_LINUX || MSR_ANDROID
+#if (MSR_LINUX || MSR_ANDROID) && !defined(_GNU_SOURCE)
     #define _GNU_SOURCE
 #endif
 

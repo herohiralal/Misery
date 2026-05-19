@@ -1,5 +1,4 @@
 #include <Core/Time.h>
-#include "Time.h"
 
 int64_t GetCurrentSystemTime()
 {
