@@ -367,7 +367,8 @@ public:
 template <typename T>
 struct List
 {
-    static_assert(std::is_pod_v<T>, "List only supports POD types");
+    static_assert(std::is_standard_layout_v<T>, "List only supports standard layout types");
+    static_assert(std::is_trivial_v<T>, "List only supports trivial types");
     static_assert(std::is_trivially_copyable_v<T>, "List only supports trivially copyable types");
     static_assert(std::is_trivially_destructible_v<T>, "List only supports trivially destructible types");
     friend struct Allocator;
@@ -383,13 +384,13 @@ public:
 
     T& operator[](size_t index)
     {
-        MSR_ASSERT(index >= 0 && index < count && "Index out of bounds in List");
+        MSR_ASSERT(index < count && "Index out of bounds in List");
         return data[index];
     }
 
     const T& operator[](size_t index) const
     {
-        MSR_ASSERT(index >= 0 && index < count && "Index out of bounds in List");
+        MSR_ASSERT(index < count && "Index out of bounds in List");
         return data[index];
     }
 
@@ -475,7 +476,7 @@ public:
         return data[--count];
     }
 
-    void Clear(SrcLoc loc)
+    void Clear()
     {
         count = 0;
     }

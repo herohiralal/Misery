@@ -444,7 +444,6 @@ Process Process::Run(
     DEFER { tempAllocImpl.Destroy(); };
     Allocator tempAlloc = &tempAllocImpl;
 
-    bool success = false;
     #if MSR_WINDOWS
     {
         CString cmdLine = Misery::Internal::Process::BuildWindowsProcessCmdLine(execAndArgs, tempAlloc);
@@ -484,7 +483,7 @@ Process Process::Run(
         };
 
         PROCESS_INFORMATION pi = { };
-        success = (bool) CreateProcessA(
+        bool success = (bool) CreateProcessA(
             nullptr,
             cmdLine.Data(),
             nullptr,
@@ -511,7 +510,274 @@ Process Process::Run(
     }
     #elif MSR_UNIX
     {
-        #error "unimplemented"
+        List<char> exeBuilder = tempAlloc.MakeList<char>();
+        exeBuilder.Reserve(256, SRC_LOC()); // some initial capacity to avoid immediate reallocations
+
+        String exePath = execAndArgs[0];
+
+        bool isSimpleExePath = true;
+        for (size_t i = 0; i < exePath.Length(); i++)
+        {
+            if (exePath[i] == '/' || exePath[i] == '\\')
+            {
+                isSimpleExePath = false;
+                break;
+            }
+        }
+
+        Slice<EnvVarKVP> currentEnvVars = { };
+        if (!isSimpleExePath)
+        {
+            for (size_t i = 0; i < exePath.Length(); i++)
+            {
+                char c = (char) exePath[i];
+                if (c == '\\') c = '/'; // normalize backslashes to forward slashes
+                exeBuilder.Add(c, SRC_LOC());
+            }
+
+            exeBuilder.Add('\0', SRC_LOC());
+
+            CString exePathCStr = exeBuilder.Data();
+
+            // check if path is executable
+            if (access(exePathCStr, X_OK) != 0)
+            {
+                return output; // not executable or doesn't exist
+            }
+        }
+        else
+        {
+            currentEnvVars = GetEnvironmentVariables(tempAlloc); // to ensure PATH is loaded
+            String pathVar = {0};
+            for (size_t i = 0; i < currentEnvVars.Count(); i++)
+            {
+                const EnvVarKVP& kvp = currentEnvVars[i];
+                if (kvp.key == "PATH")
+                {
+                    pathVar = kvp.value;
+                    break;
+                }
+            }
+
+            Slice<String> pathDirs = Misery::Internal::Process::SplitUnixPathList(pathVar, tempAlloc);
+
+            bool found = false;
+            for (const String& dir : pathDirs)
+            {
+                exeBuilder.Clear();
+                for (size_t i = 0; i < dir.Length(); i++)
+                {
+                    char c = (char) dir[i];
+                    if (c == '\\') c = '/'; // normalize backslashes to forward slashes
+                    exeBuilder.Add(c, SRC_LOC());
+                }
+
+                exeBuilder.Add('/', SRC_LOC());
+                for (size_t i = 0; i < exePath.Length(); i++)
+                {
+                    char c = (char) exePath[i];
+                    if (c == '\\') c = '/'; // normalize backslashes to forward slashes
+                    exeBuilder.Add(c, SRC_LOC());
+                }
+
+                exeBuilder.Add('\0', SRC_LOC());
+
+                CString fullPathCStr = exeBuilder.Data();
+
+                if (access(fullPathCStr, X_OK) == 0)
+                {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) // check in cwd
+            {
+                exeBuilder.Clear();
+                for (size_t i = 0; i < workingDirectory.actual.Length(); i++)
+                {
+                    char c = (char) workingDirectory.actual[i];
+                    if (c == '\\') c = '/'; // normalize backslashes to forward slashes
+                    exeBuilder.Add(c, SRC_LOC());
+                }
+
+                if (exeBuilder.Count() > 0 && exeBuilder[exeBuilder.Count() - 1] != '/')
+                    exeBuilder.Add('/', SRC_LOC());
+
+                exeBuilder.Add('.', SRC_LOC());
+                exeBuilder.Add('/', SRC_LOC());
+                for (size_t i = 0; i < exePath.Length(); i++)
+                {
+                    char c = (char) exePath[i];
+                    if (c == '\\') c = '/'; // normalize backslashes to forward slashes
+                    exeBuilder.Add(c, SRC_LOC());
+                }
+
+                exeBuilder.Add('\0', SRC_LOC());
+
+                CString fullPathCStr = exeBuilder.Data();
+
+                if (access(fullPathCStr, X_OK) == 0)
+                {
+                    found = true;
+                }
+            }
+
+            if (!found) { return output; } // not found in PATH
+        }
+
+        CString cwd = { };
+        if (workingDirectory.actual)
+            cwd = tempAlloc.MakeCString(workingDirectory.actual, SRC_LOC());
+
+        Slice<char*> cmd = tempAlloc.MakeSlice<char*>(execAndArgs.Count() + 1, SRC_LOC());
+        for (size_t i = 0; i < execAndArgs.Count(); i++)
+            cmd[i] = tempAlloc.MakeCString(execAndArgs[i], SRC_LOC());
+        cmd[execAndArgs.Count()] = nullptr; // null-terminate argv
+
+        char** env;
+        char** cenv = nullptr;
+        if (!environmentVariables)
+        {
+            env = environ; // inherit from current process
+        }
+        else
+        {
+            cenv = tempAlloc.MakeSlice<char*>(environmentVariables.Count() + 1, SRC_LOC()).Data();
+            for (size_t i = 0; i < environmentVariables.Count(); i++)
+                cenv[i] = tempAlloc.MakeCString(environmentVariables[i], SRC_LOC());
+            cenv[environmentVariables.Count()] = nullptr; // null-terminate envp
+
+            env = cenv;
+        }
+
+        static const int32_t READ = 0;
+        static const int32_t WRITE = 1;
+
+        int pipeVal[2];
+        if (pipe(pipeVal) != 0) { return output; }
+
+        // make read end close-on-exec
+        if (fcntl(pipeVal[READ], F_SETFD, FD_CLOEXEC) == -1)
+        {
+            close(pipeVal[READ]);
+            close(pipeVal[WRITE]);
+            return output;
+        }
+
+        // make write end close-on-exec
+        if (fcntl(pipeVal[WRITE], F_SETFD, FD_CLOEXEC) == -1)
+        {
+            close(pipeVal[READ]);
+            close(pipeVal[WRITE]);
+            return output;
+        }
+
+        pid_t pid = fork();
+        switch (pid)
+        {
+            case -1: // fork failed
+            {
+                close(pipeVal[WRITE]);
+                close(pipeVal[READ]);
+                return output;
+            }
+
+            case 0: // child
+            {
+                // Close read end in child; child will write a single byte on failure.
+                close(pipeVal[READ]);
+
+                int nullFile = open("/dev/null", O_RDWR);
+                if (nullFile == -1)
+                {
+                    int errNoVal = errno;
+                    // write 4 bytes of errno for safety
+                    (void)write(pipeVal[WRITE], &errNoVal, sizeof(errNoVal));
+                    _exit(126);
+                }
+
+                int stdoutFile = stdOutPipe ? stdOutPipe->handle : nullFile;
+                int stderrFile = stdErrPipe ? stdErrPipe->handle : nullFile;
+                int stdinFile  = nullFile; // we do not support stdin for now
+
+                if (dup2(stdoutFile, STDOUT_FILENO) == -1 ||
+                    dup2(stderrFile, STDERR_FILENO) == -1 ||
+                    dup2(stdinFile,  STDIN_FILENO)  == -1)
+                {
+                    int errNoVal = errno;
+                    (void)write(pipeVal[WRITE], &errNoVal, sizeof(errNoVal));
+                    _exit(126);
+                }
+
+                if (cwd.IsValid() && chdir(cwd) != 0)
+                {
+                    int errNoVal = errno;
+                    (void)write(pipeVal[WRITE], &errNoVal, sizeof(errNoVal));
+                    _exit(126);
+                }
+
+                // exeBuilder contains the full executable path (we ensured '\0' was appended earlier).
+                CString fullExePathCStr = exeBuilder.Data();
+
+                execve(fullExePathCStr, cmd.Data(), env);
+                // If execve returns, it's an error
+                {
+                    int errNoVal = errno;
+                    (void)write(pipeVal[WRITE], &errNoVal, sizeof(errNoVal));
+                    _exit(126);
+                }
+
+                break;
+            }
+
+            default: // parent
+            {
+                // Close write end in parent — child writes to it on error.
+                close(pipeVal[WRITE]);
+
+                int errNoVal = 0;
+
+                // Read error info from child (child writes errno if it failed before exec).
+                // Child writes sizeof(int). Read that (or EOF).
+                ssize_t totalRead = 0;
+                while (totalRead < (ssize_t)sizeof(int))
+                {
+                    ssize_t r = read(pipeVal[READ], ((uint8_t*) &errNoVal) + totalRead, (size_t) ((ssize_t) sizeof(int) - totalRead));
+                    if (r > 0) { totalRead += r; continue; }
+                    if (r == 0) { /* EOF: child closed without writing: treat as no-error */ break; }
+                    if (r == -1)
+                    {
+                        if (errno == EINTR) continue;
+                        // read failed; set errNoVal to errno and break
+                        errNoVal = errno;
+                        break;
+                    }
+                }
+
+                if (errNoVal != 0)
+                {
+                    // reported error — wait for the child to avoid zombies (use local pid)
+                    while (true)
+                    {
+                        siginfo_t info;
+                        int wpid = waitid(P_PID, (id_t) pid, &info, WEXITED);
+                        if (wpid == -1 && errno == EINTR)
+                            continue; // interrupted, try again
+                        break;
+                    }
+
+                    close(pipeVal[READ]);
+                    return output;
+                }
+
+                // No error reported — child successfully exec'd (or at least didn't fail early).
+                output = Process(pid, 0);
+                break;
+            }
+        }
+
+        close(pipeVal[READ]);
     }
     #else
         #error "unsupported platform"
