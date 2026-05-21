@@ -25,7 +25,8 @@ struct Stream
     Stream() = default;
     Stream(IStream* streamImpl) : impl(streamImpl) { }
 
-    operator bool() const { return impl != nullptr; }
+    bool IsValid() const { return impl != nullptr; }
+    operator bool() const { return IsValid(); }
     operator IStream*() const { return impl; }
 
     /**

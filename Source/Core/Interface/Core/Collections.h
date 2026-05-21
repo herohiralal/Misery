@@ -34,7 +34,8 @@ struct Allocator
     Allocator() = default;
     Allocator(IAllocator* allocatorImpl) : impl(allocatorImpl) { }
 
-    operator bool() const { return impl != nullptr; }
+    bool IsValid() const { return impl != nullptr; }
+    operator bool() const { return IsValid(); }
     operator IAllocator*() const { return impl; }
 
     /**
@@ -355,7 +356,8 @@ public:
         return Slice<T>(data + start, subCount);
     }
 
-    operator bool() const { return data != nullptr && count > 0; }
+    bool IsValid() const { return count > 0 && data != nullptr; }
+    operator bool() const { return IsValid(); }
 
     SliceIterator<T> begin() { return { data }; }
     SliceIterator<T> end()   { return { data + count }; }
@@ -415,7 +417,8 @@ public:
         return Slice<T>(data + start, subCount);
     }
 
-    operator bool() const { return data != nullptr && count > 0; }
+    bool IsValid() const { return count > 0 && capacity > 0 && data != nullptr; }
+    operator bool() const { return IsValid(); }
 
     void Reserve(size_t newCapacity, SrcLoc loc)
     {
@@ -518,9 +521,8 @@ public:
     size_t Length() const;
 
     bool IsValid() const { return data != nullptr && data[0] != '\0'; }
-    operator bool() const { return IsValid(); }
-    operator char*() { return Data(); }
-    operator const char*() const { return Data(); }
+    operator char*() { return IsValid() ? Data() : nullptr; }
+    operator const char*() const { return IsValid() ? Data() : nullptr; }
 
     char& operator[](size_t index)
     {
@@ -576,7 +578,8 @@ public:
 
     size_t Length() const { return slice.Count(); }
 
-    operator bool() const { return slice; }
+    bool IsValid() const { return slice.IsValid(); }
+    operator bool() const { return IsValid(); }
 
     uint8_t& operator[](size_t index)
     {
