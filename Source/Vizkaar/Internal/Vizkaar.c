@@ -72,8 +72,7 @@ i32 VzkrMain(DVRPL_App app, PNSLR_ArraySlice(utf8str) args)
         PNSLR_SplitPath(executableFile, &binariesDir, nil, nil, nil);
         PNSLR_SplitPath(binariesDir, &rootDirTemp, nil, nil, nil);
 
-        rootDir.path = PNSLR_MakeString(rootDirTemp.path.count, false, PNSLR_GetAllocator_DefaultHeap(), PNSLR_GET_LOC(), nil);
-        PNSLR_MemCopy(rootDir.path.data, rootDirTemp.path.data, (i32) rootDirTemp.path.count);
+        rootDir.path = PNSLR_CloneString(rootDirTemp.path, PNSLR_GetAllocator_DefaultHeap());
     }
 
     i64 prevTime = PNSLR_NanosecondsSinceUnixEpoch();
