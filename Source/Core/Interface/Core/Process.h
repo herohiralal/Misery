@@ -4,6 +4,16 @@
 #include "Stream.h"
 #include "IO.h"
 
+struct PipeHandle;
+struct Process;
+
+/**
+ * Creates a pipe and returns the read and write ends.
+ * The read end is used for reading data from the pipe.
+ * The write end is used for writing data to the pipe.
+ */
+bool CreatePipe(PipeHandle* outR, PipeHandle* outW);
+
 /**
  * Read or Write handle of a pipe.
  * This is used for inter-process communication (IPC).
@@ -28,13 +38,6 @@ struct PipeHandle : public IStream
     bool IsValid() const { return handle != k_InvalidHandle; }
     operator bool() const { return IsValid(); }
 
-    /**
-     * Creates a pipe and returns the read and write ends.
-     * The read end is used for reading data from the pipe.
-     * The write end is used for writing data to the pipe.
-     */
-    static bool Create(PipeHandle* outR, PipeHandle* outW);
-
     virtual int64_t GetSize() override;
     virtual int64_t Read(Slice<uint8_t> dst) override;
     virtual int64_t Write(const Slice<uint8_t> src) override;
@@ -54,22 +57,41 @@ struct EnvVarKVP
     String value;
 };
 
+/**
+ * Exits the current process immediately with the specified exit code.
+ */
+void ExitCurrentProcess(int32_t exitCode = 0);
+
+/**
+ * Retrieves all environment variables as a slice of key-value pairs.
+ * The returned slice is allocated using the provided allocator.
+ * The individual strings within the key-value pairs are also allocated using the same allocator.
+ * For the key-value pairs, the `kvp` field contains the full "KEY=VALUE" string,
+ * while the `key` and `value` fields are just 'views' into that string.
+ */
+Slice<EnvVarKVP> GetCurrentEnvironmentVariables(Allocator allocator);
+
+/**
+ * Starts a new process with the specified executable and arguments.
+ * Optionally, environment variables, working directory, and pipes for
+ * standard output and error can be provided.
+ *
+ * If not provided, environment variables and working directory are inherited
+ * from the current process. If provided, they must be in a 'KEY=VALUE' format.
+ *
+ * The pipe handles provided must be read ends for stdout and stderr respectively.
+ * If null, the respective output is discarded.
+ */
+Process RunProcess(
+    Slice<String> execAndArgs,
+    Slice<String> environmentVariables = Slice<String>(),
+    DirectoryPath workingDirectory = DirectoryPath(String()),
+    PipeHandle* stdOutPipe = nullptr,
+    PipeHandle* stdErrPipe = nullptr
+);
+
 struct Process
 {
-    /**
-     * Exits the current process immediately with the specified exit code.
-     */
-    static void Exit(int32_t exitCode = 0);
-
-    /**
-     * Retrieves all environment variables as a slice of key-value pairs.
-     * The returned slice is allocated using the provided allocator.
-     * The individual strings within the key-value pairs are also allocated using the same allocator.
-     * For the key-value pairs, the `kvp` field contains the full "KEY=VALUE" string,
-     * while the `key` and `value` fields are just 'views' into that string.
-     */
-    static Slice<EnvVarKVP> GetEnvironmentVariables(Allocator allocator);
-
     #if MSR_WINDOWS
         using PIDType = DWORD;
         using ProcessHandleType = HANDLE;
@@ -94,25 +116,6 @@ struct Process
 
     bool IsValid() const { return pid != k_InvalidPID && handle != k_InvalidProcessHandle; }
     operator bool() const { return IsValid(); }
-
-    /**
-     * Starts a new process with the specified executable and arguments.
-     * Optionally, environment variables, working directory, and pipes for
-     * standard output and error can be provided.
-     *
-     * If not provided, environment variables and working directory are inherited
-     * from the current process. If provided, they must be in a 'KEY=VALUE' format.
-     *
-     * The pipe handles provided must be read ends for stdout and stderr respectively.
-     * If null, the respective output is discarded.
-     */
-    static Process Run(
-        Slice<String> execAndArgs,
-        Slice<String> environmentVariables = Slice<String>(),
-        DirectoryPath workingDirectory = DirectoryPath(String()),
-        PipeHandle* stdOutPipe = nullptr,
-        PipeHandle* stdErrPipe = nullptr
-    );
 
     /**
      * Waits for the process to exit and retrieves its exit code.

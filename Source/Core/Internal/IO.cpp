@@ -681,39 +681,8 @@ bool FilePath::Delete() const
 
 FileStream FilePath::OpenRead(bool allowWrite) const
 {
-    return FileStream::OpenRead(*this, allowWrite);
-}
-
-FileStream FilePath::OpenWrite(bool append, bool allowRead) const
-{
-    return FileStream::OpenWrite(*this, append, allowRead);
-}
-
-Slice<uint8_t> FilePath::ReadAll(Allocator allocator) const
-{
-    FileStream fs = OpenRead();
-    if (!fs) { return Slice<uint8_t>(); }
-    DEFER { fs.Close(); };
-
-    Stream s = &fs;
-    return s.ReadAll(allocator);
-}
-
-void FilePath::WriteAll(Slice<uint8_t> data, bool append) const
-{
-    FileStream fs = OpenWrite(append);
-    if (!fs) { return; }
-    DEFER { fs.Close(); };
-
-    Stream s = &fs;
-    s.Write(data);
-    s.Truncate();
-}
-
-FileStream FileStream::OpenRead(const FilePath& path, bool allowWrite)
-{
-    if (!path.actual) { return FileStream(k_InvalidHandle); }
-    CString str = alloc_temp.MakeCString(path.actual, SRC_LOC());
+    if (!actual) { return FileStream(FileStream::k_InvalidHandle); }
+    CString str = alloc_temp.MakeCString(actual, SRC_LOC());
 
     #if MSR_WINDOWS
     {
@@ -737,10 +706,10 @@ FileStream FileStream::OpenRead(const FilePath& path, bool allowWrite)
     #endif
 }
 
-FileStream FileStream::OpenWrite(const FilePath& path, bool append, bool allowRead)
+FileStream FilePath::OpenWrite(bool append, bool allowRead) const
 {
-    if (!path.actual) { return FileStream(k_InvalidHandle); }
-    CString str = alloc_temp.MakeCString(path.actual, SRC_LOC());
+    if (!actual) { return FileStream(FileStream::k_InvalidHandle); }
+    CString str = alloc_temp.MakeCString(actual, SRC_LOC());
 
     #if MSR_WINDOWS
     {
@@ -772,6 +741,27 @@ FileStream FileStream::OpenWrite(const FilePath& path, bool append, bool allowRe
     #else
         #error "Unsupported platform"
     #endif
+}
+
+Slice<uint8_t> FilePath::ReadAll(Allocator allocator) const
+{
+    FileStream fs = OpenRead();
+    if (!fs) { return Slice<uint8_t>(); }
+    DEFER { fs.Close(); };
+
+    Stream s = &fs;
+    return s.ReadAll(allocator);
+}
+
+void FilePath::WriteAll(Slice<uint8_t> data, bool append) const
+{
+    FileStream fs = OpenWrite(append);
+    if (!fs) { return; }
+    DEFER { fs.Close(); };
+
+    Stream s = &fs;
+    s.Write(data);
+    s.Truncate();
 }
 
 int64_t FileStream::GetSize()

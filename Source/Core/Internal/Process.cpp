@@ -2,10 +2,10 @@
 #include <Core/Defer.h>
 #include <Core/Allocators/Arena.h>
 
-bool PipeHandle::Create(PipeHandle* outR, PipeHandle* outW)
+bool CreatePipe(PipeHandle* outR, PipeHandle* outW)
 {
-    if (outR) *outR = PipeHandle(k_InvalidHandle);
-    if (outW) *outW = PipeHandle(k_InvalidHandle);
+    if (outR) *outR = PipeHandle(PipeHandle::k_InvalidHandle);
+    if (outW) *outW = PipeHandle(PipeHandle::k_InvalidHandle);
     if (!outR || !outW) return false;
 
     #if MSR_WINDOWS
@@ -154,13 +154,13 @@ void PipeHandle::Close()
     handle = k_InvalidHandle;
 }
 
-void Process::Exit(int32_t exitCode)
+void ExitCurrentProcess(int32_t exitCode)
 {
-    #if PNSLR_WINDOWS
+    #if MSR_WINDOWS
     {
         ExitProcess((UINT) exitCode);
     }
-    #elif PNSLR_UNIX
+    #elif MSR_UNIX
     {
         // On Unix-like systems, we can use the exit system call directly.
         _exit(exitCode);
@@ -176,7 +176,7 @@ LPCH GetEnvironmentStringsA(void) { return GetEnvironmentStrings(); }
 #define GetEnvironmentStrings GetEnvironmentStringsW
 #endif
 
-Slice<EnvVarKVP> Process::GetEnvironmentVariables(Allocator allocator)
+Slice<EnvVarKVP> GetCurrentEnvironmentVariables(Allocator allocator)
 {
     Slice<EnvVarKVP> envVars = Slice<EnvVarKVP>();
 
@@ -430,14 +430,14 @@ namespace Misery::Internal::Process
 #endif
 }
 
-Process Process::Run(
+Process RunProcess(
     Slice<String> execAndArgs,
     Slice<String> environmentVariables,
     DirectoryPath workingDirectory,
     PipeHandle* stdOutPipe,
     PipeHandle* stdErrPipe)
 {
-    Process output = Process(k_InvalidPID, k_InvalidProcessHandle);
+    Process output = Process(Process::k_InvalidPID, Process::k_InvalidProcessHandle);
     if (!execAndArgs) return output;
 
     ArenaAllocator tempAllocImpl = ArenaAllocator(4096, alloc_main);
@@ -449,7 +449,7 @@ Process Process::Run(
         CString cmdLine = Misery::Internal::Process::BuildWindowsProcessCmdLine(execAndArgs, tempAlloc);
         if (!environmentVariables)
         {
-            Slice<EnvVarKVP> kvps = GetEnvironmentVariables(tempAlloc);
+            Slice<EnvVarKVP> kvps = GetCurrentEnvironmentVariables(tempAlloc);
             environmentVariables = tempAlloc.MakeSlice<String>(kvps.Count(), SRC_LOC());
             for (size_t i = 0; i < kvps.Count(); i++)
                 environmentVariables[i] = kvps[i].kvp;
@@ -547,7 +547,7 @@ Process Process::Run(
         }
         else
         {
-            currentEnvVars = GetEnvironmentVariables(tempAlloc); // to ensure PATH is loaded
+            currentEnvVars = GetCurrentEnvironmentVariables(tempAlloc); // to ensure PATH is loaded
             String pathVar = {0};
             for (size_t i = 0; i < currentEnvVars.Count(); i++)
             {

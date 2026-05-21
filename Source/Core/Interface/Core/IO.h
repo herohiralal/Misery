@@ -72,9 +72,6 @@ struct FileStream : public IStream
     FileStream() = default;
     explicit FileStream(HandleType h) : handle(h) { }
 
-    static FileStream OpenRead(const FilePath& path, bool allowWrite = false);
-    static FileStream OpenWrite(const FilePath& path, bool append = false, bool allowRead = false);
-
     bool IsValid() const { return handle != k_InvalidHandle; }
     operator bool() const { return IsValid(); }
 
