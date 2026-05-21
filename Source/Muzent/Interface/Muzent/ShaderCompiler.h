@@ -60,5 +60,11 @@ typedef struct MZNT_ShaderCompilationOptions
  */
 b8 CompileShader(MZNT_ShaderCompiler compiler, PNSLR_Path file, MZNT_ShaderByteCode* output, MZNT_ShaderCompilationOptions options);
 
+/**
+ * Free the memory associated with a shader bytecode struct.
+ * Note that this does not free the struct itself, just the memory inside it.
+ */
+void DestroyShaderByteCode(MZNT_ShaderByteCode* byteCode);
+
 EXTERN_C_END
 #endif // MZNT_SHADER_COMPILER_H ===================================================

@@ -110,7 +110,9 @@ ENUM_END
 typedef struct MZNT_ShaderByteCode
 {
     MZNT_ShaderType type;
+    PNSLR_Allocator allocator;
     PNSLR_ArraySlice(u8) byteCode;
+    utf8str entryPoint;
 } MZNT_ShaderByteCode;
 
 PNSLR_DECLARE_ARRAY_SLICE(MZNT_ShaderByteCode);

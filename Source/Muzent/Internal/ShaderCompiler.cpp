@@ -129,15 +129,11 @@ b8 CompileShader(MZNT_ShaderCompiler compiler, PNSLR_Path file, MZNT_ShaderByteC
             }
         }
 
+        if (!options.entryPoint.data || !options.entryPoint.count)
+            options.entryPoint = PNSLR_StringLiteral("main");
+
         args.data[argsIt++] = L"-E";
-        if (options.entryPoint.data && options.entryPoint.count)
-        {
-            args.data[argsIt++] = (const WCHAR*) PNSLR_UTF16FromUTF8WindowsOnly(options.entryPoint, options.tempAllocator).data;
-        }
-        else
-        {
-            args.data[argsIt++] = L"main";
-        }
+        args.data[argsIt++] = (const WCHAR*) PNSLR_UTF16FromUTF8WindowsOnly(options.entryPoint, options.tempAllocator).data;
 
         if (options.rendererType == MZNT_RendererType_Vulkan)
         {
@@ -194,8 +190,9 @@ b8 CompileShader(MZNT_ShaderCompiler compiler, PNSLR_Path file, MZNT_ShaderByteC
         if (output)
         {
             output->type = options.shaderType;
-            output->byteCode = PNSLR_MakeSlice(u8, tempOutput.count, false, options.allocator, PNSLR_GET_LOC(), nil);
-            PNSLR_MemCopy(output->byteCode.data, tempOutput.data, (i32) tempOutput.count);
+            output->allocator = options.allocator;
+            output->byteCode = PNSLR_CloneString(tempOutput, options.allocator);
+            output->entryPoint = PNSLR_CloneString(options.entryPoint, options.allocator);
         }
 
         output2->Release();
@@ -209,4 +206,12 @@ b8 CompileShader(MZNT_ShaderCompiler compiler, PNSLR_Path file, MZNT_ShaderByteC
         return false;
     }
     #endif
+}
+
+void DestroyShaderByteCode(MZNT_ShaderByteCode* byteCode)
+{
+    if (!byteCode) return;
+    PNSLR_FreeSlice(&(byteCode->byteCode), byteCode->allocator, PNSLR_GET_LOC(), nil);
+    PNSLR_FreeString(byteCode->entryPoint, byteCode->allocator, PNSLR_GET_LOC(), nil);
+    *byteCode = { };
 }
