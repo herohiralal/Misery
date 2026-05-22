@@ -22,10 +22,10 @@ struct PipeHandle : public IStream
 {
     #if MSR_WINDOWS
         using HandleType = HANDLE;
-        static constexpr const HandleType k_InvalidHandle = INVALID_HANDLE_VALUE;
+        static inline const HandleType k_InvalidHandle = INVALID_HANDLE_VALUE;
     #elif MSR_UNIX
         using HandleType = int;
-        static constexpr const HandleType k_InvalidHandle = -1;
+        static inline const HandleType k_InvalidHandle = -1;
     #else
         #error "Unsupported platform"
     #endif
@@ -96,14 +96,14 @@ struct Process
         using PIDType = DWORD;
         using ProcessHandleType = HANDLE;
 
-        static constexpr const PIDType k_InvalidPID = (DWORD) -1;
-        static constexpr const ProcessHandleType k_InvalidProcessHandle = INVALID_HANDLE_VALUE;
+        static inline const PIDType k_InvalidPID = (DWORD) -1;
+        static inline const ProcessHandleType k_InvalidProcessHandle = INVALID_HANDLE_VALUE;
     #elif MSR_UNIX
         using PIDType = pid_t;
         using ProcessHandleType = pid_t; // on Unix, the PID itself is used as the handle
 
-        static constexpr const PIDType k_InvalidPID = (pid_t) -1;
-        static constexpr const ProcessHandleType k_InvalidProcessHandle = (pid_t) -1;
+        static inline const PIDType k_InvalidPID = (pid_t) -1;
+        static inline const ProcessHandleType k_InvalidProcessHandle = (pid_t) -1;
     #else
         #error "Unsupported platform"
     #endif

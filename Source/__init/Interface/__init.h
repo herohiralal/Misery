@@ -53,7 +53,7 @@
     #define MSR_GCC 1
 #endif
 
-#ifdef __clang__
+#if defined(__clang__) && !defined(_MSC_VER)
     #pragma clang diagnostic error   "-Wall"
     #pragma clang diagnostic error   "-Wextra"
     #pragma clang diagnostic error   "-Wshadow"

@@ -49,7 +49,7 @@
         _Pragma("GCC diagnostic pop")
 #endif
 
-#ifdef __clang__
+#if defined(__clang__) && !defined(_MSC_VER)
     #pragma clang diagnostic error   "-Wall"
     #pragma clang diagnostic error   "-Wextra"
     #pragma clang diagnostic error   "-Wshadow"
@@ -65,6 +65,10 @@
     #pragma clang diagnostic ignored "-Wunused-parameter"
     #pragma clang diagnostic ignored "-Wunused-result"
     #pragma clang diagnostic ignored "-Wuninitialized"
+
+    // could've come from msvc; like when using clangd
+    #undef BRAHMA_SUPPRESS_WARN
+    #undef BRAHMA_UNSUPPRESS_WARN
 
     #define BRAHMA_SUPPRESS_WARN \
         _Pragma("clang diagnostic push")  \
@@ -268,8 +272,8 @@ void* brahma_push_memory(size_t size, size_t alignment);
         list->count++; \
     }
 
-BRAHMA_DECLARE_ARRAY_LIST(String, string, char*)
-BRAHMA_DECLARE_PAGED_LIST(String, string, char*, 15)
+BRAHMA_DECLARE_ARRAY_LIST(String, string, const char*)
+BRAHMA_DECLARE_PAGED_LIST(String, string, const char*, 15)
 
 /**
  * Helper function to format a string using the internal allocator.
@@ -1265,7 +1269,7 @@ bool brahma_execute(Brahma_Args ex)
             struct
             {
                 char* searchPath;
-                char* extension;
+                const char* extension;
                 Brahma_Data_Chunk_Array_List* fileChunks;
                 Brahma_String_Paged_List* filePaths;
             } toProcess[2];
@@ -1572,8 +1576,8 @@ bool brahma_execute(Brahma_Args ex)
 
             for (size_t j = 0; j < toProcess[i].files->count; j++)
             {
-                char* sourceFilePath = toProcess[i].files->data[j];
-                char* objectFilePath = brahma_sprintf("%s.%s", sourceFilePath, (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? "obj" : "o");
+                const char* sourceFilePath = toProcess[i].files->data[j];
+                const char* objectFilePath = brahma_sprintf("%s.%s", sourceFilePath, (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? "obj" : "o");
 
                 Brahma_String_Array_List compileArgs = { NULL, 0, 0 };
                 brahma_reserve_string_array_list_capacity(&compileArgs, 16);
@@ -1639,7 +1643,7 @@ bool brahma_execute(Brahma_Args ex)
                     for (size_t k = libInterfaceDepsChunk.start; k < (size_t) (libInterfaceDepsChunk.start + libInterfaceDepsChunk.count); k++)
                     {
                         uint16_t depLibIdx = *brahma_index_library_idx_paged_list(&allLibInterfaceDeps, k);
-                        char* includePath = allInterfacePaths.data[depLibIdx];
+                        const char* includePath = allInterfacePaths.data[depLibIdx];
                         if (includePath)
                         {
                             if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
@@ -1655,7 +1659,7 @@ bool brahma_execute(Brahma_Args ex)
                     }
 
                     // add self include
-                    char* selfIncludePath = allInterfacePaths.data[libIdx];
+                    const char* selfIncludePath = allInterfacePaths.data[libIdx];
                     if (selfIncludePath)
                     {
                         if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
@@ -1757,7 +1761,7 @@ bool brahma_execute(Brahma_Args ex)
             "<UNKNOWN OUTPUT TYPE>"
         );
 
-        char* extension = NULL;
+        const char* extension = NULL;
         switch (selectedPkg->outputType)
         {
             case BRAHMA_PACKAGE_OUTPUT_TYPE_EXECUTABLE:
@@ -2626,13 +2630,13 @@ Brahma_Process brahma_start_process(Brahma_String_Array_List args, const char* w
 
             for (int i = 0; i < (int) args.count; i++)
             {
-                char* arg = args.data[i];
+                const char* arg = args.data[i];
 
                 if (i != 0 && cursor < cmdEnd) *cursor++ = ' ';
 
                 // wrap every argument in double-quotes and escape embedded quotes
                 if (cursor < cmdEnd) *cursor++ = '"';
-                for (char* c = arg; *c && cursor < cmdEnd; c++)
+                for (const char* c = arg; *c && cursor < cmdEnd; c++)
                 {
                     if (*c == '"' && cursor < cmdEnd) *cursor++ = '\\';
                     if (cursor < cmdEnd) *cursor++ = *c;
@@ -2854,6 +2858,10 @@ void brahma_exec_log(const char* fmt, ...)
     va_end(args);
 }
 
+#ifdef __cplusplus
+}
+#endif
+
 int main(int argc, char* argv[])
 {
     #if defined(_DEBUG) || defined(DEBUG) || !defined(NDEBUG)
@@ -3020,6 +3028,10 @@ int main(int argc, char* argv[])
     bool success = brahma_execute(ex);
     return success ? 0 : 1;
 }
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define BRAHMA_BEGIN_LISTING_PACKAGES() \
     void brahma_create_all_packages(Brahma_Platform platform, Brahma_Architecture architecture, Brahma_Package_Array_List* packages) { \

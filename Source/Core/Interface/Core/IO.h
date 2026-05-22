@@ -59,10 +59,10 @@ struct FileStream : public IStream
 {
     #if MSR_WINDOWS
         using HandleType = HANDLE;
-        static constexpr const HandleType k_InvalidHandle = INVALID_HANDLE_VALUE;
+        static inline const HandleType k_InvalidHandle = INVALID_HANDLE_VALUE;
     #elif MSR_UNIX
         using HandleType = int;
-        static constexpr const HandleType k_InvalidHandle = -1;
+        static inline const HandleType k_InvalidHandle = -1;
     #else
         #error "Unsupported platform"
     #endif

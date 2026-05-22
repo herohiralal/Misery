@@ -13,3 +13,6 @@ indent_style = tab
 
 [*.sh]
 end_of_line = lf
+
+[.clangd]
+indent_size = 2
