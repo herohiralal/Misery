@@ -589,6 +589,8 @@ typedef struct
 
     char* intermediateOutputDir;
     char* outputDir;
+
+    char* clangdOutputDir;
 } Brahma_Args;
 
 // main entry point function
@@ -1746,7 +1748,8 @@ bool brahma_execute(Brahma_Args ex)
         PROFILE_SECTION_END("end compile processes");
     }
 
-    // link all
+    // begin linking process
+    Brahma_Process linkProcess = NULL;
     char* output = NULL;
     if (!failed)
     {
@@ -1862,30 +1865,8 @@ bool brahma_execute(Brahma_Args ex)
             }
         }
 
-        Brahma_Process linkProcess = brahma_start_process(linkArgs, NULL);
-        if (!linkProcess)
-        {
-            ex.log(BRAHMA_LOG_ERROR "Failed to start link process for '%s'.\n", output);
-            failed = true;
-        }
-        else
-        {
-            char* outputFromProcess = NULL;
-            if (0 != brahma_wait_for_process(linkProcess, &outputFromProcess))
-            {
-                ex.log("--------------------------------------------------------\n");
-                ex.log(BRAHMA_LOG_ERROR "Failed to link '%s'.\n", output);
-                ex.log("%s", outputFromProcess);
-                ex.log("--------------------------------------------------------\n");
-                failed = true;
-            }
-            else
-            {
-                ex.log(BRAHMA_LOG_SUCCESS "Linked '%s' successfully.\n", output);
-            }
-        }
-
-        PROFILE_SECTION_END("linking");
+        linkProcess = brahma_start_process(linkArgs, NULL);
+        PROFILE_SECTION_END("start link process");
     }
 
     // copy all the "files to copy" as requested
@@ -1968,6 +1949,119 @@ bool brahma_execute(Brahma_Args ex)
         }
 
         PROFILE_SECTION_END("copy dependencies");
+    }
+
+    // output .clangd
+    if (!failed && ex.clangdOutputDir)
+    {
+        char* clangdConfigPath = brahma_sprintf("%s/.clangd", ex.clangdOutputDir);
+        FILE* clangdConfigFile = fopen(clangdConfigPath, "w");
+        if (clangdConfigFile)
+        {
+            fprintf(clangdConfigFile, "CompileFlags:\n");
+            fprintf(clangdConfigFile, "  Add:\n");
+            fprintf(clangdConfigFile, "    - -D__INTELLISENSE__\n");
+            fprintf(clangdConfigFile, "    - -DBRAHMA_EXEC\n");
+
+            #define CLANGD_ARCH_SUFFIX ""
+            #if defined(_M_IX86) || defined(__i386__)
+                #define CLANGD_ARCH "i686"
+            #elif defined(_M_X64) || defined(__x86_64__)
+                #define CLANGD_ARCH "x86_64"
+            #elif defined(_M_ARM) || defined(__arm__)
+                #define CLANGD_ARCH "armv7"
+                #ifdef __linux__
+                    #undef CLANGD_ARCH_SUFFIX
+                    #define CLANGD_ARCH_SUFFIX "eabihf" // why?
+                #endif
+            #elif defined(_M_ARM64) || defined(__aarch64__)
+                #ifdef __APPLE__
+                    #define CLANGD_ARCH "arm64" // why?
+                #else
+                    #define CLANGD_ARCH "aarch64"
+                #endif
+            #else
+                #define CLANGD_ARCH "unknown_arch"
+            #endif
+
+            #if defined(_WIN32)
+            {
+                fprintf(clangdConfigFile, "    - -D_DEBUG\n");
+                fprintf(clangdConfigFile, "    - --target=" CLANGD_ARCH "-pc-windows-msvc\n");
+                fprintf(clangdConfigFile, "    - -fms-compatibility\n");
+                fprintf(clangdConfigFile, "    - -fms-extensions\n");
+            }
+            #elif defined(__linux__)
+            {
+                fprintf(clangdConfigFile, "    - -DDEBUG\n");
+                fprintf(clangdConfigFile, "    - -D_GNU_SOURCE\n");
+                fprintf(clangdConfigFile, "    - --target=" CLANGD_ARCH "-pc-linux-gnu" CLANGD_ARCH_SUFFIX "\n");
+            }
+            #elif defined(__APPLE__)
+            {
+                fprintf(clangdConfigFile, "    - -DDEBUG\n");
+                fprintf(clangdConfigFile, "    - -D_DARWIN_C_SOURCE\n");
+                fprintf(clangdConfigFile, "    - --target=" CLANGD_ARCH "-apple-darwin\n");
+            }
+            #endif
+
+            #undef CLANGD_ARCH_SUFFIX
+            #undef CLANGD_ARCH
+
+            // add all interface paths as include search paths
+            for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
+            {
+                const char* interfacePath = allInterfacePaths.data[libIdx];
+                if (interfacePath)
+                {
+                    fprintf(clangdConfigFile, "    - -I%s\n", interfacePath);
+                }
+            }
+
+            fprintf(clangdConfigFile,
+                "---\n"
+                "If:\n"
+                "  PathMatch: .*\\.(h|cc|cpp|cxx)$\n"
+                "CompileFlags:\n"
+                "  Add:\n"
+                "    - -std=c++20\n"
+                "    - -fno-exceptions\n"
+                "    - -fno-rtti\n"
+                "---\n"
+                "If:\n"
+                "  PathMatch: .*\\.c$\n"
+                "CompileFlags:\n"
+                "  Add:\n"
+                "    - -std=c17\n"
+            );
+
+            fclose(clangdConfigFile);
+        }
+    }
+
+    // wait for link process
+    if (!failed)
+    {
+        char* outputFromProcess = NULL;
+        if (!linkProcess)
+        {
+            ex.log(BRAHMA_LOG_ERROR "Failed to start link process for '%s'.\n", output);
+            failed = true;
+        }
+        else if (0 != brahma_wait_for_process(linkProcess, &outputFromProcess))
+        {
+            ex.log("--------------------------------------------------------\n");
+            ex.log(BRAHMA_LOG_ERROR "Failed to link '%s'.\n", output);
+            ex.log("%s", outputFromProcess);
+            ex.log("--------------------------------------------------------\n");
+            failed = true;
+        }
+        else
+        {
+            ex.log(BRAHMA_LOG_SUCCESS "Linked '%s' successfully.\n", output);
+        }
+
+        PROFILE_SECTION_END("end link process");
     }
 
     Brahma_Memory_Usage_Report report = brahma_shutdown_internal_allocator();
@@ -2881,6 +2975,7 @@ int main(int argc, char* argv[])
 
     ex.intermediateOutputDir = NULL;
     ex.outputDir             = NULL;
+    ex.clangdOutputDir       = NULL;
 
     ex.flags |= BRAHMA_ARGS_FLAG_DEBUG; // default to debug mode
 
@@ -2900,6 +2995,24 @@ int main(int argc, char* argv[])
         if (!strcmp("-optimised",   argv[i])) { ex.flags |= BRAHMA_ARGS_FLAG_OPTIMISED;             continue; }
         if (!strcmp("-warnings",    argv[i])) { ex.flags |= BRAHMA_ARGS_FLAG_SHOW_WARNINGS;         continue; }
         if (!strcmp("-warn_as_err", argv[i])) { ex.flags |= BRAHMA_ARGS_FLAG_WARNINGS_ARE_ERRORS;   continue; }
+
+        if (!strcmp("-clangd", argv[i]))
+        {
+            if (ex.clangdOutputDir)
+            {
+                ex.log(BRAHMA_LOG_ERROR "Multiple clangd output directories specified with -clangd. Use as: *.exe -clangd clangdOutputDirectory.\n");
+                return 1;
+            }
+
+            if (++i >= argc)
+            {
+                ex.log(BRAHMA_LOG_ERROR "No clangd output directory specified after -clangd. Use as: *.exe -clangd clangdOutputDirectory.\n");
+                return 1;
+            }
+
+            ex.clangdOutputDir = argv[i];
+            continue;
+        }
 
         if (!strcmp("-package", argv[i]))
         {
