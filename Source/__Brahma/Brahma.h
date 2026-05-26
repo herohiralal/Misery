@@ -2048,24 +2048,27 @@ bool brahma_execute(Brahma_Args ex)
                     brahma_sprintf("%s/%sInterfaceLibDefinitions.h", ex.intermediateOutputDir, lib->name)
                 );
 
-                fprintf(clangdConfigFile,
-                    "---\n"
-                    "If:\n"
-                    "  PathMatch: .*/%s/.*\n"
-                    "CompileFlags:\n"
-                    "  Add:\n"
-                    "",
-                    lib->name
-                );
-
                 Brahma_Data_Chunk interfaceDepsChunk = libInterfaceDepChunks.data[libIdx];
-                for (size_t i = interfaceDepsChunk.start; i < (size_t) (interfaceDepsChunk.start + interfaceDepsChunk.count); i++)
+                if (interfaceDepsChunk.count)
                 {
-                    uint16_t depLibIdx = *brahma_index_library_idx_paged_list(&allLibInterfaceDeps, i);
-                    const char* depInterfacePath = allInterfacePaths.data[depLibIdx];
-                    if (depInterfacePath)
+                    fprintf(clangdConfigFile,
+                        "---\n"
+                        "If:\n"
+                        "  PathMatch: .*/%s/.*\n"
+                        "CompileFlags:\n"
+                        "  Add:\n"
+                        "",
+                        lib->name
+                    );
+
+                    for (size_t i = interfaceDepsChunk.start; i < (size_t) (interfaceDepsChunk.start + interfaceDepsChunk.count); i++)
                     {
-                        fprintf(clangdConfigFile, "    - -I%s\n", depInterfacePath);
+                        uint16_t depLibIdx = *brahma_index_library_idx_paged_list(&allLibInterfaceDeps, i);
+                        const char* depInterfacePath = allInterfacePaths.data[depLibIdx];
+                        if (depInterfacePath)
+                        {
+                            fprintf(clangdConfigFile, "    - -I%s\n", depInterfacePath);
+                        }
                     }
                 }
             }
