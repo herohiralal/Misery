@@ -1,7 +1,7 @@
 #ifndef MZNT_VK_TYPES_H
 #define MZNT_VK_TYPES_H
-#include "Muzent/__Prelude.h"
-#include "Muzent/RendererFns.h"
+#include <Muzent/__Prelude.h>
+#include <Muzent/RendererFns.h>
 #if defined(MZNT_IMPLEMENTATION) && MZNT_VULKAN
 EXTERN_C_BEGIN
 

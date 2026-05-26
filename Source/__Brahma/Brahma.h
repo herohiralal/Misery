@@ -1956,6 +1956,7 @@ bool brahma_execute(Brahma_Args ex)
     {
         char* clangdConfigPath = brahma_sprintf("%s/.clangd", ex.clangdOutputDir);
         FILE* clangdConfigFile = fopen(clangdConfigPath, "w");
+        bool fileWriteFailed = false;
         if (clangdConfigFile)
         {
             fprintf(clangdConfigFile, "CompileFlags:\n");
@@ -2035,7 +2036,17 @@ bool brahma_execute(Brahma_Args ex)
                 "    - -std=c17\n"
             );
 
-            fclose(clangdConfigFile);
+            fileWriteFailed = (fclose(clangdConfigFile) != 0);
+        }
+
+        if (fileWriteFailed)
+        {
+            ex.log(BRAHMA_LOG_ERROR "Failed to write .clangd config file to '%s'.\n", clangdConfigPath);
+            failed = true;
+        }
+        else
+        {
+            ex.log(BRAHMA_LOG_SUCCESS "Wrote .clangd config file to '%s' successfully.\n", clangdConfigPath);
         }
     }
 

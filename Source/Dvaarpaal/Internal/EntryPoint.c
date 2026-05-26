@@ -1,4 +1,4 @@
-#include "Dvaarpaal/EntryPoint.h"
+#include <Dvaarpaal/EntryPoint.h>
 
 #ifndef DVRPL_SKIP_ENTRY_PT
 

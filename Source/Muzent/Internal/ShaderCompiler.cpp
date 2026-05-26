@@ -1,4 +1,4 @@
-#include "Muzent/ShaderCompiler.h"
+#include <Muzent/ShaderCompiler.h>
 
 struct MZNT_Internal_ShaderCompiler
 {
