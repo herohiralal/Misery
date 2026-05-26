@@ -1228,7 +1228,7 @@ bool brahma_execute(Brahma_Args ex)
         PROFILE_SECTION_END("gather interface dirs");
     }
 
-    // gather all deps
+    // gather all interface deps
     Brahma_Library_Idx_Paged_List allLibInterfaceDeps = { NULL, 0, 0 };
     Brahma_Data_Chunk_Array_List libInterfaceDepChunks = { NULL, 0, 0 };
     if (!failed)
@@ -1254,7 +1254,7 @@ bool brahma_execute(Brahma_Args ex)
             brahma_append_data_chunk_to_array_list(&libInterfaceDepChunks, chunk);
         }
 
-        PROFILE_SECTION_END("gather library dependencies");
+        PROFILE_SECTION_END("gather interface dependencies");
     }
 
     // files gather
@@ -2008,31 +2008,84 @@ bool brahma_execute(Brahma_Args ex)
 
             #undef CLANGD_ARCH_SUFFIX
             #undef CLANGD_ARCH
+            fprintf(clangdConfigFile,
+                "Diagnostics:\n"
+                "  UnusedIncludes: None\n"
+            );
 
-            // add all interface paths as include search paths
             for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
             {
-                const char* interfacePath = allInterfacePaths.data[libIdx];
-                if (interfacePath)
+                Brahma_Library* lib = &(libDefs.data[libIdx]);
+
+                fprintf(clangdConfigFile,
+                    "---\n"
+                    "If:\n"
+                    "  PathMatch: .*/%s/Internal/.*\n"
+                    "CompileFlags:\n"
+                    "  Add:\n"
+                    "    - -include\n"
+                    "    - %s\n"
+                    "",
+                    lib->name,
+                    brahma_sprintf("%s/%sInternalLibDefinitions.h", ex.intermediateOutputDir, lib->name)
+                );
+
+                if (allInterfacePaths.data[libIdx])
                 {
-                    fprintf(clangdConfigFile, "    - -I%s\n", interfacePath);
+                    fprintf(clangdConfigFile, "    - -I%s\n", allInterfacePaths.data[libIdx]);
+                }
+
+                fprintf(clangdConfigFile,
+                    "---\n"
+                    "If:\n"
+                    "  PathMatch: .*/%s/Interface/.*\n"
+                    "CompileFlags:\n"
+                    "  Add:\n"
+                    "    - -include\n"
+                    "    - %s\n"
+                    "",
+                    lib->name,
+                    brahma_sprintf("%s/%sInterfaceLibDefinitions.h", ex.intermediateOutputDir, lib->name)
+                );
+
+                fprintf(clangdConfigFile,
+                    "---\n"
+                    "If:\n"
+                    "  PathMatch: .*/%s/.*\n"
+                    "CompileFlags:\n"
+                    "  Add:\n"
+                    "",
+                    lib->name
+                );
+
+                Brahma_Data_Chunk interfaceDepsChunk = libInterfaceDepChunks.data[libIdx];
+                for (size_t i = interfaceDepsChunk.start; i < (size_t) (interfaceDepsChunk.start + interfaceDepsChunk.count); i++)
+                {
+                    uint16_t depLibIdx = *brahma_index_library_idx_paged_list(&allLibInterfaceDeps, i);
+                    const char* depInterfacePath = allInterfacePaths.data[depLibIdx];
+                    if (depInterfacePath)
+                    {
+                        fprintf(clangdConfigFile, "    - -I%s\n", depInterfacePath);
+                    }
                 }
             }
 
             fprintf(clangdConfigFile,
                 "---\n"
                 "If:\n"
-                "  PathMatch: .*\\.(h|cc|cpp|cxx)$\n"
+                "  PathMatch: .*\\.(cc|cpp|cxx)$\n"
                 "CompileFlags:\n"
                 "  Add:\n"
+                "    - -xc++\n"
                 "    - -std=c++20\n"
                 "    - -fno-exceptions\n"
                 "    - -fno-rtti\n"
                 "---\n"
                 "If:\n"
-                "  PathMatch: .*\\.c$\n"
+                "  PathMatch: .*\\.(h|c)$\n"
                 "CompileFlags:\n"
                 "  Add:\n"
+                "    - -xc\n"
                 "    - -std=c17\n"
             );
 
