@@ -92,6 +92,93 @@
 
 static_assert(MSR_MSVC + MSR_GCC + MSR_CLANG == 1, "Exactly one compiler must be defined.");
 
+// macros ----------------------------------------------------------------------------------------------------------------------
+
+#if MSR_MSVC
+
+    #define MSR_NOINLINE                    __declspec(noinline)
+    #define MSR_FORCEINLINE                 __forceinline
+    #define MSR_NORETURN                    __declspec(noreturn)
+    // offsetof impl depends on c/c++
+
+#elif (MSR_CLANG || MSR_GCC)
+
+    #define MSR_NOINLINE                    __attribute__((noinline))
+    #define MSR_FORCEINLINE                 inline __attribute__((always_inline))
+    #define MSR_NORETURN                    __attribute__((noreturn))
+    #define MSR_OFFSETOF(type, member)      __builtin_offsetof(type, member)
+
+#else
+    #error "Required features not supported by this compiler."
+#endif
+
+#ifdef __cplusplus
+
+    // used as-is:
+    // - thread_local
+    // - inline
+    // - alignas
+    // - alignof
+
+    #define MSR_DEPRECATED                  [[deprecated]]
+
+    #if MSR_MSVC
+        #define MSR_OFFSETOF(type, member)  ((u64)&reinterpret_cast<char const volatile&>((((type*)0)->member)))
+    #endif
+
+    // static_assert is used as-is
+
+#else
+
+    #if MSR_MSVC
+
+        #define thread_local                __declspec(thread)
+        #define inline                      __inline
+        #define alignas(x)                  __declspec(align(x))
+        #define alignof(type)               __alignof(type)
+        #define MSR_DEPRECATED              __declspec(deprecated)
+        #define MSR_OFFSETOF(type, member)  ((unsigned __int64)&(((type*)0)->member))
+
+    #elif (MSR_CLANG || MSR_GCC)
+
+        #define thread_local                __thread
+        #define inline                      __inline__
+        #define alignas(x)                  __attribute__((aligned(x)))
+        #define alignof(type)               __alignof__(type)
+        #define MSR_DEPRECATED              __attribute__((deprecated))
+        // offsetof declared previously
+
+    #else
+        #error "Required features not supported by this compiler."
+    #endif
+
+    #define static_assert                   _Static_assert
+
+#endif
+
+#ifdef __cplusplus
+    #define EXTERN_C_BEGIN extern "C" {
+    #define EXTERN_C_END   }
+#else
+    #define EXTERN_C_BEGIN
+    #define EXTERN_C_END
+#endif
+
+#ifdef __cplusplus
+    #define OPT_ARG = { }
+#else
+    #define OPT_ARG
+#endif
+
+#define COUNTVARARGS_INTERNAL(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, COUNT, ...) COUNT
+#define COUNT_VARARGS(...) COUNTVARARGS_INTERNAL(__VA_ARGS__, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
+
+#ifdef __cplusplus
+    #define MSR_TY_INITIALISER(ty) ty
+#else
+    #define MSR_TY_INITIALISER(ty) (ty)
+#endif
+
 // configurations --------------------------------------------------------------------------------------------------------------
 
 #if defined(_DEBUG) || defined(DEBUG) || !defined(NDEBUG)
@@ -108,26 +195,28 @@ static_assert(MSR_MSVC + MSR_GCC + MSR_CLANG == 1, "Exactly one compiler must be
 #endif
 
 #if MSR_MSVC && MSR_DBG
-    #define MSR_ASSERT(expr) do { if (!(expr)) { __debugbreak(); } } while (0)
+    #define MSR_ASSERT(expr) do { if (!(expr)) {   __debugbreak(); } } while (0)
 #elif (MSR_CLANG || MSR_GCC) && MSR_DBG
     #define MSR_ASSERT(expr) do { if (!(expr)) { __builtin_trap(); } } while (0)
 #else
-    #define MSR_ASSERT(expr) ((void)0)
+    #define MSR_ASSERT(expr) ((void) 0)
 #endif
 
 static_assert(MSR_DBG + MSR_REL == 1, "Exactly one configuration must be defined.");
 
-enum class MSR_Configuration : unsigned char
+enum MSR_Configurations
 {
-    Unknown,
-    Debug,
-    Release,
+    MSR_CFG_Unknown,
+    MSR_CFG_Debug,
+    MSR_CFG_Release,
 };
 
-static constexpr const MSR_Configuration MSR_CONFIGURATION =
-    MSR_DBG ? MSR_Configuration::Debug   :
-    MSR_REL ? MSR_Configuration::Release :
-    MSR_Configuration::Unknown;
+typedef unsigned char MSR_Configuration;
+
+static const MSR_Configuration MSR_CONFIGURATION =
+    MSR_DBG ? MSR_CFG_Debug   :
+    MSR_REL ? MSR_CFG_Release :
+              MSR_CFG_Unknown;
 
 // platforms -------------------------------------------------------------------------------------------------------------------
 
@@ -180,29 +269,31 @@ static constexpr const MSR_Configuration MSR_CONFIGURATION =
 
 static_assert(MSR_WINDOWS + MSR_LINUX + MSR_OSX + MSR_ANDROID + MSR_IOS + MSR_PS5 + MSR_XSERIES + MSR_SWITCH == 1, "Exactly one platform must be defined.");
 
-enum class MSR_Platform : unsigned char
+enum MSR_Platforms
 {
-    Unknown,
-    Windows,
-    Linux,
-    OSX,
-    Android,
-    iOS,
-    PS5,
-    XboxSeries,
-    Switch,
+    MSR_PLT_Unknown,
+    MSR_PLT_Windows,
+    MSR_PLT_Linux,
+    MSR_PLT_OSX,
+    MSR_PLT_Android,
+    MSR_PLT_iOS,
+    MSR_PLT_PS5,
+    MSR_PLT_XboxSeries,
+    MSR_PLT_Switch,
 };
 
-static constexpr const MSR_Platform MSR_PLATFORM =
-    MSR_WINDOWS ? MSR_Platform::Windows    :
-    MSR_LINUX   ? MSR_Platform::Linux      :
-    MSR_OSX     ? MSR_Platform::OSX        :
-    MSR_ANDROID ? MSR_Platform::Android    :
-    MSR_IOS     ? MSR_Platform::iOS        :
-    MSR_PS5     ? MSR_Platform::PS5        :
-    MSR_XSERIES ? MSR_Platform::XboxSeries :
-    MSR_SWITCH  ? MSR_Platform::Switch     :
-    MSR_Platform::Unknown;
+typedef unsigned char MSR_Platform;
+
+static const MSR_Platform MSR_PLATFORM =
+    MSR_WINDOWS ? MSR_PLT_Windows    :
+    MSR_LINUX   ? MSR_PLT_Linux      :
+    MSR_OSX     ? MSR_PLT_OSX        :
+    MSR_ANDROID ? MSR_PLT_Android    :
+    MSR_IOS     ? MSR_PLT_iOS        :
+    MSR_PS5     ? MSR_PLT_PS5        :
+    MSR_XSERIES ? MSR_PLT_XboxSeries :
+    MSR_SWITCH  ? MSR_PLT_Switch     :
+                  MSR_PLT_Unknown;
 
 // architectures ---------------------------------------------------------------------------------------------------------------
 
@@ -231,21 +322,142 @@ static constexpr const MSR_Platform MSR_PLATFORM =
 
 static_assert(MSR_X64 + MSR_X86 + MSR_ARM64 + MSR_ARM == 1, "Exactly one architecture must be defined.");
 
-enum class MSR_Architecture : unsigned char
+enum MSR_Architectures
 {
-    Unknown,
-    x64,
-    x86,
-    ARM64,
-    ARM,
+    MSR_ACH_Unknown,
+    MSR_ACH_x64,
+    MSR_ACH_x86,
+    MSR_ACH_ARM64,
+    MSR_ACH_ARM,
 };
 
-static constexpr const MSR_Architecture MSR_ARCHITECTURE =
-    MSR_X64   ? MSR_Architecture::x64   :
-    MSR_X86   ? MSR_Architecture::x86   :
-    MSR_ARM64 ? MSR_Architecture::ARM64 :
-    MSR_ARM   ? MSR_Architecture::ARM   :
-    MSR_Architecture::Unknown;
+typedef unsigned char MSR_Architecture;
+
+static const MSR_Architecture MSR_ARCHITECTURE =
+    MSR_X64   ? MSR_ACH_x64   :
+    MSR_X86   ? MSR_ACH_x86   :
+    MSR_ARM64 ? MSR_ACH_ARM64 :
+    MSR_ARM   ? MSR_ACH_ARM   :
+                MSR_ACH_Unknown;
+
+// primitives  -----------------------------------------------------------------------------------------------------------------
+
+#ifndef __cplusplus
+    typedef _Bool           bool;
+#endif
+
+typedef bool                b8;
+typedef unsigned char       u8;
+typedef unsigned short int  u16;
+typedef unsigned int        u32;
+typedef unsigned long long  u64;
+typedef signed char         i8;
+typedef signed short int    i16;
+typedef signed int          i32;
+typedef signed long long    i64;
+typedef float               f32;
+typedef double              f64;
+typedef void*               rawptr;
+typedef char*               cstring;
+
+#ifdef __cplusplus
+    #undef  nil
+
+    #define nil   (   nullptr)
+#else
+
+    #undef  nil
+    #undef  false
+    #undef  true
+
+    #define nil   ((rawptr) 0)
+    #define false ((b8)     0)
+    #define true  ((b8)     1)
+
+#endif
+
+#define U8_MIN  ((u8)  (0))
+#define U8_MAX  ((u8)  (255))
+#define U16_MIN ((u16) (0))
+#define U16_MAX ((u16) (65535))
+#define U32_MIN ((u32) (0))
+#define U32_MAX ((u32) (4294967295U))
+#define U64_MIN ((u64) (0))
+#define U64_MAX ((u64) (18446744073709551615ULL))
+#define I8_MIN  ((i8)  (-128))
+#define I8_MAX  ((i8)  (127))
+#define I16_MIN ((i16) ((-32768)))
+#define I16_MAX ((i16) (32767))
+#define I32_MIN ((i32) ((-2147483647 - 1)))
+#define I32_MAX ((i32) (2147483647))
+#define I64_MIN ((i64) ((-9223372036854775807LL - 1)))
+#define I64_MAX ((i64) (9223372036854775807LL))
+#define F32_MIN ((f32) ((-3.402823466e+38F)))
+#define F32_MAX ((f32) (3.402823466e+38F))
+#define F64_MIN ((f64) ((-1.7976931348623157e+308)))
+#define F64_MAX ((f64) (1.7976931348623157e+308))
+
+#if MSR_X64 || MSR_ARM64
+
+    #define MSR_PTR_SIZE 8
+
+    #define ISIZE_MAX I64_MAX
+    #define ISIZE_MIN I64_MIN
+    #define USIZE_MAX U64_MAX
+    #define USIZE_MIN U64_MIN
+
+    typedef u64 usize;
+    typedef i64 isize;
+
+#elif MSR_X86 || MSR_ARM
+
+    #define MSR_PTR_SIZE 4
+
+    #define ISIZE_MAX I32_MAX
+    #define ISIZE_MIN I32_MIN
+    #define USIZE_MAX U32_MAX
+    #define USIZE_MIN U32_MIN
+
+    typedef u32 usize;
+    typedef i32 isize;
+
+#else
+    #error "Unknown architecture. Cannot define usize and isize."
+#endif
+
+static_assert(sizeof(b8)      == 1, " b8 must be 1 byte ");
+static_assert(sizeof(u8)      == 1, " u8 must be 1 byte ");
+static_assert(sizeof(i8)      == 1, " i8 must be 1 byte ");
+static_assert(sizeof(u16)     == 2, "u16 must be 2 bytes");
+static_assert(sizeof(i16)     == 2, "i16 must be 2 bytes");
+static_assert(sizeof(u32)     == 4, "u32 must be 4 bytes");
+static_assert(sizeof(i32)     == 4, "i32 must be 4 bytes");
+static_assert(sizeof(f32)     == 4, "f32 must be 4 bytes");
+static_assert(sizeof(u64)     == 8, "u64 must be 8 bytes");
+static_assert(sizeof(i64)     == 8, "i64 must be 8 bytes");
+static_assert(sizeof(f64)     == 8, "f64 must be 8 bytes");
+
+// src loc ---------------------------------------------------------------------------------------------------------------------
+
+/**
+ * Defines the source code location for debugging purposes.
+ * Primarily used for logging/reporting the location where a call might have been made from.
+ * General-purpose.
+ */
+struct SrcLoc
+{
+    const char* file;
+    i32         line;
+    i32         column;
+    const char* function;
+};
+
+/**
+ * Helper macro to get the current source code location. Used with functions that take a SrcLoc
+ * parameter, so that the caller doesn't have to manually specify the file and line number every time.
+ */
+#define SRC_LOC() \
+    (MSR_TY_INITIALISER(SrcLoc) {.file = __FILE__, .line = __LINE__, .column = 0, .function = __FUNCTION__})
 
 // includes --------------------------------------------------------------------------------------------------------------------
 
@@ -283,10 +495,16 @@ MSR_SUPPRESS_WARN
 
     // since we're on C11
     #if MSR_APPLE
-        #define _DARWIN_C_SOURCE
+        #ifndef _DARWIN_C_SOURCE
+            #define _DARWIN_C_SOURCE
+        #endif
     #else
-        #define _POSIX_C_SOURCE 200809L
-        #define _XOPEN_SOURCE 700
+        #ifndef _POSIX_C_SOURCE
+            #define _POSIX_C_SOURCE 200809L
+        #endif
+        #ifndef _XOPEN_SOURCE
+            #define _XOPEN_SOURCE 700
+        #endif
     #endif
 
     #include <stdio.h>
@@ -340,11 +558,41 @@ MSR_SUPPRESS_WARN
 
 #include <stdint.h>
 #include <stddef.h>
+#include <assert.h>
+#include <math.h>
+
+#ifdef __cplusplus
 #include <utility>
 #include <initializer_list>
 #include <type_traits>
-#include <assert.h>
 #include <memory>
-#include <math.h>
+#endif
 
 MSR_UNSUPPRESS_WARN
+
+// defer -----------------------------------------------------------------------------------------------------------------------
+
+#ifdef __cplusplus
+namespace DeferInternals
+{
+    struct Helper
+    {
+        template <typename TCallable>
+        struct Defer
+        {
+            TCallable func;
+            ~Defer() { func(); }
+        };
+
+        template <typename TCallable>
+        Defer<TCallable> operator+(TCallable&& func)
+        {
+            return Defer<TCallable>{.func = std::forward<TCallable>(func)};
+        }
+    };
+}
+
+#define DEFER_CONCAT_IMPL(x, y) x##y
+#define DEFER_CONCAT(x, y) DEFER_CONCAT_IMPL(x, y)
+#define DEFER auto DEFER_CONCAT(defer_, __COUNTER__) = DeferInternals::Helper() + [&]()
+#endif
