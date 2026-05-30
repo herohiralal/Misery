@@ -34,12 +34,20 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
     template <typename T>
     static inline COL_RawList* CreateRawListPtr(List<T>* list) { return (COL_RawList*) (list); }
 
-    #define COL_DECLARE_SLICE(ty) \
+    #define COL_DECLARE_FOR(ty) \
         typedef struct \
         { \
             ty*   data; \
             isize count; \
         } Slice_(ty); \
+        \
+        typedef struct \
+        { \
+            ty*           data; \
+            isize         count; \
+            isize         capacity; \
+            MEM_Allocator allocator; \
+        } List_(ty); \
         \
         EXTERN_C_END \
         template <> \
@@ -50,23 +58,10 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
             \
             Slice<ty>() = default; \
             Slice<ty>(const Slice_(ty)& other) : data(other.data), count(other.count) { } \
+            Slice<ty>(std::initializer_list<ty> init) : data(const_cast<ty*>(init.begin())), count((isize) init.size()) { } \
             operator Slice_(ty)() const { return Slice_(ty) {data, count}; } \
         }; \
         \
-        static inline COL_RawSlice* CreateRawSlicePtr(Slice_(ty)* slice) { return (COL_RawSlice*) (slice); } \
-        static inline Slice_(ty) Slice##ty##FromRaw(const COL_RawSlice& raw) { return *(Slice_(ty)*) &raw; } \
-        EXTERN_C_BEGIN
-
-    #define COL_DECLARE_LIST(ty) \
-        typedef struct \
-        { \
-            ty*           data; \
-            isize         count; \
-            isize         capacity; \
-            MEM_Allocator allocator; \
-        } List_(ty); \
-        \
-        EXTERN_C_END \
         template <> \
         struct List<ty> \
         { \
@@ -80,6 +75,8 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
             operator List_(ty)() const { return List_(ty) {data, count, capacity, allocator}; } \
         }; \
         \
+        static inline COL_RawSlice* CreateRawSlicePtr(Slice_(ty)* slice) { return (COL_RawSlice*) (slice); } \
+        static inline Slice_(ty) Slice##ty##FromRaw(const COL_RawSlice& raw) { return *(Slice_(ty)*) &raw; } \
         static inline COL_RawList* CreateRawListPtr(List_(ty)* list) { return (COL_RawList*) (list); } \
         static inline List_(ty) List##ty##FromRaw(const COL_RawList& raw) { return *(List_(ty)*) &raw; } \
         EXTERN_C_BEGIN
@@ -94,11 +91,13 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
 
     #define COL_RAW_PTR_FROM_LIST_PTR(ls) (CreateRawListPtr(ls))
 
+    #define COL_SLICE_INTERNAL(ty, ...) ((Slice_(ty)) Slice<ty>({__VA_ARGS__}))
+
     EXTERN_C_BEGIN
 
 #else
 
-    #define COL_DECLARE_SLICE(ty) \
+    #define COL_DECLARE_FOR(ty) \
         typedef union \
         { \
             struct \
@@ -107,9 +106,8 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
                 isize count; \
             }; \
             COL_RawSlice raw; \
-        } Slice_(ty);
-
-    #define COL_DECLARE_LIST(ty) \
+        } Slice_(ty); \
+        \
         typedef union \
         { \
             struct \
@@ -132,37 +130,32 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
 
     #define COL_RAW_PTR_FROM_LIST_PTR(ls) (&((ls)->raw))
 
+    #define COL_SLICE_INTERNAL(ty, ...) \
+        ((Slice_(ty)) \
+        { \
+            .data = (ty[]) {__VA_ARGS__}, \
+            .count = sizeof((ty[]) {__VA_ARGS__}) / sizeof(ty), \
+        })
+
 #endif
 
-COL_DECLARE_SLICE(     b8);
-COL_DECLARE_SLICE(     u8);
-COL_DECLARE_SLICE(    u16);
-COL_DECLARE_SLICE(    u32);
-COL_DECLARE_SLICE(    u64);
-COL_DECLARE_SLICE(     i8);
-COL_DECLARE_SLICE(    i16);
-COL_DECLARE_SLICE(    i32);
-COL_DECLARE_SLICE(    i64);
-COL_DECLARE_SLICE(    f32);
-COL_DECLARE_SLICE(    f64);
-COL_DECLARE_SLICE(   char);
-COL_DECLARE_SLICE( rawptr);
-COL_DECLARE_SLICE(cstring);
+COL_DECLARE_FOR(  b8);
+COL_DECLARE_FOR(  u8);
+COL_DECLARE_FOR( u16);
+COL_DECLARE_FOR( u32);
+COL_DECLARE_FOR( u64);
+COL_DECLARE_FOR(  i8);
+COL_DECLARE_FOR( i16);
+COL_DECLARE_FOR( i32);
+COL_DECLARE_FOR( i64);
+COL_DECLARE_FOR( f32);
+COL_DECLARE_FOR( f64);
+COL_DECLARE_FOR(char);
 
-COL_DECLARE_LIST(     b8);
-COL_DECLARE_LIST(     u8);
-COL_DECLARE_LIST(    u16);
-COL_DECLARE_LIST(    u32);
-COL_DECLARE_LIST(    u64);
-COL_DECLARE_LIST(     i8);
-COL_DECLARE_LIST(    i16);
-COL_DECLARE_LIST(    i32);
-COL_DECLARE_LIST(    i64);
-COL_DECLARE_LIST(    f32);
-COL_DECLARE_LIST(    f64);
-COL_DECLARE_LIST(   char);
-COL_DECLARE_LIST( rawptr);
-COL_DECLARE_LIST(cstring);
+COL_DECLARE_FOR( rawptr);
+COL_DECLARE_FOR(cstring);
+
+COL_DECLARE_FOR(MEM_Allocator);
 
 // allocation/deallocation -----------------------------------------------------------------------------------------------------
 
@@ -282,14 +275,20 @@ void COL_DeleteRawList(COL_RawList* list);
 // slice/list utils ------------------------------------------------------------------------------------------------------------
 
 /**
+ * Declare an inline slice literal. Note that this will not be allocated using any specific
+ * allocator, and is embedded in the application binary.
+ */
+#define SLICE(ty, ...) COL_SLICE_INTERNAL(ty, __VA_ARGS__)
+
+/**
  * Get a SUB_SLICE of the provided slice/list, starting at 'start' and containing 'count' elements.
  * Note: if the bounds check fail, the returned slice will have a null data pointer and a count of 0.
  * Use as:
-```
+```cpp
 Slice_(i32) s = COL_SUB_SLICE(sliceOrList, start, count);
 ```
  * Note that in c++, the following won't work:
-```
+```cpp
 auto s = COL_SUB_SLICE(sliceOrList, start, count); // WILL NOT COMPILE!!
 ```
  * Can also be used when passing parameters to functions:
