@@ -1,4 +1,3 @@
-#include "Core/Memory.h"
 #include <Core/Collections.h>
 
 COL_RawSlice COL_NewRawSlice(usize tySize, usize tyAlign, MEM_Allocator allocator, isize count, b8 skipInit)
@@ -12,7 +11,6 @@ void COL_ResizeRawSlice(usize tySize, usize tyAlign, MEM_Allocator allocator, CO
 {
     if (!slice) return;
 
-    size_t k = sizeof(__typeof__(allocator.procedure));
     rawptr newMem = MEM_Reallocate(
         allocator,
         !skipInit,

@@ -2886,7 +2886,7 @@ Brahma_Process brahma_start_process(Brahma_String_Array_List args, const char* w
             char** argv = (char**) malloc((args.count + 1) * sizeof(char*));
             for (size_t i = 0; i < args.count; i++)
             {
-                argv[i] = args.data[i];
+                argv[i] = (char*) args.data[i];
             }
             argv[args.count] = NULL;
 
