@@ -27,7 +27,6 @@
     #pragma GCC diagnostic error   "-Wextra"
     #pragma GCC diagnostic error   "-Wshadow"
     #pragma GCC diagnostic error   "-Wconversion"
-    #pragma GCC diagnostic error   "-Wsign-conversion"
     #pragma GCC diagnostic error   "-Wdouble-promotion"
     #pragma GCC diagnostic error   "-Wfloat-equal"
     #pragma GCC diagnostic error   "-Wundef"
@@ -54,7 +53,6 @@
     #pragma clang diagnostic error   "-Wextra"
     #pragma clang diagnostic error   "-Wshadow"
     #pragma clang diagnostic error   "-Wconversion"
-    #pragma clang diagnostic error   "-Wsign-conversion"
     #pragma clang diagnostic error   "-Wdouble-promotion"
     #pragma clang diagnostic error   "-Wfloat-equal"
     #pragma clang diagnostic error   "-Wundef"
@@ -1615,7 +1613,6 @@ bool brahma_execute(Brahma_Args ex)
                         brahma_append_string_to_array_list(&commonCArgs, "-Wextra");
                         brahma_append_string_to_array_list(&commonCArgs, "-Wshadow");
                         brahma_append_string_to_array_list(&commonCArgs, "-Wconversion");
-                        brahma_append_string_to_array_list(&commonCArgs, "-Wsign-conversion");
                         brahma_append_string_to_array_list(&commonCArgs, "-Wdouble-promotion");
                         brahma_append_string_to_array_list(&commonCArgs, "-Wfloat-equal");
                         brahma_append_string_to_array_list(&commonCArgs, "-Wundef");
