@@ -1523,7 +1523,7 @@ bool brahma_execute(Brahma_Args ex)
             {
                 brahma_append_string_to_array_list(&commonCxxArgs, "/EHs-"); // no exception handling
                 brahma_append_string_to_array_list(&commonCxxArgs, "/GR-"); // no rtti
-                brahma_append_string_to_array_list(&commonCxxArgs, "/std:c++20");
+                brahma_append_string_to_array_list(&commonCxxArgs, "/std:c++14");
             }
             else
             {
@@ -1534,13 +1534,13 @@ bool brahma_execute(Brahma_Args ex)
 
                 brahma_append_string_to_array_list(&commonCxxArgs, "-fno-exceptions");
                 brahma_append_string_to_array_list(&commonCxxArgs, "-fno-rtti");
-                brahma_append_string_to_array_list(&commonCxxArgs, "-std=c++20");
+                brahma_append_string_to_array_list(&commonCxxArgs, "-std=c++14");
             }
         }
 
         // add some c-only args that we don't want for c++
         {
-            brahma_append_string_to_array_list(&commonCArgs, (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? "/std:c17" : "-std=c17");
+            brahma_append_string_to_array_list(&commonCArgs, (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? "/std:c11" : "-std=c11");
         }
 
         PROFILE_SECTION_END("create common compile args");
@@ -2080,7 +2080,7 @@ bool brahma_execute(Brahma_Args ex)
                 "CompileFlags:\n"
                 "  Add:\n"
                 "    - -xc++\n"
-                "    - -std=c++20\n"
+                "    - -std=c++14\n"
                 "    - -fno-exceptions\n"
                 "    - -fno-rtti\n"
                 "---\n"
@@ -2089,7 +2089,7 @@ bool brahma_execute(Brahma_Args ex)
                 "CompileFlags:\n"
                 "  Add:\n"
                 "    - -xc\n"
-                "    - -std=c17\n"
+                "    - -std=c11\n"
             );
 
             fileWriteFailed = (fclose(clangdConfigFile) != 0);

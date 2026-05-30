@@ -1,5 +1,9 @@
 #include <Core/Memory.h>
 
+void MEM_Copy(rawptr dst, const void* src, usize num) { memcpy(dst, src, (size_t) num); }
+void MEM_Move(rawptr dst, const void* src, usize num) { memmove(dst, src, (size_t) num); }
+void MEM_Set(rawptr dst, i32 value, usize num) { memset(dst, (int) value, num); }
+
 static usize MEM_Internal_FixAlign(usize inAlign)
 {
     if (inAlign == 0)
@@ -90,7 +94,7 @@ rawptr MEM_DefaultReallocate(
     if (oldMem)
     {
         usize copySize = (oldSize < newSize) ? oldSize : newSize;
-        memcpy(newMem, oldMem, copySize);
+        MEM_Copy(newMem, oldMem, copySize);
         MEM_Deallocate(allocator, oldMem);
     }
 
@@ -177,7 +181,6 @@ rawptr MEM_DefaultAllocatorProc(
         return nil;
     }
 
-
     if (mode == MEM_AllocatorMode_Allocate ||
         mode == MEM_AllocatorMode_AllocateUninitialised)
     {
@@ -198,7 +201,7 @@ rawptr MEM_DefaultAllocatorProc(
         #endif
 
         if (memory && (mode == MEM_AllocatorMode_Allocate))
-            memset(memory, 0, size);
+            MEM_Set(memory, 0, size);
 
         return memory;
     }
@@ -331,7 +334,7 @@ rawptr MEM_ArenaAllocatorProc(
 
         b8 zeroed = (mode == MEM_AllocatorMode_Allocate);
         if (zeroed)
-            memset(result, 0, size);
+            MEM_Set(result, 0, size);
 
         return result;
     }

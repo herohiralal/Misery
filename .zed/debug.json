@@ -7,7 +7,7 @@
         "request": "launch",
         "adapter": "CodeLLDB",
         "initCommands": [
-            "command script import ${ZED_WORKTREE_ROOT}/Source/Core/LLDB/formatters.py",
+            // "command script import ${ZED_WORKTREE_ROOT}/Source/Core/LLDB/formatters.py",
         ],
         "console": "integratedTerminal",
     },

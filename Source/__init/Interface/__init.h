@@ -121,6 +121,7 @@ static_assert(MSR_MSVC + MSR_GCC + MSR_CLANG == 1, "Exactly one compiler must be
     // - alignof
 
     #define MSR_DEPRECATED                  [[deprecated]]
+    #define MSR_TYPEOF(ty)                  decltype(ty)
 
     #if MSR_MSVC
         #define MSR_OFFSETOF(type, member)  ((u64)&reinterpret_cast<char const volatile&>((((type*)0)->member)))
@@ -153,6 +154,7 @@ static_assert(MSR_MSVC + MSR_GCC + MSR_CLANG == 1, "Exactly one compiler must be
     #endif
 
     #define static_assert                   _Static_assert
+    #define MSR_TYPEOF(ty)                  __typeof__(ty)
 
 #endif
 
@@ -358,7 +360,7 @@ typedef signed long long    i64;
 typedef float               f32;
 typedef double              f64;
 typedef void*               rawptr;
-typedef char*               cstring;
+typedef const char*         cstring;
 
 #ifdef __cplusplus
     #undef  nil
@@ -457,7 +459,7 @@ struct SrcLoc
  * parameter, so that the caller doesn't have to manually specify the file and line number every time.
  */
 #define SRC_LOC() \
-    (MSR_TY_INITIALISER(SrcLoc) {.file = __FILE__, .line = __LINE__, .column = 0, .function = __FUNCTION__})
+    (MSR_TY_INITIALISER(SrcLoc) {__FILE__, __LINE__, 0, __FUNCTION__})
 
 // includes --------------------------------------------------------------------------------------------------------------------
 
@@ -487,10 +489,6 @@ MSR_SUPPRESS_WARN
     #include <hidusage.h>
 #endif
 
-#if (MSR_LINUX || MSR_ANDROID) && !defined(_GNU_SOURCE)
-    #define _GNU_SOURCE
-#endif
-
 #if MSR_UNIX
 
     // since we're on C11
@@ -499,6 +497,9 @@ MSR_SUPPRESS_WARN
             #define _DARWIN_C_SOURCE
         #endif
     #else
+        #ifndef _GNU_SOURCE
+            #define _GNU_SOURCE
+        #endif
         #ifndef _POSIX_C_SOURCE
             #define _POSIX_C_SOURCE 200809L
         #endif
@@ -594,5 +595,18 @@ namespace DeferInternals
 
 #define DEFER_CONCAT_IMPL(x, y) x##y
 #define DEFER_CONCAT(x, y) DEFER_CONCAT_IMPL(x, y)
+
+/**
+ * Helper macro similar to `defer` statements in modern languages.
+ * Supposed to be used as:
+ * ```
+ * int main()
+ * {
+ *     DEFER {
+ *         printf("will be printed at the end");
+ *     };
+ * }
+ * ```
+ */
 #define DEFER auto DEFER_CONCAT(defer_, __COUNTER__) = DeferInternals::Helper() + [&]()
 #endif
