@@ -59,15 +59,14 @@ void COL_ResizeRawList(usize tySize, usize tyAlign, COL_RawList* list, isize new
     if (list->count > sl.count) list->count = sl.count;
 }
 
-void COL_EnsureRawListAdditionalCapacity(usize tySize, usize tyAlign, COL_RawList* list, isize additionalCap)
+void COL_EnsureRawListCapacity(usize tySize, usize tyAlign, COL_RawList* list, isize capacity)
 {
     if (!list) return;
 
-    isize reqCap = list->count + additionalCap;
-    if (reqCap > list->capacity)
+    if (capacity > list->capacity)
     {
         isize newCap = list->capacity ? list->capacity : 16;
-        while (newCap < reqCap) newCap *= 2;
+        while (newCap < capacity) newCap *= 2;
         COL_ResizeRawList(tySize, tyAlign, list, newCap);
     }
 }

@@ -91,8 +91,6 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
 
     #define COL_RAW_PTR_FROM_LIST_PTR(ls) (CreateRawListPtr(ls))
 
-    #define COL_SLICE_INTERNAL(ty, ...) ((Slice_(ty)) Slice<ty>({__VA_ARGS__}))
-
     EXTERN_C_BEGIN
 
 #else
@@ -129,13 +127,6 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
     #define COL_RAW_PTR_FROM_SLICE_PTR(sl) (&((sl)->raw))
 
     #define COL_RAW_PTR_FROM_LIST_PTR(ls) (&((ls)->raw))
-
-    #define COL_SLICE_INTERNAL(ty, ...) \
-        ((Slice_(ty)) \
-        { \
-            .data = (ty[]) {__VA_ARGS__}, \
-            .count = sizeof((ty[]) {__VA_ARGS__}) / sizeof(ty), \
-        })
 
 #endif
 
@@ -202,8 +193,8 @@ COL_RawList COL_NewRawList(usize tySize, usize tyAlign, MEM_Allocator, isize ini
 // internal function; resizes an existing list (without any type info)
 void COL_ResizeRawList(usize tySize, usize tyAlign, COL_RawList* list, isize newCap);
 
-// internal function; ensures that the list has enough capacity to append more elements (without any type info)
-void COL_EnsureRawListAdditionalCapacity(usize tySize, usize tyAlign, COL_RawList* list, isize additionalCap);
+// internal function; ensures that the list has enough capacity to hold a given number of elements (without any type info)
+void COL_EnsureRawListCapacity(usize tySize, usize tyAlign, COL_RawList* list, isize additionalCap);
 
 // internal function; clears an existing list by setting the count to zero (without any type info)
 void COL_ClearRawList(COL_RawList* list);
@@ -225,11 +216,11 @@ void COL_DeleteRawList(COL_RawList* list);
 #define COL_AppendToList(listPtr, item) \
     do \
     { \
-        COL_EnsureRawListAdditionalCapacity( \
+        COL_EnsureRawListCapacity( \
             sizeof((listPtr)->data[0]), \
             alignof(MSR_TYPEOF((listPtr)->data[0])), \
             COL_RAW_PTR_FROM_LIST_PTR(listPtr), \
-            (isize) (1) \
+            (listPtr)->count + (isize) (1) \
         ); \
         \
         (listPtr)->data[(listPtr)->count] = (item); \
@@ -241,11 +232,11 @@ void COL_DeleteRawList(COL_RawList* list);
     { \
         if ((items).count && (items).data) \
         { \
-            COL_EnsureRawListAdditionalCapacity( \
+            COL_EnsureRawListCapacity( \
                 sizeof((listPtr)->data[0]), \
                 alignof(MSR_TYPEOF((listPtr)->data[0])), \
                 COL_RAW_PTR_FROM_LIST_PTR(listPtr), \
-                (items).count \
+                (listPtr)->count + (items).count \
             ); \
             \
             MEM_Move( \
@@ -273,6 +264,22 @@ void COL_DeleteRawList(COL_RawList* list);
     COL_DeleteRawList(COL_RAW_PTR_FROM_LIST_PTR(listPtr))
 
 // slice/list utils ------------------------------------------------------------------------------------------------------------
+
+#ifdef __cplusplus
+
+    #define COL_SLICE_INTERNAL(ty, ...) \
+        ((Slice_(ty)) Slice<ty>({__VA_ARGS__}))
+
+#else
+
+    #define COL_SLICE_INTERNAL(ty, ...) \
+        ((Slice_(ty)) \
+        { \
+            .data = (ty[]) {__VA_ARGS__}, \
+            .count = sizeof((ty[]) {__VA_ARGS__}) / sizeof(ty), \
+        })
+
+#endif
 
 /**
  * Declare an inline slice literal. Note that this will not be allocated using any specific
