@@ -34,3 +34,60 @@ void COL_DeleteRawSlice(MEM_Allocator allocator, COL_RawSlice* slice)
 
     *slice = (COL_RawSlice) {0};
 }
+
+COL_RawList COL_NewRawList(usize tySize, usize tyAlign, MEM_Allocator allocator, isize initialCap)
+{
+    COL_RawList output = {0};
+    output.allocator = allocator;
+
+    if (initialCap)
+    {
+        COL_RawSlice sl = COL_NewRawSlice(tySize, tyAlign, allocator, initialCap, true);
+        output.data = sl.data;
+        output.capacity = sl.count;
+    }
+
+    return output;
+}
+
+void COL_ResizeRawList(usize tySize, usize tyAlign, COL_RawList* list, isize newCap)
+{
+    if (!list) return;
+
+    COL_RawSlice sl = {.data = list->data, .count = list->capacity};
+    COL_ResizeRawSlice(tySize, tyAlign, list->allocator, &sl, newCap, true);
+    list->data = sl.data;
+    list->capacity = sl.count;
+    if (list->count > sl.count) list->count = sl.count;
+}
+
+void COL_EnsureRawListAdditionalCapacity(usize tySize, usize tyAlign, COL_RawList* list, isize additionalCap)
+{
+    if (!list) return;
+
+    isize reqCap = list->count + additionalCap;
+    if (reqCap > list->capacity)
+    {
+        isize newCap = list->capacity ? list->capacity : 16;
+        while (newCap < reqCap) newCap *= 2;
+        COL_ResizeRawList(tySize, tyAlign, list, newCap);
+    }
+}
+
+void COL_ClearRawList(COL_RawList* list)
+{
+    if (!list) return;
+
+    list->count = 0;
+}
+
+void COL_DeleteRawList(COL_RawList* list)
+{
+    if (!list) return;
+
+    MEM_Allocator a = list->allocator;
+    MEM_Deallocate(a, list->data);
+
+    *list = (COL_RawList) {0};
+    list->allocator = a;
+}

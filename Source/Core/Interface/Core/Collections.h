@@ -210,6 +210,82 @@ void COL_DeleteRawSlice(MEM_Allocator, COL_RawSlice* slice);
         COL_RAW_PTR_FROM_SLICE_PTR(slicePtr) \
     )
 
+// internal function; creates a new list (without any type info)
+COL_RawList COL_NewRawList(usize tySize, usize tyAlign, MEM_Allocator, isize initialCap OPT_ARG);
+
+// internal function; resizes an existing list (without any type info)
+void COL_ResizeRawList(usize tySize, usize tyAlign, COL_RawList* list, isize newCap);
+
+// internal function; ensures that the list has enough capacity to append more elements (without any type info)
+void COL_EnsureRawListAdditionalCapacity(usize tySize, usize tyAlign, COL_RawList* list, isize additionalCap);
+
+// internal function; clears an existing list by setting the count to zero (without any type info)
+void COL_ClearRawList(COL_RawList* list);
+
+// internal function; deletes an existing list (without any type info)
+void COL_DeleteRawList(COL_RawList* list);
+
+#define COL_NewList(ty, allocator, initialCap) \
+    COL_LIST_FROM_RAW( \
+        ty, \
+        COL_NewRawList( \
+            sizeof(ty), \
+            alignof(ty), \
+            (allocator), \
+            (initialCap) \
+        ) \
+    )
+
+#define COL_AppendToList(listPtr, item) \
+    do \
+    { \
+        COL_EnsureRawListAdditionalCapacity( \
+            sizeof((listPtr)->data[0]), \
+            alignof(MSR_TYPEOF((listPtr)->data[0])), \
+            COL_RAW_PTR_FROM_LIST_PTR(listPtr), \
+            (isize) (1) \
+        ); \
+        \
+        (listPtr)->data[(listPtr)->count] = (item); \
+        (listPtr)->count++; \
+    } while(0)
+
+#define COL_AppendAllToList(listPtr, items) \
+    do \
+    { \
+        if ((items).count && (items).data) \
+        { \
+            COL_EnsureRawListAdditionalCapacity( \
+                sizeof((listPtr)->data[0]), \
+                alignof(MSR_TYPEOF((listPtr)->data[0])), \
+                COL_RAW_PTR_FROM_LIST_PTR(listPtr), \
+                (items).count \
+            ); \
+            \
+            MEM_Move( \
+                ((u8*) (listPtr)->data) + ((listPtr)->count * (isize) sizeof((listPtr)->data[0])), \
+                (items).data, \
+                (items).count * (isize) sizeof((listPtr)->data[0]) \
+            ); \
+            \
+            (listPtr)->count += (items).count; \
+        } \
+    } while(0)
+
+#define COL_ResizeList(listPtr, newCap) \
+    COL_ResizeRawList( \
+        sizeof((listPtr)->data[0]), \
+        alignof(MSR_TYPEOF((listPtr)->data[0])), \
+        COL_RAW_PTR_FROM_LIST_PTR(listPtr), \
+        (isize) (newCap) \
+    )
+
+#define COL_ClearList(listPtr) \
+    COL_ClearRawList(COL_RAW_PTR_FROM_LIST_PTR(listPtr))
+
+#define COL_FreeList(listPtr) \
+    COL_DeleteRawList(COL_RAW_PTR_FROM_LIST_PTR(listPtr))
+
 // string utils ----------------------------------------------------------------------------------------------------------------
 
 #define UTF8STR(text) \
