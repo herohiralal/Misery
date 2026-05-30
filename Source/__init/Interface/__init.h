@@ -39,6 +39,8 @@
     #pragma GCC diagnostic ignored "-Wunused-parameter"
     #pragma GCC diagnostic ignored "-Wunused-result"
     #pragma GCC diagnostic ignored "-Wuninitialized"
+    #pragma GCC diagnostic ignored "-Wsign-conversion"
+    #pragma GCC diagnostic ignored "-Wmissing-braces"
 
     #define MSR_SUPPRESS_WARN \
         _Pragma("GCC diagnostic push")  \
@@ -67,6 +69,8 @@
     #pragma clang diagnostic ignored "-Wunused-parameter"
     #pragma clang diagnostic ignored "-Wunused-result"
     #pragma clang diagnostic ignored "-Wuninitialized"
+    #pragma clang diagnostic ignored "-Wsign-conversion"
+    #pragma clang diagnostic ignored "-Wmissing-braces"
 
     #define MSR_SUPPRESS_WARN \
         _Pragma("clang diagnostic push")  \
