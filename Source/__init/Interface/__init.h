@@ -90,8 +90,6 @@
     #define MSR_CLANG 0
 #endif
 
-static_assert(MSR_MSVC + MSR_GCC + MSR_CLANG == 1, "Exactly one compiler must be defined.");
-
 // macros ----------------------------------------------------------------------------------------------------------------------
 
 #if MSR_MSVC
@@ -180,6 +178,8 @@ static_assert(MSR_MSVC + MSR_GCC + MSR_CLANG == 1, "Exactly one compiler must be
 #else
     #define MSR_TY_INITIALISER(ty) (ty)
 #endif
+
+static_assert(MSR_MSVC + MSR_GCC + MSR_CLANG == 1, "Exactly one compiler must be defined.");
 
 // configurations --------------------------------------------------------------------------------------------------------------
 
