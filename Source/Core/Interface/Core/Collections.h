@@ -57,6 +57,7 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
             isize count; \
             \
             Slice<ty>() = default; \
+            Slice<ty>(const ty* inData, isize inCount) : data(const_cast<ty*>(inData)), count(inCount) { } \
             Slice<ty>(const Slice_(ty)& other) : data(other.data), count(other.count) { } \
             Slice<ty>(std::initializer_list<ty> init) : data(const_cast<ty*>(init.begin())), count((isize) init.size()) { } \
             operator Slice_(ty)() const { return Slice_(ty) {data, count}; } \
@@ -71,6 +72,7 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
             MEM_Allocator allocator; \
             \
             List<ty>() = default; \
+            List<ty>(const ty* d, isize cn, isize cp, MEM_Allocator a) : data(const_cast<ty*>(d)), count(cn), capacity(cp), allocator(a) { } \
             List<ty>(const List_(ty)& other) : data(other.data), count(other.count), capacity(other.capacity), allocator(other.allocator) { } \
             operator List_(ty)() const { return List_(ty) {data, count, capacity, allocator}; } \
         }; \
