@@ -1,4 +1,4 @@
-#include <Core/Collections.h>
+#include <Core/Core.h>
 
 COL_RawSlice COL_NewRawSlice(usize tySize, usize tyAlign, MEM_Allocator allocator, isize count, b8 skipInit)
 {

@@ -1,4 +1,4 @@
-#include <Core/Memory.h>
+#include <Core/Core.h>
 
 MEM_Allocator MEM_GetTempAllocator(void)
 {

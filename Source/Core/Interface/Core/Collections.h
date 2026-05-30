@@ -164,13 +164,6 @@ COL_DECLARE_LIST(   char);
 COL_DECLARE_LIST( rawptr);
 COL_DECLARE_LIST(cstring);
 
-/**
- * UTF-8 string type, with length info (not necessarily null-terminated).
- */
-typedef Slice_(u8) utf8str;
-COL_DECLARE_SLICE(utf8str);
-COL_DECLARE_LIST(utf8str);
-
 // allocation/deallocation -----------------------------------------------------------------------------------------------------
 
 // internal function; creates a new slice (without any type info)
@@ -286,53 +279,41 @@ void COL_DeleteRawList(COL_RawList* list);
 #define COL_FreeList(listPtr) \
     COL_DeleteRawList(COL_RAW_PTR_FROM_LIST_PTR(listPtr))
 
-// string utils ----------------------------------------------------------------------------------------------------------------
-
-#define UTF8STR(text) \
-    MSR_TY_INITIALISER(utf8str) {(u8*) text, (isize) (sizeof(text) - 1)}
-
-#define COL_SUBSTRING(str, st, len) \
-    MSR_TY_INITIALISER(utf8str) \
-    { \
-        ((st) < 0 || (len) < 0 || ((st) + (len)) > (str).count) ? nil : &((str).data[(st)]), \
-        ((st) < 0 || (len) < 0 || ((st) + (len)) > (str).count) ? 0   : (len), \
-    }
-
 // slice/list utils ------------------------------------------------------------------------------------------------------------
 
 /**
- * Get a subslice of the provided slice/list, starting at 'start' and containing 'count' elements.
+ * Get a SUB_SLICE of the provided slice/list, starting at 'start' and containing 'count' elements.
  * Note: if the bounds check fail, the returned slice will have a null data pointer and a count of 0.
  * Use as:
- * ```
- * Slice_(i32) s = COL_SUBSLICE(sliceOrList, start, count);
- * ```
+```
+Slice_(i32) s = COL_SUB_SLICE(sliceOrList, start, count);
+```
  * Note that in c++, the following won't work:
- * ```
- * auto s = COL_SUBSLICE(sliceOrList, start, count); // WILL NOT COMPILE!!
- * ```
+```
+auto s = COL_SUB_SLICE(sliceOrList, start, count); // WILL NOT COMPILE!!
+```
  * Can also be used when passing parameters to functions:
- * ```
- * int some_func(Slice_(i32) s);
- * int main()
- * {
- *     // ...
- *     #ifdef __cplusplus
- *         // c++ supports aggregate initialisation
- *         some_func(COL_SUBSLICE(sliceOrList, start, count));
- *         // OR
- *         some_func(Slice_(i32) COL_SUBSLICE(sliceOrList, start, count));
- *         // OR
- *         some_func(Slice<i32> COL_SUBSLICE(sliceOrList, start, count));
- *     #else
- *         // c requires this weird cast-like syntax
- *         some_func((Slice_(i32)) COL_SUBSLICE(sliceOrList, start, count));
- *     #endif
- *     // ...
- * }
- * ```
+```cpp
+int some_func(Slice_(i32) s);
+int main()
+{
+    // ...
+    #ifdef __cplusplus
+        // c++ supports aggregate initialisation
+        some_func(COL_SUB_SLICE(sliceOrList, start, count));
+        // OR
+        some_func(Slice_(i32) COL_SUB_SLICE(sliceOrList, start, count));
+        // OR
+        some_func(Slice<i32> COL_SUB_SLICE(sliceOrList, start, count));
+    #else
+        // c requires this weird cast-like syntax
+        some_func((Slice_(i32)) COL_SUB_SLICE(sliceOrList, start, count));
+    #endif
+    // ...
+}
+```
  */
-#define COL_SUBSLICE(sl, st, cnt) \
+#define COL_SUB_SLICE(sl, st, cnt) \
     { \
         ((st) < 0 || (cnt) < 0 || ((st) + (cnt)) > (sl).count) ? nil : &((sl).data[(st)]), \
         ((st) < 0 || (cnt) < 0 || ((st) + (cnt)) > (sl).count) ? 0   : (cnt), \

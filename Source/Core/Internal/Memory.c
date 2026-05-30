@@ -1,4 +1,4 @@
-#include <Core/Memory.h>
+#include <Core/Core.h>
 
 void MEM_Copy(rawptr dst, const void* src, usize num) { memcpy(dst, src, (size_t) num); }
 void MEM_Move(rawptr dst, const void* src, usize num) { memmove(dst, src, (size_t) num); }
