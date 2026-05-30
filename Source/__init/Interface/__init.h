@@ -54,7 +54,7 @@
     #define MSR_GCC 1
 #endif
 
-#if defined(__clang__) && !defined(_MSC_VER)
+#if defined(__clang__) && !defined(_MSC_VER) && !defined(__GNUC__)
     #pragma clang diagnostic error   "-Wall"
     #pragma clang diagnostic error   "-Wextra"
     #pragma clang diagnostic error   "-Wshadow"
