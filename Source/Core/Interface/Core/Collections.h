@@ -278,11 +278,7 @@ void COL_DeleteRawList(COL_RawList* list);
 #else
 
     #define COL_SLICE_INTERNAL(ty, ...) \
-        ((Slice_(ty)) \
-        { \
-            .data = (ty[]) {__VA_ARGS__}, \
-            .count = sizeof((ty[]) {__VA_ARGS__}) / sizeof(ty), \
-        })
+        ((Slice_(ty)) {.data = (ty[]) {__VA_ARGS__}, .count = sizeof((ty[]) {__VA_ARGS__}) / sizeof(ty)})
 
 #endif
 

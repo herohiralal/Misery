@@ -169,7 +169,7 @@ utf8str STR_Replace(utf8str str, utf8str oldSubString, utf8str newSubString, MEM
     if (!str.data || !str.count || !oldSubString.data || !oldSubString.count)
         return (utf8str) {0};
 
-    List_(i16) replacementIndices = COL_NewList(i16, 64, MEM_temp);
+    List_(isize) replacementIndices = COL_NewList(isize, 64, MEM_temp);
 
     isize searchSpaceOffset = 0;
     while (true)
@@ -183,7 +183,7 @@ utf8str STR_Replace(utf8str str, utf8str oldSubString, utf8str newSubString, MEM
         isize idx = searchSpaceOffset + searchIdx;
         if (idx >= str.count) { break; }
 
-        COL_AppendToList(&replacementIndices, (i16) idx);
+        COL_AppendToList(&replacementIndices, idx);
         searchSpaceOffset += searchIdx + oldSubString.count;
     }
 
@@ -201,7 +201,7 @@ utf8str STR_Replace(utf8str str, utf8str oldSubString, utf8str newSubString, MEM
     isize srcIdx = 0, dstIdx = 0;
     for (isize r = 0; r < replacementIndices.count; r++)
     {
-        isize repIdx = (isize) replacementIndices.data[r];
+        isize repIdx = replacementIndices.data[r];
         isize chunkSize = repIdx - srcIdx;
         MEM_Copy(output.data + dstIdx, str.data + srcIdx, (usize) chunkSize);
         dstIdx += chunkSize;
