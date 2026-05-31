@@ -29,10 +29,10 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
     struct List { T* data; isize count; isize capacity; MEM_Allocator allocator; };
 
     template <typename T>
-    static inline COL_RawSlice* CreateRawSlicePtr(Slice<T>* slice) { return (COL_RawSlice*) (slice); }
+    static inline COL_RawSlice* COL_CreateRawSlicePtr(Slice<T>* slice) { return (COL_RawSlice*) (slice); }
 
     template <typename T>
-    static inline COL_RawList* CreateRawListPtr(List<T>* list) { return (COL_RawList*) (list); }
+    static inline COL_RawList* COL_CreateRawListPtr(List<T>* list) { return (COL_RawList*) (list); }
 
     #define COL_DECLARE_FOR(ty) \
         typedef struct \
@@ -59,8 +59,10 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
             Slice<ty>() = default; \
             Slice<ty>(const ty* inData, isize inCount) : data(const_cast<ty*>(inData)), count(inCount) { } \
             Slice<ty>(const Slice_(ty)& other) : data(other.data), count(other.count) { } \
+            Slice<ty>(const List_(ty)& other) : data(other.data), count(other.count) { } \
             Slice<ty>(std::initializer_list<ty> init) : data(const_cast<ty*>(init.begin())), count((isize) init.size()) { } \
             operator Slice_(ty)() const { return Slice_(ty) {data, count}; } \
+            Slice_(ty) AsCSlice() const { return Slice_(ty) {data, count}; } \
         }; \
         \
         template <> \
@@ -75,23 +77,23 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
             List<ty>(const ty* d, isize cn, isize cp, MEM_Allocator a) : data(const_cast<ty*>(d)), count(cn), capacity(cp), allocator(a) { } \
             List<ty>(const List_(ty)& other) : data(other.data), count(other.count), capacity(other.capacity), allocator(other.allocator) { } \
             operator List_(ty)() const { return List_(ty) {data, count, capacity, allocator}; } \
+            operator Slice_(ty)() const { return Slice_(ty) {data, count}; } \
+            operator Slice<ty>() const { return Slice<ty>(data, count); } \
         }; \
         \
-        static inline COL_RawSlice* CreateRawSlicePtr(Slice_(ty)* slice) { return (COL_RawSlice*) (slice); } \
-        static inline Slice_(ty) Slice##ty##FromRaw(const COL_RawSlice& raw) { return *(Slice_(ty)*) &raw; } \
-        static inline COL_RawList* CreateRawListPtr(List_(ty)* list) { return (COL_RawList*) (list); } \
-        static inline List_(ty) List##ty##FromRaw(const COL_RawList& raw) { return *(List_(ty)*) &raw; } \
+        static inline COL_RawSlice* COL_CreateRawSlicePtr(Slice_(ty)* slice) { return (COL_RawSlice*) (slice); } \
+        static inline Slice_(ty) COL_Slice##ty##FromRaw(const COL_RawSlice& raw) { return *(Slice_(ty)*) &raw; } \
+        static inline COL_RawList* COL_CreateRawListPtr(List_(ty)* list) { return (COL_RawList*) (list); } \
+        static inline List_(ty) COL_List##ty##FromRaw(const COL_RawList& raw) { return *(List_(ty)*) &raw; } \
         EXTERN_C_BEGIN
 
-    #define COL_SLICE_FROM_RAW(ty, raw) \
-        ((Slice_(ty)) Slice##ty##FromRaw(raw))
+    #define COL_SLICE_FROM_RAW(ty, raw) ((Slice_(ty)) COL_Slice##ty##FromRaw(raw))
 
-    #define COL_LIST_FROM_RAW(ty, raw) \
-        ((List_(ty)) List##ty##FromRaw(raw))
+    #define COL_LIST_FROM_RAW(ty, raw) ((List_(ty)) COL_List##ty##FromRaw(raw))
 
-    #define COL_RAW_PTR_FROM_SLICE_PTR(sl) (CreateRawSlicePtr(sl))
+    #define COL_RAW_PTR_FROM_SLICE_PTR(sl) (COL_CreateRawSlicePtr(sl))
 
-    #define COL_RAW_PTR_FROM_LIST_PTR(ls) (CreateRawListPtr(ls))
+    #define COL_RAW_PTR_FROM_LIST_PTR(ls) (COL_CreateRawListPtr(ls))
 
     EXTERN_C_BEGIN
 
@@ -106,6 +108,7 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
                 isize count; \
             }; \
             COL_RawSlice raw; \
+            COL_RawSlice slice; \
         } Slice_(ty); \
         \
         typedef union \
@@ -118,13 +121,12 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
                 MEM_Allocator allocator; \
             }; \
             COL_RawList raw; \
+            Slice_(ty) slice; \
         } List_(ty);
 
-    #define COL_SLICE_FROM_RAW(ty, in) \
-        ((Slice_(ty)) {.raw = in})
+    #define COL_SLICE_FROM_RAW(ty, in) ((Slice_(ty)) {.raw = in})
 
-    #define COL_LIST_FROM_RAW(ty, in) \
-        ((List_(ty)) {.raw = in})
+    #define COL_LIST_FROM_RAW(ty, in) ((List_(ty)) {.raw = in})
 
     #define COL_RAW_PTR_FROM_SLICE_PTR(sl) (&((sl)->raw))
 
@@ -289,42 +291,37 @@ void COL_DeleteRawList(COL_RawList* list);
  */
 #define SLICE(ty, ...) COL_SLICE_INTERNAL(ty, __VA_ARGS__)
 
-/**
- * Get a SUB_SLICE of the provided slice/list, starting at 'start' and containing 'count' elements.
- * Note: if the bounds check fail, the returned slice will have a null data pointer and a count of 0.
- * Use as:
-```cpp
-Slice_(i32) s = COL_SUB_SLICE(sliceOrList, start, count);
-```
- * Note that in c++, the following won't work:
-```cpp
-auto s = COL_SUB_SLICE(sliceOrList, start, count); // WILL NOT COMPILE!!
-```
- * Can also be used when passing parameters to functions:
-```cpp
-int some_func(Slice_(i32) s);
-int main()
-{
-    // ...
-    #ifdef __cplusplus
-        // c++ supports aggregate initialisation
-        some_func(COL_SUB_SLICE(sliceOrList, start, count));
-        // OR
-        some_func(Slice_(i32) COL_SUB_SLICE(sliceOrList, start, count));
-        // OR
-        some_func(Slice<i32> COL_SUB_SLICE(sliceOrList, start, count));
-    #else
-        // c requires this weird cast-like syntax
-        some_func((Slice_(i32)) COL_SUB_SLICE(sliceOrList, start, count));
-    #endif
-    // ...
-}
-```
- */
-#define COL_SUB_SLICE(sl, st, cnt) \
-    { \
-        ((st) < 0 || (cnt) < 0 || ((st) + (cnt)) > (sl).count) ? nil : &((sl).data[(st)]), \
-        ((st) < 0 || (cnt) < 0 || ((st) + (cnt)) > (sl).count) ? 0   : (cnt), \
+#ifdef __cplusplus
+
+    EXTERN_C_END
+
+    template <typename T>
+    static inline Slice<T> COL_SubSliceInternalCxx(Slice<T> sl, isize st, isize cn)
+    {
+        if (st < 0 || cn < 0 || (st + cn) > sl.count)
+            return Slice<T>();
+
+        sl.data = &(sl.data[st]);
+        sl.count = cn;
+        return sl;
     }
+
+    EXTERN_C_BEGIN
+
+    #define COL_SubSliceInternal(sl, st, cn) \
+        (COL_SubSliceInternalCxx((sl), (isize) (st), (isize) (cn)).AsCSlice())
+
+#else
+
+    #define COL_SubSliceInternal(sl, st, cn) \
+        (MSR_TYPEOF(_Generic((sl.raw), COL_RawSlice: (sl), COL_RawList: (sl).slice))) \
+        { \
+            .data  = (0 > (isize) (st) || 0 > (isize) (cn) || ((isize) (st) + (isize) (cn)) > (sl).count) ? nil : &((sl).data[(st)]), \
+            .count = (0 > (isize) (st) || 0 > (isize) (cn) || ((isize) (st) + (isize) (cn)) > (sl).count) ? 0   : (isize) (cn), \
+        }
+
+#endif
+
+#define COL_SubSlice(sl, st, cn) (COL_SubSliceInternal(sl, st, cn))
 
 EXTERN_C_END
