@@ -198,7 +198,7 @@ void COL_DeleteRawSlice(MEM_Allocator, COL_RawSlice* slice);
     #define COL_CloneSliceInternal(slice, allocator) \
         (MSR_TYPEOF(slice)) \
         { \
-            .raw = COL_CloneSlice( \
+            .raw = COL_CloneRawSlice( \
                 sizeof((slice).data[0]), \
                 alignof(MSR_TYPEOF((slice).data[0])), \
                 (allocator), \
