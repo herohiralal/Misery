@@ -128,4 +128,33 @@ isize STR_FindLast(utf8str str, utf8str subString, b8 ignoreCase OPT_ARG);
  */
 utf8str STR_Replace(utf8str str, utf8str oldSubString, utf8str newSubString, MEM_Allocator, b8 ignoreCase OPT_ARG);
 
+/**
+ * Result structure for UTF-8 rune encoding.
+ * Contains the encoded bytes and the number of bytes used.
+ */
+typedef struct { u8 data[4]; i32 len; } STR_EncodedRune;
+
+/**
+ * Result structure for UTF-8 rune decoding.
+ * Contains the decoded rune and the number of bytes consumed.
+ */
+typedef struct { u32 rune; i32 len; } STR_DecodedRune;
+
+/**
+ * Returns the number of bytes required to encode the given rune in UTF-8.
+ */
+i32 STR_GetRuneLength(u32 r);
+
+/**
+ * Encodes a rune into UTF-8 byte sequence and returns the structure containing encoded bytes/length.
+ * Invalid runes or surrogates are replaced with the error rune (U+FFFD).
+ */
+STR_EncodedRune STR_EncodeRune(u32 c);
+
+/**
+ * Decodes a UTF-8 byte sequence into a rune and returns the structure containing the rune/length.
+ * Returns error rune (U+FFFD) for invalid sequences.
+ */
+STR_DecodedRune STR_DecodeRune(utf8str s);
+
 EXTERN_C_END
