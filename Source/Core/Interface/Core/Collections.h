@@ -81,6 +81,10 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
             operator Slice<ty>() const { return Slice<ty>(data, count); } \
         }; \
         \
+        static inline Slice<ty> COL_AsSlice(const Slice_(ty)& s) { return Slice<ty>(s); } \
+        static inline Slice<ty> COL_AsSlice(const Slice<ty>& s) { return s; } \
+        static inline Slice<ty> COL_AsSlice(const List_(ty)& l) { return Slice<ty>(l); } \
+        static inline Slice<ty> COL_AsSlice(const List<ty>& l) { return (Slice<ty>) l; } \
         static inline COL_RawSlice* COL_CreateRawSlicePtr(Slice_(ty)* slice) { return (COL_RawSlice*) (slice); } \
         static inline Slice_(ty) COL_Slice##ty##FromRaw(const COL_RawSlice& raw) { return *(Slice_(ty)*) &raw; } \
         static inline COL_RawList* COL_CreateRawListPtr(List_(ty)* list) { return (COL_RawList*) (list); } \
@@ -309,7 +313,7 @@ void COL_DeleteRawList(COL_RawList* list);
     EXTERN_C_BEGIN
 
     #define COL_SubSliceInternal(sl, st, cn) \
-        (COL_SubSliceInternalCxx((sl), (isize) (st), (isize) (cn)).AsCSlice())
+        (COL_SubSliceInternalCxx(COL_AsSlice(sl), (isize) (st), (isize) (cn)).AsCSlice())
 
 #else
 
@@ -322,6 +326,15 @@ void COL_DeleteRawList(COL_RawList* list);
 
 #endif
 
+/**
+ * Sub-slice an slice with a start and count value.
+ * Use as:
+```
+Slice_(i32) existing = some_func();
+Slice_(i32) sub = COL_SubSlice(existing, 1, 3);
+```
+ * Returns an empty slice if the bounds checking fails.
+ */
 #define COL_SubSlice(sl, st, cn) (COL_SubSliceInternal(sl, st, cn))
 
 EXTERN_C_END
