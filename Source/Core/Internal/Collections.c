@@ -1,21 +1,21 @@
 #include <Core/Core.h>
 
-COL_RawSlice COL_NewRawSlice(usize tySize, usize tyAlign, MEM_Allocator allocator, isize count, b8 skipInit)
+COL_RawSlice COL_NewRawSlice(usize tySize, usize tyAlign, isize count, b8 skipInit, MEM_Allocator allocator)
 {
     rawptr mem = MEM_Allocate(allocator, !skipInit, tySize * (usize) count, tyAlign);
     if (!mem) return (COL_RawSlice) {0};
     return (COL_RawSlice) {.data = mem, .count = count};
 }
 
-COL_RawSlice COL_CloneRawSlice(usize tySize, usize tyAlign, MEM_Allocator allocator, COL_RawSlice slice)
+COL_RawSlice COL_CloneRawSlice(usize tySize, usize tyAlign, COL_RawSlice slice, MEM_Allocator allocator)
 {
-    COL_RawSlice output = COL_NewRawSlice(tySize, tyAlign, allocator, slice.count, true);
+    COL_RawSlice output = COL_NewRawSlice(tySize, tyAlign, slice.count, true, allocator);
     if (!output.data || !output.count) return (COL_RawSlice) {0};
     MEM_Copy(output.data, slice.data, tySize * (usize) slice.count);
     return output;
 }
 
-void COL_ResizeRawSlice(usize tySize, usize tyAlign, MEM_Allocator allocator, COL_RawSlice* slice, isize newCount, b8 skipInit)
+void COL_ResizeRawSlice(usize tySize, usize tyAlign, COL_RawSlice* slice, isize newCount, b8 skipInit, MEM_Allocator allocator)
 {
     if (!slice) return;
 
@@ -32,7 +32,7 @@ void COL_ResizeRawSlice(usize tySize, usize tyAlign, MEM_Allocator allocator, CO
     *slice = (COL_RawSlice) {.data = newMem, .count = newCount};
 }
 
-void COL_DeleteRawSlice(MEM_Allocator allocator, COL_RawSlice* slice)
+void COL_DeleteRawSlice(COL_RawSlice* slice, MEM_Allocator allocator)
 {
     if (!slice) return;
 
@@ -41,14 +41,14 @@ void COL_DeleteRawSlice(MEM_Allocator allocator, COL_RawSlice* slice)
     *slice = (COL_RawSlice) {0};
 }
 
-COL_RawList COL_NewRawList(usize tySize, usize tyAlign, MEM_Allocator allocator, isize initialCap)
+COL_RawList COL_NewRawList(usize tySize, usize tyAlign, isize initialCap, MEM_Allocator allocator)
 {
     COL_RawList output = {0};
     output.allocator = allocator;
 
     if (initialCap)
     {
-        COL_RawSlice sl = COL_NewRawSlice(tySize, tyAlign, allocator, initialCap, true);
+        COL_RawSlice sl = COL_NewRawSlice(tySize, tyAlign, initialCap, true, allocator);
         output.data = sl.data;
         output.capacity = sl.count;
     }
@@ -61,7 +61,7 @@ void COL_ResizeRawList(usize tySize, usize tyAlign, COL_RawList* list, isize new
     if (!list) return;
 
     COL_RawSlice sl = {.data = list->data, .count = list->capacity};
-    COL_ResizeRawSlice(tySize, tyAlign, list->allocator, &sl, newCap, true);
+    COL_ResizeRawSlice(tySize, tyAlign, &sl, newCap, true, list->allocator);
     list->data = sl.data;
     list->capacity = sl.count;
     if (list->count > sl.count) list->count = sl.count;

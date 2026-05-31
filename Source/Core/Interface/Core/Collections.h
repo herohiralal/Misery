@@ -160,26 +160,26 @@ COL_DECLARE_FOR(MEM_Allocator);
 // allocation/deallocation -----------------------------------------------------------------------------------------------------
 
 // internal function; creates a new slice (without any type info)
-COL_RawSlice COL_NewRawSlice(usize tySize, usize tyAlign, MEM_Allocator, isize count, b8 skipInit OPT_ARG);
+COL_RawSlice COL_NewRawSlice(usize tySize, usize tyAlign, isize count, b8 skipInit, MEM_Allocator);
 
 // internal function; clones an existing slice (without any type info)
-COL_RawSlice COL_CloneRawSlice(usize tySize, usize tyAlign, MEM_Allocator, COL_RawSlice slice);
+COL_RawSlice COL_CloneRawSlice(usize tySize, usize tyAlign, COL_RawSlice slice, MEM_Allocator);
 
 // internal function; resizes an existing slice (without any type info)
-void COL_ResizeRawSlice(usize tySize, usize tyAlign, MEM_Allocator, COL_RawSlice* slice, isize newCount, b8 skipInit OPT_ARG);
+void COL_ResizeRawSlice(usize tySize, usize tyAlign, COL_RawSlice* slice, isize newCount, b8 skipInit, MEM_Allocator);
 
 // internal function; deletes an existing slice (without any type info)
-void COL_DeleteRawSlice(MEM_Allocator, COL_RawSlice* slice);
+void COL_DeleteRawSlice(COL_RawSlice* slice, MEM_Allocator);
 
-#define COL_NewSlice(ty, allocator, count, skipInit) \
+#define COL_NewSlice(ty, count, skipInit, allocator) \
     COL_SLICE_FROM_RAW( \
         ty, \
         COL_NewRawSlice( \
             sizeof(ty), \
             alignof(ty), \
-            (allocator), \
             (isize) (count), \
-            (b8) (skipInit) \
+            (b8) (skipInit), \
+            (allocator) \
         ) \
     )
 
@@ -190,8 +190,8 @@ void COL_DeleteRawSlice(MEM_Allocator, COL_RawSlice* slice);
             COL_CloneRawSlice( \
                 sizeof((slice).data[0]), \
                 alignof(MSR_TYPEOF((slice).data[0])), \
-                (allocator), \
-                COL_RawSlice {(rawptr) (slice).data, (slice).count} \
+                COL_RawSlice {(rawptr) (slice).data, (slice).count}, \
+                (allocator) \
             ) \
         }).AsCSlice())
 #else
@@ -201,32 +201,32 @@ void COL_DeleteRawSlice(MEM_Allocator, COL_RawSlice* slice);
             .raw = COL_CloneRawSlice( \
                 sizeof((slice).data[0]), \
                 alignof(MSR_TYPEOF((slice).data[0])), \
-                (allocator), \
-                slice.raw \
+                slice.raw, \
+                (allocator) \
             ) \
         }
 #endif
 
 #define COL_CloneSlice(slice, allocator) COL_CloneSliceInternal(slice, allocator)
 
-#define COL_ResizeSlice(allocator, slicePtr, newCount, skipInit) \
+#define COL_ResizeSlice(slicePtr, newCount, skipInit, allocator) \
     COL_ResizeRawSlice( \
         sizeof((slicePtr)->data[0]), \
         alignof(MSR_TYPEOF((slicePtr)->data[0])), \
-        (allocator), \
         COL_RAW_PTR_FROM_SLICE_PTR(slicePtr), \
         (isize) newCount, \
-        (b8) skipInit \
+        (b8) skipInit, \
+        (allocator) \
     )
 
-#define COL_DeleteSlice(allocator, slicePtr) \
+#define COL_DeleteSlice(slicePtr, allocator) \
     COL_DeleteRawSlice( \
-        (allocator), \
-        COL_RAW_PTR_FROM_SLICE_PTR(slicePtr) \
+        COL_RAW_PTR_FROM_SLICE_PTR(slicePtr), \
+        (allocator) \
     )
 
 // internal function; creates a new list (without any type info)
-COL_RawList COL_NewRawList(usize tySize, usize tyAlign, MEM_Allocator, isize initialCap OPT_ARG);
+COL_RawList COL_NewRawList(usize tySize, usize tyAlign, isize initialCap, MEM_Allocator);
 
 // internal function; resizes an existing list (without any type info)
 void COL_ResizeRawList(usize tySize, usize tyAlign, COL_RawList* list, isize newCap);
@@ -240,14 +240,14 @@ void COL_ClearRawList(COL_RawList* list);
 // internal function; deletes an existing list (without any type info)
 void COL_DeleteRawList(COL_RawList* list);
 
-#define COL_NewList(ty, allocator, initialCap) \
+#define COL_NewList(ty, initialCap, allocator) \
     COL_LIST_FROM_RAW( \
         ty, \
         COL_NewRawList( \
             sizeof(ty), \
             alignof(ty), \
-            (allocator), \
-            (initialCap) \
+            (initialCap), \
+            (allocator) \
         ) \
     )
 

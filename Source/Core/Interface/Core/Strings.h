@@ -11,7 +11,7 @@ EXTERN_C_BEGIN
 typedef Slice_(u8) utf8str;
 COL_DECLARE_FOR(utf8str);
 
-// string utils ----------------------------------------------------------------------------------------------------------------
+// string basics ---------------------------------------------------------------------------------------------------------------
 
 /**
  * Declare a UTF-8 string literal.
@@ -49,5 +49,11 @@ utf8str STR_CloneString(utf8str str, MEM_Allocator);
  * Create a substring from an existing string. Will return an empty string, if the bounds check fails.
  */
 utf8str STR_SubString(utf8str str, isize start, isize count);
+
+/**
+ * Concatenates two UTF-8 strings into a new allocated string.
+ * The returned string is allocated using the specified allocator.
+ */
+utf8str STR_Join(utf8str str1, utf8str str2, MEM_Allocator);
 
 EXTERN_C_END

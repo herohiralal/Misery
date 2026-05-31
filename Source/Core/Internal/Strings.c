@@ -25,3 +25,13 @@ utf8str STR_Substring(utf8str str, isize start, isize count)
 {
     return COL_SubSlice(str, start, count);
 }
+
+utf8str STR_Join(utf8str str1, utf8str str2, MEM_Allocator allocator)
+{
+    utf8str str = COL_NewSlice(u8, str1.count + str2.count, false, allocator);
+    if (!str.data || !str.count) return (utf8str) {0};
+
+    MEM_Copy(str.data,              str1.data, (usize) str1.count);
+    MEM_Copy(str.data + str1.count, str2.data, (usize) str2.count);
+    return str;
+}
