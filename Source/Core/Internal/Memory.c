@@ -118,6 +118,20 @@ b8 MEM_DeallocateAll(MEM_Allocator allocator)
     return !result; // if the allocator returns some value, it successfully deallocated all memory
 }
 
+rawptr MEM_Clone(MEM_Allocator allocator, rawptr oldMem, usize size, usize align)
+{
+    if (!allocator.procedure)
+        return nil;
+
+    rawptr mem = MEM_Allocate(allocator, false, size, align);
+    if (mem && oldMem)
+    {
+        MEM_Copy(mem, oldMem, size);
+    }
+
+    return mem;
+}
+
 MEM_ArenaAllocator MEM_CreateArenaAllocator(usize defaultBlockSize, MEM_Allocator backingAllocator)
 {
     MEM_ArenaAllocator arena = {0};

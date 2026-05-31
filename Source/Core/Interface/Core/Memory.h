@@ -78,6 +78,25 @@ void MEM_Deallocate(MEM_Allocator, rawptr memory);
  */
 b8 MEM_DeallocateAll(MEM_Allocator);
 
+/**
+ * Duplicate existing memory with the provided allocator.
+ */
+rawptr MEM_Clone(MEM_Allocator, rawptr oldMem, usize size, usize align);
+
+// new/delete ------------------------------------------------------------------------------------------------------------------
+
+/**
+ * Allocate a new object with the provided allocator.
+ */
+#define MEM_New(ty, allocator) \
+    ((ty*) MEM_Allocate((allocator), true, (usize) sizeof(ty), (usize) alignof(ty)))
+
+/**
+ * Deallocate an existing object with the provided allocator.
+ */
+#define MEM_Delete(ptr, allocator) \
+    ((void) MEM_Deallocate((allocator), (rawptr) ptr))
+
 // allocator implementations ---------------------------------------------------------------------------------------------------
 
 /**

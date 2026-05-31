@@ -7,6 +7,14 @@ COL_RawSlice COL_NewRawSlice(usize tySize, usize tyAlign, MEM_Allocator allocato
     return (COL_RawSlice) {.data = mem, .count = count};
 }
 
+COL_RawSlice COL_CloneRawSlice(usize tySize, usize tyAlign, MEM_Allocator allocator, COL_RawSlice slice)
+{
+    COL_RawSlice output = COL_NewRawSlice(tySize, tyAlign, allocator, slice.count, true);
+    if (!output.data || !output.count) return (COL_RawSlice) {0};
+    MEM_Copy(output.data, slice.data, tySize * (usize) slice.count);
+    return output;
+}
+
 void COL_ResizeRawSlice(usize tySize, usize tyAlign, MEM_Allocator allocator, COL_RawSlice* slice, isize newCount, b8 skipInit)
 {
     if (!slice) return;

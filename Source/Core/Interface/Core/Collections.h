@@ -61,6 +61,7 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
             Slice<ty>(const Slice_(ty)& other) : data(other.data), count(other.count) { } \
             Slice<ty>(const List_(ty)& other) : data(other.data), count(other.count) { } \
             Slice<ty>(std::initializer_list<ty> init) : data(const_cast<ty*>(init.begin())), count((isize) init.size()) { } \
+            explicit Slice<ty>(const COL_RawSlice& other) { *this = *reinterpret_cast<const Slice<ty>*>(&other); } \
             operator Slice_(ty)() const { return Slice_(ty) {data, count}; } \
             Slice_(ty) AsCSlice() const { return Slice_(ty) {data, count}; } \
         }; \
@@ -76,9 +77,11 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
             List<ty>() = default; \
             List<ty>(const ty* d, isize cn, isize cp, MEM_Allocator a) : data(const_cast<ty*>(d)), count(cn), capacity(cp), allocator(a) { } \
             List<ty>(const List_(ty)& other) : data(other.data), count(other.count), capacity(other.capacity), allocator(other.allocator) { } \
+            explicit List<ty>(const COL_RawList& other) { *this = *reinterpret_cast<const List<ty>*>(&other); } \
             operator List_(ty)() const { return List_(ty) {data, count, capacity, allocator}; } \
             operator Slice_(ty)() const { return Slice_(ty) {data, count}; } \
             operator Slice<ty>() const { return Slice<ty>(data, count); } \
+            List_(ty) AsCList() const { return List_(ty) {data, count, capacity, allocator}; } \
         }; \
         \
         static inline Slice<ty> COL_AsSlice(const Slice_(ty)& s) { return Slice<ty>(s); } \
@@ -86,14 +89,12 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
         static inline Slice<ty> COL_AsSlice(const List_(ty)& l) { return Slice<ty>(l); } \
         static inline Slice<ty> COL_AsSlice(const List<ty>& l) { return (Slice<ty>) l; } \
         static inline COL_RawSlice* COL_CreateRawSlicePtr(Slice_(ty)* slice) { return (COL_RawSlice*) (slice); } \
-        static inline Slice_(ty) COL_Slice##ty##FromRaw(const COL_RawSlice& raw) { return *(Slice_(ty)*) &raw; } \
         static inline COL_RawList* COL_CreateRawListPtr(List_(ty)* list) { return (COL_RawList*) (list); } \
-        static inline List_(ty) COL_List##ty##FromRaw(const COL_RawList& raw) { return *(List_(ty)*) &raw; } \
         EXTERN_C_BEGIN
 
-    #define COL_SLICE_FROM_RAW(ty, raw) ((Slice_(ty)) COL_Slice##ty##FromRaw(raw))
+    #define COL_SLICE_FROM_RAW(ty, raw) (Slice<ty>(raw).AsCSlice())
 
-    #define COL_LIST_FROM_RAW(ty, raw) ((List_(ty)) COL_List##ty##FromRaw(raw))
+    #define COL_LIST_FROM_RAW(ty, raw) (List<ty>(raw).AsCList())
 
     #define COL_RAW_PTR_FROM_SLICE_PTR(sl) (COL_CreateRawSlicePtr(sl))
 
@@ -161,6 +162,9 @@ COL_DECLARE_FOR(MEM_Allocator);
 // internal function; creates a new slice (without any type info)
 COL_RawSlice COL_NewRawSlice(usize tySize, usize tyAlign, MEM_Allocator, isize count, b8 skipInit OPT_ARG);
 
+// internal function; clones an existing slice (without any type info)
+COL_RawSlice COL_CloneRawSlice(usize tySize, usize tyAlign, MEM_Allocator, COL_RawSlice slice);
+
 // internal function; resizes an existing slice (without any type info)
 void COL_ResizeRawSlice(usize tySize, usize tyAlign, MEM_Allocator, COL_RawSlice* slice, isize newCount, b8 skipInit OPT_ARG);
 
@@ -178,6 +182,32 @@ void COL_DeleteRawSlice(MEM_Allocator, COL_RawSlice* slice);
             (b8) (skipInit) \
         ) \
     )
+
+#ifdef __cplusplus
+    #define COL_CloneSliceInternal(slice, allocator) \
+        ((decltype(slice) \
+        { \
+            COL_CloneRawSlice( \
+                sizeof((slice).data[0]), \
+                alignof(MSR_TYPEOF((slice).data[0])), \
+                (allocator), \
+                COL_RawSlice {(rawptr) (slice).data, (slice).count} \
+            ) \
+        }).AsCSlice())
+#else
+    #define COL_CloneSliceInternal(slice, allocator) \
+        (MSR_TYPEOF(slice)) \
+        { \
+            .raw = COL_CloneSlice( \
+                sizeof((slice).data[0]), \
+                alignof(MSR_TYPEOF((slice).data[0])), \
+                (allocator), \
+                slice.raw \
+            ) \
+        }
+#endif
+
+#define COL_CloneSlice(slice, allocator) COL_CloneSliceInternal(slice, allocator)
 
 #define COL_ResizeSlice(allocator, slicePtr, newCount, skipInit) \
     COL_ResizeRawSlice( \
