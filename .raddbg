@@ -1,0 +1,9 @@
+// raddbg 0.9.25 project file
+
+recent_file: path: "Source/CoreTest/Internal/main.c"
+target:
+{
+  executable: "Binaries/windows-x64-dbg/Misery.exe"
+  working_directory: ""
+  enabled: 1
+}
