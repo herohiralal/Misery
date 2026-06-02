@@ -41,6 +41,7 @@
     #pragma GCC diagnostic ignored "-Wuninitialized"
     #pragma GCC diagnostic ignored "-Wsign-conversion"
     #pragma GCC diagnostic ignored "-Wmissing-braces"
+    #pragma GCC diagnostic ignored "-Wdouble-promotion"
 
     #define MSR_SUPPRESS_WARN \
         _Pragma("GCC diagnostic push")  \
@@ -71,6 +72,7 @@
     #pragma clang diagnostic ignored "-Wuninitialized"
     #pragma clang diagnostic ignored "-Wsign-conversion"
     #pragma clang diagnostic ignored "-Wmissing-braces"
+    #pragma clang diagnostic ignored "-Wdouble-promotion"
 
     #define MSR_SUPPRESS_WARN \
         _Pragma("clang diagnostic push")  \
@@ -565,6 +567,7 @@ MSR_SUPPRESS_WARN
 #include <assert.h>
 #include <math.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 #ifdef __cplusplus
 #include <utility>

@@ -1,10 +1,4 @@
-#include "Core/Memory.h"
-#include "__init.h"
 #include <Core/Core.h>
-#include <processenv.h>
-#include <shellapi.h>
-#include <stringapiset.h>
-#include <winnls.h>
 
 static inline Slice_(utf8str) APP_Internal_GetCmdArgs(i32 argc, cstring* argv)
 {

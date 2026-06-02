@@ -13,7 +13,7 @@ TIM_Value TIM_GetCurrentSystemTime(void)
     {
         struct timespec ts;
         if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
-            return (TIM_Value) {INT64_MIN};
+            return (TIM_Value) {I64_MIN};
 
         return (TIM_Value) {(i64) ts.tv_sec * 1000000000 + ts.tv_nsec};
     }
@@ -36,7 +36,7 @@ TIM_Value TIM_GetCurrentMonotonicTime(void)
     {
         struct timespec ts;
         if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
-            return INT64_MIN;
+            return (TIM_Value) {I64_MIN};
 
         return (TIM_Value) {(i64) ts.tv_sec * 1000000000 + ts.tv_nsec};
     }

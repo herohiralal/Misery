@@ -1,6 +1,3 @@
-#include "Core/Stream.h"
-#include "Core/Strings.h"
-#include "__init.h"
 #include <Core/Core.h>
 
 isize IO_GetSize(IO_Stream stream)
@@ -147,7 +144,7 @@ IO_Stream IO_OpenFileToRead(utf8str path, b8 allowWrite)
         }
         #elif MSR_UNIX
         {
-            stream.handle = open(cPath, allowWrite ? O_RDWR : O_RDONLY);
+            streamData.handle = open(cPath, allowWrite ? O_RDWR : O_RDONLY);
         }
         #else
             #error "unimplemented"
@@ -293,7 +290,7 @@ static isize IO_Internal_FileStreamProc(IO_StreamMode mode, rawptr data, isize p
         {
             off_t cur = lseek(streamData.handle, 0, SEEK_CUR);
             if (cur < 0) { return (isize) false; }
-            return (isize) (b8) ftruncate(handle, cur) == 0;
+            return (isize) (b8) ftruncate(streamData.handle, cur) == 0;
         }
         #else
             #error "unimplemented"
@@ -312,7 +309,7 @@ static isize IO_Internal_FileStreamProc(IO_StreamMode mode, rawptr data, isize p
         }
         #elif MSR_UNIX
         {
-            return (isize) (b8) ftruncate(handle, position) == 0;
+            return (isize) (b8) ftruncate(streamData.handle, position) == 0;
         }
         #else
             #error "Unsupported platform"
