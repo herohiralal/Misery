@@ -31,13 +31,7 @@ isize STR_CStrLen(cstring str);
 /**
  * Aliases a C-style null-terminated string into a UTF-8 string, with length info.
  */
-utf8str STR_StringFromCStr(cstring str);
-
-/**
- * Clones a C-style null-terminated string into a new UTF-8 string, with length info.
- * The new string will be created from the provided allocator.
- */
-utf8str STR_NewStringFromCStr(cstring str, MEM_Allocator);
+utf8str STR_AliasCStr(cstring str);
 
 /**
  * Clones a UTF-8 string to a new allocated UTF-8 string.
@@ -157,5 +151,12 @@ STR_EncodedRune STR_EncodeRune(u32 c);
  */
 STR_DecodedRune STR_DecodeRune(utf8str s);
 
+// conversions to string -------------------------------------------------------------------------------------------------------
+
+/**
+ * Clones a C-style null-terminated string into a new UTF-8 string, with length info.
+ * The new string will be created from the provided allocator.
+ */
+utf8str STR_FromCStr(cstring str, MEM_Allocator);
 
 EXTERN_C_END
