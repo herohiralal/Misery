@@ -265,7 +265,7 @@ void COL_DeleteRawList(COL_RawList* list);
 #define COL_ClearList(listPtr) \
     COL_ClearRawList(COL_RAW_PTR_FROM_LIST_PTR(listPtr))
 
-#define COL_FreeList(listPtr) \
+#define COL_DeleteList(listPtr) \
     COL_DeleteRawList(COL_RAW_PTR_FROM_LIST_PTR(listPtr))
 
 // slice/list utils ------------------------------------------------------------------------------------------------------------
