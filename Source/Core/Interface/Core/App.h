@@ -183,6 +183,7 @@ i32 APP_Main(i32 argc, cstring* argv, APP_EntryPointProc mainFn, b8 isGui);
  * This will cause the application to declare an entry point function, so that the linkers
  * do not complain, but the function will not forward to any other functions.
  * The macro does not take any arguments.
+ * Keep this macro outside an `extern "C"` block, if using C++.
  */
 #define APP_AS_DYNA_LIB() \
     APP_AS_DYNA_LIB_INTERNAL()
@@ -192,6 +193,7 @@ i32 APP_Main(i32 argc, cstring* argv, APP_EntryPointProc mainFn, b8 isGui);
  * The provided function will be called with the application instance and the command-line arguments.
  * The macro takes one argument, which is the function to call for the entry point.
  * This function must match the signature of `APP_EntryPointProc`.
+ * Keep this macro outside an `extern "C"` block, if using C++.
  */
 #define APP_AS_CLI_EXEC(x) \
     APP_AS_CLI_EXEC_INTERNAL(x)
@@ -201,6 +203,7 @@ i32 APP_Main(i32 argc, cstring* argv, APP_EntryPointProc mainFn, b8 isGui);
  * The provided function will be called with the application instance and the command-line arguments.
  * The macro takes one argument, which is the function to call for the entry point.
  * This function must match the signature of `APP_EntryPointProc`.
+ * Keep this macro outside an `extern "C"` block, if using C++.
  */
 #define APP_AS_GUI_EXEC(x) \
     APP_AS_GUI_EXEC_INTERNAL(x)
