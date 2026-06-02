@@ -165,6 +165,61 @@ STR_DecodedRune STR_DecodeRune(utf8str s);
  */
 utf8str STR_FromCStr(cstring str, MEM_Allocator);
 
+/**
+ * Convert a boolean value to a string ("true" or "false").
+ */
+utf8str STR_FromB8(b8 val, MEM_Allocator);
+
+/**
+ * Convert a 32-bit floating-point number to a string with upto 6 decimal places.
+ */
+utf8str STR_FromF32(f32 val, MEM_Allocator);
+
+/**
+ * Convert a 64-bit floating-point number to a string with upto 6 decimal places.
+ */
+utf8str STR_FromF64(f64 val, MEM_Allocator);
+
+/**
+ * Convert an unsigned 8-bit integer to a string (base-10).
+ */
+utf8str STR_FromU8(u8 val, MEM_Allocator);
+
+/**
+ * Convert an unsigned 16-bit integer to a string (base-10).
+ */
+utf8str STR_FromU16(u16 val, MEM_Allocator);
+
+/**
+ * Convert an unsigned 32-bit integer to a string (base-10).
+ */
+utf8str STR_FromU32(u32 val, MEM_Allocator);
+
+/**
+ * Convert an unsigned 64-bit integer to a string (base-10).
+ */
+utf8str STR_FromU64(u64 val, MEM_Allocator);
+
+/**
+ * Convert a signed 8-bit integer to a string (base-10).
+ */
+utf8str STR_FromI8(i8 val, MEM_Allocator);
+
+/**
+ * Convert a signed 16-bit integer to a string (base-10).
+ */
+utf8str STR_FromI16(i16 val, MEM_Allocator);
+
+/**
+ * Convert a signed 32-bit integer to a string (base-10).
+ */
+utf8str STR_FromI32(i32 val, MEM_Allocator);
+
+/**
+ * Convert a signed 64-bit integer to a string (base-10).
+ */
+utf8str STR_FromI64(i64 val, MEM_Allocator);
+
 // conversions from string -----------------------------------------------------------------------------------------------------
 
 /**

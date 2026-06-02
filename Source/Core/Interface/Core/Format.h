@@ -202,6 +202,8 @@ FMT_Arg FMT_Ptr(const void* ptr);
             i16:         FMT_Generic(FMT_CTy_I16,  (x)), \
             i32:         FMT_Generic(FMT_CTy_I32,  (x)), \
             i64:         FMT_Generic(FMT_CTy_I64,  (x)), \
+            f32:         FMT_Generic(FMT_CTy_F32,  (x)), \
+            f64:         FMT_Generic(FMT_CTy_F64,  (x)), \
             utf8str:     FMT_Generic(FMT_CTy_Str,  (x)), \
             cstring:     FMT_Generic(FMT_CTy_CStr, (x)), \
             char*:       FMT_Generic(FMT_CTy_CStr, (x)), \

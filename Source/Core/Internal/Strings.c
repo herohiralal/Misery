@@ -406,9 +406,20 @@ STR_DecodedRune STR_DecodeRune(utf8str s)
 
 utf8str STR_FromCStr(cstring str, MEM_Allocator allocator)
 {
-    utf8str str2 = STR_AliasCStr(str);
-    return STR_Clone(str2, allocator);
+    return STR_Clone(STR_AliasCStr(str), allocator);
 }
+
+utf8str STR_FromB8(  b8 v, MEM_Allocator allocator) { return FMT_APrintf(allocator, "%", FMT(v)); }
+utf8str STR_FromF32(f32 v, MEM_Allocator allocator) { return FMT_APrintf(allocator, "%", FMT(v)); }
+utf8str STR_FromF64(f64 v, MEM_Allocator allocator) { return FMT_APrintf(allocator, "%", FMT(v)); }
+utf8str STR_FromU8(  u8 v, MEM_Allocator allocator) { return FMT_APrintf(allocator, "%", FMT(v)); }
+utf8str STR_FromU16(u16 v, MEM_Allocator allocator) { return FMT_APrintf(allocator, "%", FMT(v)); }
+utf8str STR_FromU32(u32 v, MEM_Allocator allocator) { return FMT_APrintf(allocator, "%", FMT(v)); }
+utf8str STR_FromU64(u64 v, MEM_Allocator allocator) { return FMT_APrintf(allocator, "%", FMT(v)); }
+utf8str STR_FromI8(  i8 v, MEM_Allocator allocator) { return FMT_APrintf(allocator, "%", FMT(v)); }
+utf8str STR_FromI16(i16 v, MEM_Allocator allocator) { return FMT_APrintf(allocator, "%", FMT(v)); }
+utf8str STR_FromI32(i32 v, MEM_Allocator allocator) { return FMT_APrintf(allocator, "%", FMT(v)); }
+utf8str STR_FromI64(i64 v, MEM_Allocator allocator) { return FMT_APrintf(allocator, "%", FMT(v)); }
 
 b8 STR_ParseB8(utf8str str, b8* value)
 {
