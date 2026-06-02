@@ -18,7 +18,7 @@ typedef struct
  * The value returned by this function is not guaranteed to be monotonic, and may be affected
  * by changes to the system clock (e.g. due to NTP adjustments or manual changes).
  */
-TIM_Value TIM_GetCurrentSystemTime();
+TIM_Value TIM_GetCurrentSystemTime(void);
 
 /**
  * Returns the current monotonic time.
@@ -27,7 +27,7 @@ TIM_Value TIM_GetCurrentSystemTime();
  * The value returned by this function is not related to any specific epoch, and should only
  * be used for measuring time intervals or elapsed time.
  */
-TIM_Value TIM_GetCurrentMonotonicTime();
+TIM_Value TIM_GetCurrentMonotonicTime(void);
 
 /**
  * Converts a duration in nanoseconds into hours, minutes, and seconds. The output parameters

@@ -1,6 +1,6 @@
 #include <Core/Core.h>
 
-TIM_Value TIM_GetCurrentSystemTime()
+TIM_Value TIM_GetCurrentSystemTime(void)
 {
     #if MSR_WINDOWS
     {
@@ -20,7 +20,7 @@ TIM_Value TIM_GetCurrentSystemTime()
     #endif
 }
 
-TIM_Value TIM_GetCurrentMonotonicTime()
+TIM_Value TIM_GetCurrentMonotonicTime(void)
 {
     #if MSR_WINDOWS
     {
