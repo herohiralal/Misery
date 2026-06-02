@@ -9,7 +9,11 @@
     {
         "label": "Debug_External",
         "command": "raddbg",
-        "args": ["--project:.raddbg", "--auto_run", "-q"],
+        "args": [
+            "--project:.raddbg",
+            // "--auto_run",           // uncomment if wanted
+            // "--quit_after_success", // uncomment if wanted
+        ],
         "cwd": "${ZED_WORKTREE_ROOT}",
         "reveal": "never",
         "hide": "always",
