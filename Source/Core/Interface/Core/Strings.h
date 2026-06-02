@@ -270,7 +270,7 @@ FMT_Arg FMT_Ptr(const void* ptr);
     static inline FMT_Arg FMT_Generic(T v) { return FMT_Arg { }; }
 
     #define DECLARE_FMT_SPEC(fnSuffix, ty) \
-        template <> static inline FMT_Arg FMT_Generic(ty v) { return FMT_##fnSuffix(v); }
+        template <> inline FMT_Arg FMT_Generic(ty v) { return FMT_##fnSuffix(v); }
 
     DECLARE_FMT_SPEC(B8,   b8)
     DECLARE_FMT_SPEC(U8,   u8)

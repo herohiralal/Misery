@@ -564,6 +564,7 @@ MSR_SUPPRESS_WARN
 #include <stddef.h>
 #include <assert.h>
 #include <math.h>
+#include <stdarg.h>
 
 #ifdef __cplusplus
 #include <utility>
