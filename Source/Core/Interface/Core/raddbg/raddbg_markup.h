@@ -22,8 +22,8 @@
 #if !defined(RADDBG_MARKUP_STUBS)
 # define raddbg_is_attached(...)                      raddbg_is_attached__impl()
 # define raddbg_thread_id(...)                        raddbg_thread_id__impl()
-# define raddbg_thread_name(fmt, ...)                 raddbg_thread_name__impl(raddbg_thread_id(), (fmt), __VA_ARGS__)
-# define raddbg_thread_id_name(id, fmt, ...)          raddbg_thread_name__impl((id), (fmt), __VA_ARGS__)
+# define raddbg_thread_name(...)                      raddbg_thread_name__impl(raddbg_thread_id(), __VA_ARGS__)
+# define raddbg_thread_id_name(id, ...)               raddbg_thread_name__impl((id), __VA_ARGS__)
 # define raddbg_thread_color_u32(u32)                 raddbg_thread_color__impl(raddbg_thread_id(), (u32))
 # define raddbg_thread_color_rgba(r, g, b, a)         raddbg_thread_color__impl(raddbg_thread_id(), ((unsigned int)((r)*255) << 24) | ((unsigned int)((g)*255) << 16) | ((unsigned int)((b)*255) << 8) | ((unsigned int)(a)*255))
 # define raddbg_thread_id_color_u32(id, u32)          raddbg_thread_color__impl((id), (u32))
@@ -32,7 +32,7 @@
 # define raddbg_break_if(expr, ...)                   ((expr) ? raddbg_break__impl() : (void)0)
 # define raddbg_watch(fmt, ...)                       raddbg_watch__impl((fmt), __VA_ARGS__)
 # define raddbg_pin(expr, ...)                        /* NOTE(rjf): inspected by debugger ui - does not change program execution */
-# define raddbg_log(fmt, ...)                         raddbg_log__impl((fmt), __VA_ARGS__)
+# define raddbg_log(...)                              raddbg_log__impl(__VA_ARGS__)
 # define raddbg_entry_point(...)                      raddbg_exe_data char raddbg_gen_data_id()[] = ("entry_point: \"" #__VA_ARGS__ "\"")
 # define raddbg_type_view(type, ...)                  raddbg_exe_data char raddbg_gen_data_id()[] = ("type_view: {type: ```" #type "```, expr: ```" #__VA_ARGS__ "```}")
 # define raddbg_add_breakpoint(ptr, size, r, w, x)    raddbg_add_or_remove_breakpoint__impl((ptr), (1), (size), (r), (w), (x))
@@ -170,7 +170,7 @@ raddbg_decode_utf8(char *str, unsigned __int64 max)
     case 2:
     if(2 < max)
     {
-      char cont_byte = str[1];
+      unsigned char cont_byte = str[1];
       if(raddbg_utf8_class[cont_byte >> 3] == 0)
       {
         result.codepoint = (byte & 0x0000001f) << 6;
@@ -181,7 +181,7 @@ raddbg_decode_utf8(char *str, unsigned __int64 max)
     case 3:
     if(2 < max)
     {
-      char cont_byte[2] = {str[1], str[2]};
+      unsigned char cont_byte[2] = {(unsigned char)str[1], (unsigned char)str[2]};
       if(raddbg_utf8_class[cont_byte[0] >> 3] == 0 &&
          raddbg_utf8_class[cont_byte[1] >> 3] == 0)
       {
@@ -194,7 +194,7 @@ raddbg_decode_utf8(char *str, unsigned __int64 max)
     case 4:
     if(3 < max)
     {
-      char cont_byte[3] = {str[1], str[2], str[3]};
+      unsigned char cont_byte[3] = {(unsigned char)str[1], (unsigned char)str[2], (unsigned char)str[3]};
       if(raddbg_utf8_class[cont_byte[0] >> 3] == 0 &&
          raddbg_utf8_class[cont_byte[1] >> 3] == 0 &&
          raddbg_utf8_class[cont_byte[2] >> 3] == 0)
@@ -431,6 +431,9 @@ raddbg_annotate_vaddr_range__impl(void *ptr, unsigned __int64 size, char *fmt, .
       va_list args;
       va_start(args, fmt);
       buffer_size = RADDBG_MARKUP_VSNPRINTF(buffer, sizeof(buffer), fmt, args);
+      buffer_size = ((buffer_size < 0) ? 0 :
+                     (buffer_size > sizeof(buffer)) ? sizeof(buffer) :
+                     buffer_size);
       va_end(args);
     }
     
