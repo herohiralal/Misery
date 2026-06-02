@@ -218,6 +218,48 @@ FMT_Arg FMT_Ptr(const void* ptr);
  * If the buffer is big enough, returns the number of bytes that were used.
  * If the buffer is not big enough, returns the total number of bytes that would be required.
  */
-isize FMT_ToBuffer(Slice_(u8) buffer, utf8str formatStr, FMT_Args);
+isize FMT_ToBuffer(Slice_(u8) buffer, utf8str formatStr, FMT_Args, b8 addNullTerm);
+
+// internal function; check FMT_APrintf
+utf8str FMT_APrintf_(MEM_Allocator, utf8str formatStr, FMT_Args);
+
+/**
+ * Format a new UTF-8 string and using the provided allocator.
+ */
+#define FMT_APrintf(allocator, fmt, ...) \
+    (FMT_APrintf_(allocator, UTF8STR(fmt), FMTARGS(__VA_ARGS__)))
+
+/**
+ * Format a new UTF-8 string and using the main allocator.
+ */
+#define FMT_SPrintf(fmt, ...) \
+    (FMT_APrintf_(MEM_main, UTF8STR(fmt), FMTARGS(__VA_ARGS__)))
+
+/**
+ * Format a new UTF-8 string and using the temporary allocator.
+ */
+#define FMT_TPrintf(fmt, ...) \
+    (FMT_APrintf_(MEM_temp, UTF8STR(fmt), FMTARGS(__VA_ARGS__)))
+
+// internal function; check FMT_CAPrintf
+cstring FMT_CAPrintf_(MEM_Allocator, utf8str formatStr, FMT_Args);
+
+/**
+ * Format a new C-style null-terminated string and using the provided allocator.
+ */
+#define FMT_CAPrintf(allocator, fmt, ...) \
+    (FMT_CAPrintf_(allocator, UTF8STR(fmt), FMTARGS(__VA_ARGS__)))
+
+/**
+ * Format a new C-style null-terminated string and using the main allocator.
+ */
+#define FMT_CSPrintf(fmt, ...) \
+    (FMT_CAPrintf_(MEM_main, UTF8STR(fmt), FMTARGS(__VA_ARGS__)))
+
+/**
+ * Format a new C-style null-terminated string and using the temporary allocator.
+ */
+#define FMT_CTPrintf(fmt, ...) \
+    (FMT_CAPrintf_(MEM_temp, UTF8STR(fmt), FMTARGS(__VA_ARGS__)))
 
 EXTERN_C_END

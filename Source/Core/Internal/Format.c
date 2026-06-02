@@ -459,9 +459,45 @@ static inline b8 FMT_Internal_Format(FMT_Internal_Sink* sink, utf8str formatStr,
 
 #undef FMT_Internal_AppendStrLit
 
-isize FMT_ToBuffer(Slice_(u8) buffer, utf8str formatStr, FMT_Args args)
+isize FMT_ToBuffer(Slice_(u8) buffer, utf8str formatStr, FMT_Args args, b8 addNullTerm)
 {
     FMT_Internal_BufferSink bfS = {.output = {.data = buffer.data, .capacity = buffer.count}};
     FMT_Internal_Sink sink = {.userData = &bfS, .append = FMT_Internal_AppendToBuffer};
-    return FMT_Internal_Format(&sink, formatStr, args);
+    FMT_Internal_Format(&sink, formatStr, args);
+    if (addNullTerm) FMT_Internal_AppendCh(&sink, '\0');
+    return sink.totalWritten;
+}
+
+static inline utf8str FMT_Internal_APrintf(MEM_Allocator allocator, utf8str formatStr, FMT_Args args, b8 addNullTerm)
+{
+    u8 bufferData[8192]; // 8kb flash-format buffer
+    Slice_(u8) buffer = {.data = bufferData, .count = sizeof(bufferData)};
+    isize len = FMT_ToBuffer(buffer, formatStr, args, addNullTerm);
+    if (!len) return (utf8str) {0};
+
+    // formatting into the buffer was successful, just clone
+    if (len <= buffer.count)
+    {
+        buffer = COL_SubSlice(buffer, 0, len);
+        return COL_CloneSlice(buffer, allocator);
+    }
+
+    // need a larger buffer
+    Slice_(u8) output = COL_NewSlice(u8, len, true, allocator);
+    if (!output.data || !output.count) return (utf8str) {0};
+
+    // format again
+    isize len2 = FMT_ToBuffer(output, formatStr, args, addNullTerm);
+    MSR_ASSERT(len == len2 && "inconsistent formatting length between buffer & output string");
+    return COL_SubSlice(output, 0, len < len2 ? len : len2);
+}
+
+utf8str FMT_APrintf_(MEM_Allocator allocator, utf8str formatStr, FMT_Args args)
+{
+    return FMT_Internal_APrintf(allocator, formatStr, args, false);
+}
+
+cstring FMT_CAPrintf_(MEM_Allocator allocator, utf8str formatStr, FMT_Args args)
+{
+    return (cstring) FMT_Internal_APrintf(allocator, formatStr, args, true).data;
 }
