@@ -6,7 +6,7 @@
 #include <stringapiset.h>
 #include <winnls.h>
 
-static inline Slice_(utf8str) MAIN_Internal_GetCmdArgs(i32 argc, cstring* argv)
+static inline Slice_(utf8str) APP_Internal_GetCmdArgs(i32 argc, cstring* argv)
 {
     Slice_(utf8str) args = COL_NewSlice(utf8str, (isize) argc, false, MEM_main);
     if (!args.data || !args.count) return (Slice_(utf8str)) {0};
@@ -19,14 +19,14 @@ static inline Slice_(utf8str) MAIN_Internal_GetCmdArgs(i32 argc, cstring* argv)
     return args;
 }
 
-i32 MAIN_Main(i32 argc, cstring* argv, MAIN_EntryPointProc mainFn, b8 isGui)
+i32 APP_Main(i32 argc, cstring* argv, APP_EntryPointProc mainFn, b8 isGui)
 {
     #if MSR_WINDOWS
     {
         (void) isGui; // on windows, gui entry point will go to winmain
 
-        MAIN_App app = MAIN_ToApp(GetModuleHandleA(nil));
-        Slice_(utf8str) args = MAIN_Internal_GetCmdArgs(argc, argv);
+        APP_Handle app = APP_ToHandle(GetModuleHandleA(nil));
+        Slice_(utf8str) args = APP_Internal_GetCmdArgs(argc, argv);
 
         // actual execution
         i32 exitCode = mainFn(app, args);
@@ -39,15 +39,15 @@ i32 MAIN_Main(i32 argc, cstring* argv, MAIN_EntryPointProc mainFn, b8 isGui)
     {
         @autoreleasepool {
             NSApplication* nativeApp = [NSApplication sharedApplication];
-            MAIN_App app = MAIN_ToApp((__bridge_retained rawptr) nativeApp);
-            Slice_(utf8str) args = MAIN_Internal_GetCmdArgs(argc, argv);
+            APP_Handle app = APP_ToHandle((__bridge_retained rawptr) nativeApp);
+            Slice_(utf8str) args = APP_Internal_GetCmdArgs(argc, argv);
 
             // actual execution
             i32 exitCode = mainFn(app, args);
 
             COL_DeleteSlice(&args, MEM_main);
 
-            nativeApp = (__bridge_transfer NSApplication*) MAIN_FromApp(app);
+            nativeApp = (__bridge_transfer NSApplication*) APP_FromHandle(app);
             [nativeApp terminate:nil];
 
             return exitCode;
@@ -55,8 +55,8 @@ i32 MAIN_Main(i32 argc, cstring* argv, MAIN_EntryPointProc mainFn, b8 isGui)
     }
     #elif MSR_LINUX
     {
-        MAIN_App app = (MAIN_App) {0}; // no app handle on linux
-        Slice_(utf8str) args = MAIN_Internal_GetCmdArgs(argc, argv);
+        APP_Handle app = (APP_Handle) {0}; // no app handle on linux
+        Slice_(utf8str) args = APP_Internal_GetCmdArgs(argc, argv);
 
         // actual execution
         i32 exitCode = mainFn(app, args);
@@ -70,9 +70,9 @@ i32 MAIN_Main(i32 argc, cstring* argv, MAIN_EntryPointProc mainFn, b8 isGui)
 
 #if MSR_WINDOWS
 
-    i32 MAIN_WinMain(HINSTANCE hInstance, PSTR pCmdLinePtr, MAIN_EntryPointProc mainFn)
+    i32 APP_WinMain(HINSTANCE hInstance, PSTR pCmdLinePtr, APP_EntryPointProc mainFn)
     {
-        MAIN_App app = MAIN_ToApp(hInstance);
+        APP_Handle app = APP_ToHandle(hInstance);
 
         int argc;
         WCHAR** argvW = CommandLineToArgvW(GetCommandLineW(), &argc);
