@@ -1,5 +1,6 @@
 #include "Core/Stream.h"
 #include "Core/Strings.h"
+#include "__init.h"
 #include <Core/Core.h>
 
 isize IO_GetSize(IO_Stream stream)
@@ -389,3 +390,27 @@ static isize IO_Internal_FileStreamProc(IO_StreamMode mode, rawptr data, isize p
     MSR_ASSERT(false && "unsupported stream mode");
     return invalidOutput;
 }
+
+Slice_(u8) IO_ReadEntireFile(utf8str path, MEM_Allocator allocator)
+{
+    IO_Stream stream = IO_OpenFileToRead(path, false);
+    if (!stream.procedure)
+        return (Slice_(u8)) {0};
+
+    return IO_ReadAll(stream, allocator, false);
+}
+
+b8 IO_WriteAllToFile(utf8str path, Slice_(u8) data, b8 append OPT_ARG)
+{
+    IO_Stream stream = IO_OpenFileToWrite(path, append, false);
+    if (!stream.procedure)
+        return false;
+
+    isize bytesWritten = IO_Write(stream, data);
+    IO_Flush(stream);
+    IO_Close(stream);
+
+    return bytesWritten == (isize) data.count;
+}
+
+#undef IO_Internal_InvalidFileStreamData
