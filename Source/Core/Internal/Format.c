@@ -105,7 +105,7 @@ FMT_Arg FMT_Str(utf8str str, FMT_StrStyle style)
 
 FMT_Arg FMT_CStr(cstring str, FMT_StrStyle style)
 {
-    return FMT_Str(STR_StringFromCStr(str), style);
+    return FMT_Str(STR_AliasCStr(str), style);
 }
 
 FMT_Arg FMT_Ptr(const void* ptr)

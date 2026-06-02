@@ -69,6 +69,12 @@ utf8str STR_ToLower(utf8str str, MEM_Allocator allocator OPT_ARG);
 // comparisons -----------------------------------------------------------------------------------------------------------------
 
 /**
+ * Checks if the UTF-8 string contains no data (is empty).
+ * Returns true if so, false otherwise.
+ */
+b8 STR_IsEmpty(utf8str str);
+
+/**
  * Checks if two UTF-8 strings contain the same data.
  * Returns true if they are equal, false otherwise.
  */
@@ -158,5 +164,88 @@ STR_DecodedRune STR_DecodeRune(utf8str s);
  * The new string will be created from the provided allocator.
  */
 utf8str STR_FromCStr(cstring str, MEM_Allocator);
+
+// conversions from string -----------------------------------------------------------------------------------------------------
+
+/**
+ * Convert a validstring (case-insensitive "true" or "false", or "1" or "0") to a boolean.
+ */
+b8 STR_ParseB8(utf8str str, b8* value);
+
+/**
+ * Convert a valid string (numbers-only, with zero or one decimal points,
+ * optional -/+ sign at the start) to a 32-bit floating-point number.
+ */
+b8 STR_ParseF32(utf8str str, f32* value);
+
+/**
+ * Convert a valid string (numbers-only, with zero or one decimal points,
+ * optional -/+ sign at the start) to a 64-bit floating-point number.
+ */
+b8 STR_ParseF64(utf8str str, f64* value);
+
+/**
+ * Convert a valid string (numbers/A-F only, case-insensitive, optionally
+ * starting with 0b/0o/0x prefix for alternate bases) to an unsigned 8-bit integer.
+ * Will be assumed to be hexadecimal if it contains A-F characters but no prefix.
+ * By default (no prefix), decimal base is assumed.
+ */
+b8 STR_ParseU8(utf8str str, u8* value);
+
+/**
+ * Convert a valid string (numbers/A-F only, case-insensitive, optionally
+ * starting with 0b/0o/0x prefix for alternate bases) to an unsigned 16-bit integer.
+ * Will be assumed to be hexadecimal if it contains A-F characters but no prefix.
+ * By default (no prefix), decimal base is assumed.
+ */
+b8 STR_ParseU16(utf8str str, u16* value);
+
+/**
+ * Convert a valid string (numbers/A-F only, case-insensitive, optionally
+ * starting with 0b/0o/0x prefix for alternate bases) to an unsigned 32-bit integer.
+ * Will be assumed to be hexadecimal if it contains A-F characters but no prefix.
+ * By default (no prefix), decimal base is assumed.
+ */
+b8 STR_ParseU32(utf8str str, u32* value);
+
+/**
+ * Convert a valid string (numbers/A-F only, case-insensitive, optionally
+ * starting with 0b/0o/0x prefix for alternate bases) to an unsigned 64-bit integer.
+ * Will be assumed to be hexadecimal if it contains A-F characters but no prefix.
+ * By default (no prefix), decimal base is assumed.
+ */
+b8 STR_ParseU64(utf8str str, u64* value);
+
+/**
+ * Convert a valid string (numbers/A-F only, case-insensitive, optional -/+ sign
+ * at the start, optionally starting with 0b/0o/0x prefix for alternate bases) to
+ * a signed 8-bit integer. Will be assumed to be hexadecimal if it contains A-F
+ * characters but no prefix. By default (no prefix), decimal base is assumed.
+ */
+b8 STR_ParseI8(utf8str str, i8* value);
+
+/**
+ * Convert a valid string (numbers/A-F only, case-insensitive, optional -/+ sign
+ * at the start, optionally starting with 0b/0o/0x prefix for alternate bases) to
+ * a signed 16-bit integer. Will be assumed to be hexadecimal if it contains A-F
+ * characters but no prefix. By default (no prefix), decimal base is assumed.
+ */
+b8 STR_ParseI16(utf8str str, i16* value);
+
+/**
+ * Convert a valid string (numbers/A-F only, case-insensitive, optional -/+ sign
+ * at the start, optionally starting with 0b/0o/0x prefix for alternate bases) to
+ * a signed 32-bit integer. Will be assumed to be hexadecimal if it contains A-F
+ * characters but no prefix. By default (no prefix), decimal base is assumed.
+ */
+b8 STR_ParseI32(utf8str str, i32* value);
+
+/**
+ * Convert a valid string (numbers/A-F only, case-insensitive, optional -/+ sign
+ * at the start, optionally starting with 0b/0o/0x prefix for alternate bases) to
+ * a signed 64-bit integer. Will be assumed to be hexadecimal if it contains A-F
+ * characters but no prefix. By default (no prefix), decimal base is assumed.
+ */
+b8 STR_ParseI64(utf8str str, i64* value);
 
 EXTERN_C_END
