@@ -3,6 +3,7 @@
 #include "Collections.h"
 #include "Memory.h"
 #include "Strings.h"
+#include "Stream.h"
 
 EXTERN_C_BEGIN
 
@@ -222,6 +223,12 @@ FMT_Arg FMT_Ptr(const void* ptr);
  */
 isize FMT_ToBuffer(Slice_(u8) buffer, utf8str formatStr, FMT_Args, b8 addNullTerm);
 
+/**
+ * Format string to a stream.
+ * Returns the number of bytes that were actually written to the stream.
+ */
+isize FMT_ToStream(IO_Stream, utf8str formatStr, FMT_Args);
+
 // internal function; check FMT_APrintf
 utf8str FMT_APrintf_(MEM_Allocator, utf8str formatStr, FMT_Args);
 
@@ -263,5 +270,11 @@ cstring FMT_CAPrintf_(MEM_Allocator, utf8str formatStr, FMT_Args);
  */
 #define FMT_CTPrintf(fmt, ...) \
     (FMT_CAPrintf_(MEM_temp, UTF8STR(fmt), FMTARGS(__VA_ARGS__)))
+
+// internal function; check FMT_FPrintf
+isize FMT_FPrintf_(IO_Stream, utf8str formatStr, FMT_Args);
+
+#define FMT_FPrintf(stream, fmt, ...) \
+    (FMT_FPrintf_(stream, UTF8STR(fmt), FMTARGS(__VA_ARGS__)))
 
 EXTERN_C_END

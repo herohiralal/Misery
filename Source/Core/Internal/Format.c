@@ -150,6 +150,26 @@ static inline b8 FMT_Internal_AppendToBuffer(rawptr userData, u8* data, isize le
     return toWrite == len;
 }
 
+typedef struct
+{
+    IO_Stream stream;
+    isize bytesWritten;
+} FMT_Internal_StreamSink;
+
+static inline b8 FMT_Internal_AppendToStream(rawptr userData, u8* data, isize len)
+{
+    if (!userData || !data || !len)
+        return false;
+
+    FMT_Internal_StreamSink* sink = (FMT_Internal_StreamSink*) userData;
+    if (!sink->stream.procedure)
+        return false;
+
+    Slice_(u8) toWrite = {.data = data, .count = len};
+    sink->bytesWritten += IO_Write(sink->stream, toWrite);
+    return true;
+}
+
 typedef b8 (*FMT_Internal_AppendProc)(rawptr, u8*, isize);
 
 typedef struct
@@ -468,6 +488,14 @@ isize FMT_ToBuffer(Slice_(u8) buffer, utf8str formatStr, FMT_Args args, b8 addNu
     return sink.totalWritten;
 }
 
+isize FMT_ToStream(IO_Stream stream, utf8str formatStr, FMT_Args args)
+{
+    FMT_Internal_StreamSink stS = {.stream = stream};
+    FMT_Internal_Sink sink = {.userData = &stS, .append = FMT_Internal_AppendToStream};
+    FMT_Internal_Format(&sink, formatStr, args);
+    return stS.bytesWritten;
+}
+
 static inline utf8str FMT_Internal_APrintf(MEM_Allocator allocator, utf8str formatStr, FMT_Args args, b8 addNullTerm)
 {
     u8 bufferData[8192]; // 8kb flash-format buffer
@@ -500,4 +528,9 @@ utf8str FMT_APrintf_(MEM_Allocator allocator, utf8str formatStr, FMT_Args args)
 cstring FMT_CAPrintf_(MEM_Allocator allocator, utf8str formatStr, FMT_Args args)
 {
     return (cstring) FMT_Internal_APrintf(allocator, formatStr, args, true).data;
+}
+
+isize FMT_FPrintf_(IO_Stream stream, utf8str formatStr, FMT_Args args)
+{
+    return FMT_ToStream(stream, formatStr, args);
 }
