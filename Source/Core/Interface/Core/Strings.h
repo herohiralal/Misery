@@ -40,6 +40,12 @@ utf8str STR_AliasCStr(cstring str);
 utf8str STR_Clone(utf8str str, MEM_Allocator);
 
 /**
+ * Clones a UTF-8 string to a new allocated C-style null-terminated string.
+ * The returned string is allocated using the specified allocator.
+ */
+cstring STR_CloneToCStr(utf8str str, MEM_Allocator);
+
+/**
  * Create a substring from an existing string. Will return an empty string, if the bounds check fails.
  */
 utf8str STR_SubString(utf8str str, isize start, isize count);

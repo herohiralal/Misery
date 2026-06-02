@@ -41,7 +41,7 @@ enum MEM_AllocatorModes
 typedef rawptr (*MEM_AllocatorProc)(MEM_AllocatorMode, rawptr data, usize size, usize align, rawptr oldMem, usize oldSize);
 
 /**
- * Defines a generic allocator structure that can be used to allocate, resize, and free memory.
+ * Defines a generic allocator structure that can be used to allocate, reallocate, and deallocate memory.
  */
 typedef struct
 {

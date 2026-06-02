@@ -15,6 +15,21 @@ utf8str STR_Clone(utf8str str, MEM_Allocator allocator)
     return COL_CloneSlice(str, allocator);
 }
 
+cstring STR_CloneToCStr(utf8str str, MEM_Allocator allocator)
+{
+    if (!str.data || !str.count)
+        return nil;
+
+    char* output = COL_NewSlice(char, str.count + 1, false, allocator).data;
+    if (!output)
+        return nil;
+
+    MEM_Copy(output, str.data, (usize) str.count);
+    output[str.count] = '\0';
+
+    return output;
+}
+
 utf8str STR_SubString(utf8str str, isize start, isize count)
 {
     return COL_SubSlice(str, start, count);
