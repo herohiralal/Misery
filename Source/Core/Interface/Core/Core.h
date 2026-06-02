@@ -5,4 +5,5 @@
 #include "Strings.h"
 #include "Stream.h"
 #include "Format.h"
+#include "Time.h"
 #include "App.h"
