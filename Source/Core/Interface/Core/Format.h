@@ -86,6 +86,7 @@ typedef union
 } FMT_Arg;
 
 COL_DECLARE_FOR(FMT_Arg)
+typedef Slice_(FMT_Arg) FMT_Args;
 
 FMT_Arg FMT_B8(b8 v);
 
@@ -211,5 +212,12 @@ FMT_Arg FMT_Ptr(const void* ptr);
 #endif
 
 #define FMTARGS(...) SLICE(FMT_Arg, __VA_ARGS__)
+
+/**
+ * Format string to an existing buffer.
+ * If the buffer is big enough, returns the number of bytes that were used.
+ * If the buffer is not big enough, returns the total number of bytes that would be required.
+ */
+isize FMT_ToBuffer(Slice_(u8) buffer, utf8str formatStr, FMT_Args);
 
 EXTERN_C_END
