@@ -1,6 +1,4 @@
-#include "Core/Process.h"
 #include <Core/Core.h>
-#include <processenv.h>
 
 MSR_NORETURN
 void PRC_Exit(i32 exitCode OPT_ARG)
