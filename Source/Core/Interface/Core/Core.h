@@ -6,5 +6,6 @@
 #include "Strings.h"
 #include "FileSystem.h"
 #include "Stream.h"
+#include "Process.h"
 #include "Format.h"
 #include "App.h"
