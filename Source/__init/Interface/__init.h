@@ -451,13 +451,13 @@ static_assert(sizeof(f64)     == 8, "f64 must be 8 bytes");
  * Primarily used for logging/reporting the location where a call might have been made from.
  * General-purpose.
  */
-struct SrcLoc
+typedef struct SrcLoc
 {
     const char* file;
     i32         line;
     i32         column;
     const char* function;
-};
+} SrcLoc;
 
 /**
  * Helper macro to get the current source code location. Used with functions that take a SrcLoc

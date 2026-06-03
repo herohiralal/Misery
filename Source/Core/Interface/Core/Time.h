@@ -21,6 +21,13 @@ typedef struct
 TIM_Value TIM_GetCurrentSystemTime(void);
 
 /**
+ * Returns the current time zone offset from UTC.
+ * This is typically used to adjust absolute timestamps to the local time zone, or to display
+ * the current time zone offset to the user.
+ */
+TIM_Value TIM_GetTimeZoneOffset(void);
+
+/**
  * Returns the current monotonic time.
  * This is typically used for measuring elapsed time or time intervals, as it is guaranteed
  * to be monotonic and not affected by changes to the system clock.

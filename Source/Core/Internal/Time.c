@@ -20,17 +20,53 @@ TIM_Value TIM_GetCurrentSystemTime(void)
     #endif
 }
 
+TIM_Value TIM_GetTimeZoneOffset(void)
+{
+    #if MSR_WINDOWS
+    {
+        TIME_ZONE_INFORMATION tzi;
+        DWORD result = GetTimeZoneInformation(&tzi);
+
+        LONG bias = tzi.Bias;
+
+        if (result == TIME_ZONE_ID_DAYLIGHT)
+            bias += tzi.DaylightBias;
+        else if (result == TIME_ZONE_ID_STANDARD)
+            bias += tzi.StandardBias;
+
+        // Windows bias is minutes west of UTC.
+        i64 offsetNs = -(i64)bias * 60LL * 1000000000LL;
+
+        return (TIM_Value){offsetNs};
+    }
+    #elif MSR_UNIX
+    {
+        time_t now = time(NULL);
+
+        struct tm localTm;
+        if (localtime_r(&now, &localTm) == NULL)
+            return (TIM_Value){I64_MIN};
+
+        return (TIM_Value){(i64)localTm.tm_gmtoff * 1000000000LL};
+    }
+    #endif
+}
+
 TIM_Value TIM_GetCurrentMonotonicTime(void)
 {
     #if MSR_WINDOWS
     {
-        static LARGE_INTEGER freq = { };
+        static LARGE_INTEGER freq = {0};
         if (freq.QuadPart == 0)
             QueryPerformanceFrequency(&freq);
 
         LARGE_INTEGER counter;
         QueryPerformanceCounter(&counter);
-        return (TIM_Value) {(i64) (counter.QuadPart * 1000000000LL / freq.QuadPart)};
+
+        i64 ns = (counter.QuadPart / freq.QuadPart) * 1000000000LL +
+                 ((counter.QuadPart % freq.QuadPart) * 1000000000LL) / freq.QuadPart;
+
+        return (TIM_Value){ns};
     }
     #elif MSR_UNIX
     {
@@ -49,7 +85,7 @@ b8 TIM_ToDuration(TIM_Value value, u8* outHour, u8* outMinute, u8* outSecond)
     i64 seconds = value.ns / 1000000000;
 
     // Handle negative durations by taking the absolute value
-    if (seconds < 0) { seconds = -seconds; }
+    if (seconds < 0) { seconds = (seconds == I64_MIN ? I64_MAX : -seconds); }
 
     if (outHour)   *outHour   = (u8)((seconds / 3600) % 24);
     if (outMinute) *outMinute = (u8)((seconds / 60) % 60);
@@ -60,60 +96,30 @@ b8 TIM_ToDuration(TIM_Value value, u8* outHour, u8* outMinute, u8* outSecond)
 
 b8 TIM_ToDate(TIM_Value value, u16* outYear, u8* outMonth, u8* outDay)
 {
-    // Convert nanoseconds to seconds
-    i64 seconds = value.ns / 1000000000;
+    i64 days = value.ns / 1000000000LL / 86400LL;
 
-    // Handle negative timestamps (before epoch)
-    if (seconds < 0)
-    {
+    // Howard Hinnant's civil_from_days algorithm.
+    days += 719468;
+
+    i64 era = (days >= 0 ? days : days - 146096) / 146097;
+    u32 doe = (u32) (days - era * 146097);                      // [0, 146096]
+    u32 yoe = (doe - doe/1460 + doe/36524 - doe/146096) / 365;  // [0, 399]
+    i64 year = (i64) yoe + era * 400;
+
+    u32 doy = doe - (365 * yoe + yoe/4 - yoe/100);
+    u32 mp = (5 * doy + 2) / 153;
+
+    u32 day = doy - (153 * mp + 2) / 5 + 1;
+    u32 month = mp + (mp < 10 ? 3 : -9);
+
+    year += (month <= 2);
+
+    if (year < 0 || year > U16_MAX)
         return false;
-    }
 
-    // Calculate days since epoch
-    i64 days = seconds / 86400; // 86400 seconds in a day
-
-    // Start from Unix epoch: January 1, 1970
-    i64 year = 1970;
-    i64 month = 1;
-    i64 day = 1;
-
-    // Add the days to get the actual date
-    day += days;
-
-    // Days in each month (non-leap year)
-    static const u8 daysInMonth[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-
-    // Normalize the date
-    while (true)
-    {
-        // Check if current year is a leap year
-        bool isLeapYear = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
-        u8 daysThisMonth = daysInMonth[month - 1];
-        if (month == 2 && isLeapYear)
-            daysThisMonth = 29;
-
-        if (day <= daysThisMonth)
-            break; // Date is valid
-
-        // Move to next month
-        day -= daysThisMonth;
-        month++;
-
-        if (month > 12)
-        {
-            month = 1;
-            year++;
-        }
-
-        // Sanity check to prevent infinite loops
-        if (year > 9999)
-            return false;
-    }
-
-    // Set output values
-    if (outYear)  *outYear  = (i16) year;
-    if (outMonth) *outMonth = (u8)  month;
-    if (outDay)   *outDay   = (u8)  day;
+    if (outYear)  *outYear  = (u16)year;
+    if (outMonth) *outMonth = (u8)month;
+    if (outDay)   *outDay   = (u8)day;
 
     return true;
 }
