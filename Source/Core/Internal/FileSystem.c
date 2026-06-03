@@ -636,7 +636,7 @@ b8 DIR_Delete(DIR_Path path)
 
 FIL_Path FIL_Normalise(utf8str path, MEM_Allocator allocator)
 {
-    return (FIL_Path) {.path = NormalisePath(path, true, allocator)};
+    return (FIL_Path) {.path = NormalisePath(path, false, allocator)};
 }
 
 DIR_Path FIL_Parent(FIL_Path path)

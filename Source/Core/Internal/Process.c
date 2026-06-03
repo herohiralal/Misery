@@ -33,7 +33,7 @@ PRC_EnvVars PRC_GetEnvVars(MEM_Allocator allocator)
 {
     PRC_EnvVars output = {.allocator = allocator};
 
-    size_t envVarsCount = 0;
+    isize envVarsCount = 0;
 
 #if MSR_WINDOWS
 
@@ -82,7 +82,7 @@ PRC_EnvVars PRC_GetEnvVars(MEM_Allocator allocator)
         isize keyLen = (isize) (strchr((char*) kvp.data, '=') - (char*) kvp.data);
         isize valLen = kvp.count - keyLen - 1; // -1 for '='
 
-        PRC_EnvVarKVP* kvpEntry = &(output.data.data[0]);
+        PRC_EnvVarKVP* kvpEntry = &(output.data.data[index]);
         kvpEntry->kvp   = kvp;
         kvpEntry->key   = STR_SubString(kvp, 0,          keyLen);
         kvpEntry->value = STR_SubString(kvp, keyLen + 1, valLen);
