@@ -1,6 +1,3 @@
-#include "Core/FileSystem.h"
-#include "Core/Memory.h"
-#include "Core/Strings.h"
 #include <Core/Core.h>
 
 #if MSR_WINDOWS
@@ -91,11 +88,13 @@ static inline b8 PTH_Internal_AppendToLazyPathBuffer(PTH_Internal_LazyPathBuffer
         }
 
         COL_ResizeList(&buffer->writeBuffer, buffer->writeIdx + 1);
-        if (!buffer->writeBuffer.count) { return false; } // failed to reserve memory for the buffer
-        MEM_Copy(buffer->writeBuffer.data, buffer->originalStr.data, (usize) buffer->writeIdx);
+        if (!buffer->writeBuffer.capacity) { return false; } // failed to reserve memory for the buffer
+
+        utf8str toAppend = STR_SubString(buffer->originalStr, 0, buffer->writeIdx);
+        COL_AppendAllToList(&(buffer->writeBuffer), toAppend);
     }
 
-    COL_AppendToList(&buffer->writeBuffer, c);
+    COL_AppendToList(&(buffer->writeBuffer), c);
     buffer->writeIdx++;
     return true;
 }
