@@ -43,7 +43,7 @@ typedef struct
     u16        sizeX, sizeY;
     utf8str    title;
     WND_Handle parent;
-    u8         col[4]; // rgba
+    u8         bgCol[4]; // rgba
     b8         msaa, acceptDropFiles;
 } WND_Cfg;
 
@@ -54,6 +54,12 @@ typedef struct
  * Not thread-safe.
  */
 WND_Data WND_Create(WND_Cfg);
+
+/**
+ * Destroys the specified window.
+ * Not thread-safe.
+ */
+void WND_Destroy(WND_Data* window);
 
 /**
  * Sets the window's fullscreen status.
@@ -100,14 +106,14 @@ b8 WND_Rename(WND_Data* window, utf8str newName);
 
 #if MSR_WINDOWS
 
-    struct HINSTANCE__;
-    typedef struct HINSTANCE__ *HINSTANCE;
+    struct HWND__;
+    typedef struct HWND__ *HWND;
 
-    static_assert( sizeof(WND_Handle) ==  sizeof(HINSTANCE), "window struct size mismatch");
-    static_assert(alignof(WND_Handle) == alignof(HINSTANCE), "window struct alignment mismatch");
+    static_assert( sizeof(WND_Handle) ==  sizeof(HWND), "window struct size mismatch");
+    static_assert(alignof(WND_Handle) == alignof(HWND), "window struct alignment mismatch");
 
-    static inline WND_Handle WND_ToHandle(HINSTANCE hInstance) { return *(WND_Handle*) &hInstance; }
-    static inline HINSTANCE WND_FromHandle(WND_Handle window) { return *(HINSTANCE*) &window; }
+    static inline WND_Handle WND_ToHandle(HWND hInstance) { return *(WND_Handle*) &hInstance; }
+    static inline HWND WND_FromHandle(WND_Handle window) { return *(HWND*) &window; }
 
 #elif MSR_OSX
 

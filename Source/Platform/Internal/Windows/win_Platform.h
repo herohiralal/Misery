@@ -10,18 +10,18 @@ typedef struct
     RECT rect;
     LONG savedStyle;
     LONG savedExStyle;
-} WND_Internal_NativeSavedData;
+} WND_NativeSavedData;
 
-static inline WND_Internal_NativeSavedData WND_ToSavedData(WND_SavedData d)
+static inline WND_NativeSavedData WND_ToSavedData(WND_SavedData d)
 {
-    return *(WND_Internal_NativeSavedData*) &d;
+    return *(WND_NativeSavedData*) &d;
 }
 
-static inline WND_SavedData WND_FromSavedData(WND_Internal_NativeSavedData d)
+static inline WND_SavedData WND_FromSavedData(WND_NativeSavedData d)
 {
     WND_SavedData result;
     MEM_Set(&result, 0, sizeof(WND_SavedData));
-    MEM_Copy(&result, &d, sizeof(WND_Internal_NativeSavedData));
+    MEM_Copy(&result, &d, sizeof(WND_NativeSavedData));
     return result;
 }
 
