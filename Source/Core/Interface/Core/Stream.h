@@ -1,6 +1,6 @@
 #pragma once
 #include <__init.h>
-#include "Strings.h"
+#include "FileSystem.h"
 
 EXTERN_C_BEGIN
 
@@ -104,26 +104,26 @@ void IO_Close(IO_Stream);
  * Open a file for reading and return it as a stream. If allowWrite is true, the file will be opened with write
  * permissions as well. Returns an empty stream if the file cannot be opened.
  */
-IO_Stream IO_OpenFileToRead(utf8str path, b8 allowWrite OPT_ARG);
+IO_Stream IO_OpenFileToRead(FIL_Path path, b8 allowWrite OPT_ARG);
 
 /**
  * Open a file for writing and return it as a stream. If append is true, the file will be opened in append mode
  * (data will be written at the end of the file). * If allowRead is true, the file will be opened with read permissions
  * as well. Returns an empty stream if the file cannot be opened.
  */
-IO_Stream IO_OpenFileToWrite(utf8str path, b8 append OPT_ARG, b8 allowRead OPT_ARG);
+IO_Stream IO_OpenFileToWrite(FIL_Path path, b8 append OPT_ARG, b8 allowRead OPT_ARG);
 
 /**
  * Read the entire contents of the file at the given path into a newly allocated buffer, and return it as a Slice of bytes.
  * The memory for the buffer is allocated using the provided allocator. Returns an empty slice on failure or if
  * the file cannot be opened.
  */
-Slice_(u8) IO_ReadEntireFile(utf8str path, MEM_Allocator);
+Slice_(u8) IO_ReadEntireFile(FIL_Path path, MEM_Allocator);
 
 /**
  * Write the provided data to the file at the given path. If append is true, the file will be opened in append mode
  * (data will be written at the end of the file). Returns true on success, false on failure or if the file cannot be opened.
  */
-b8 IO_WriteAllToFile(utf8str path, Slice_(u8) data, b8 append OPT_ARG);
+b8 IO_WriteAllToFile(FIL_Path path, Slice_(u8) data, b8 append OPT_ARG);
 
 EXTERN_C_END

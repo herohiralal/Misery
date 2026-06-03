@@ -123,10 +123,10 @@ static_assert(alignof(IO_Internal_FileStreamData) == alignof(rawptr), "IO_Intern
 
 static isize IO_Internal_FileStreamProc(IO_StreamMode, rawptr data, isize position, Slice_(u8) buffer);
 
-IO_Stream IO_OpenFileToRead(utf8str path, b8 allowWrite)
+IO_Stream IO_OpenFileToRead(FIL_Path path, b8 allowWrite)
 {
     IO_Internal_FileStreamData streamData = {.handle = IO_Internal_InvalidFileStreamData};
-    cstring cPath = STR_CloneToCStr(path, MEM_temp);
+    cstring cPath = STR_CloneToCStr(path.path, MEM_temp);
 
     if (cPath)
     {
@@ -154,10 +154,10 @@ IO_Stream IO_OpenFileToRead(utf8str path, b8 allowWrite)
     return (IO_Stream) {.procedure = IO_Internal_FileStreamProc, .data = streamData.asPtr};
 }
 
-IO_Stream IO_OpenFileToWrite(utf8str path, b8 append, b8 allowRead)
+IO_Stream IO_OpenFileToWrite(FIL_Path path, b8 append, b8 allowRead)
 {
     IO_Internal_FileStreamData streamData = {.handle = IO_Internal_InvalidFileStreamData};
-    cstring cPath = STR_CloneToCStr(path, MEM_temp);
+    cstring cPath = STR_CloneToCStr(path.path, MEM_temp);
 
     if (cPath)
     {
@@ -388,7 +388,7 @@ static isize IO_Internal_FileStreamProc(IO_StreamMode mode, rawptr data, isize p
     return invalidOutput;
 }
 
-Slice_(u8) IO_ReadEntireFile(utf8str path, MEM_Allocator allocator)
+Slice_(u8) IO_ReadEntireFile(FIL_Path path, MEM_Allocator allocator)
 {
     IO_Stream stream = IO_OpenFileToRead(path, false);
     if (!stream.procedure)
@@ -397,7 +397,7 @@ Slice_(u8) IO_ReadEntireFile(utf8str path, MEM_Allocator allocator)
     return IO_ReadAll(stream, allocator, false);
 }
 
-b8 IO_WriteAllToFile(utf8str path, Slice_(u8) data, b8 append OPT_ARG)
+b8 IO_WriteAllToFile(FIL_Path path, Slice_(u8) data, b8 append OPT_ARG)
 {
     IO_Stream stream = IO_OpenFileToWrite(path, append, false);
     if (!stream.procedure)
