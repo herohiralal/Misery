@@ -1,4 +1,3 @@
-#include "Core/Stream.h"
 #include <Core/Core.h>
 
 isize IO_GetSize(IO_Stream stream)
