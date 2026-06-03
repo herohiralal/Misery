@@ -294,8 +294,8 @@ rawptr MEM_ArenaAllocatorProc(
         if (alignedOffset + alignedSize > arena->currentBlockCapacity)
         {
             usize newBlockSize = arena->defaultBlockSize;
-            if (newBlockSize < (16 * 1024))
-                newBlockSize = 16 * 1024; // minimum block size of 16 KB
+            if (newBlockSize < (1 * 1024))
+                newBlockSize = 1 * 1024; // minimum block size of 1 KB
 
             usize newBlockAlign = sizeof(MEM_ArenaAllocatorBlockHeader);
 

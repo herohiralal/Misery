@@ -126,7 +126,7 @@ typedef struct
 /**
  * Create a new arena allocator with the specified default block size and backing allocator.
  * If backing allocator is null, this will use the default allocator for allocating blocks.
- * If default block size is less than 16KB, it will be rounded up to 16 KB to avoid fragmentation
+ * If default block size is less than 1KiB, it will be rounded up to 1KiB.
  */
 MEM_ArenaAllocator MEM_CreateArenaAllocator(usize defaultBlockSize, MEM_Allocator backingAllocator);
 
