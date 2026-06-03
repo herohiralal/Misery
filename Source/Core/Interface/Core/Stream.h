@@ -126,4 +126,9 @@ Slice_(u8) IO_ReadEntireFile(FIL_Path path, MEM_Allocator);
  */
 b8 IO_WriteAllToFile(FIL_Path path, Slice_(u8) data, b8 append OPT_ARG);
 
+/**
+ * Create a pipe and return the read and write ends as separate streams. Returns true on success, false on failure.
+ */
+b8 IO_CreatePipe(IO_Stream* outR, IO_Stream* outW);
+
 EXTERN_C_END

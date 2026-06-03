@@ -1,3 +1,4 @@
+#include "Core/Stream.h"
 #include <Core/Core.h>
 
 isize IO_GetSize(IO_Stream stream)
@@ -196,25 +197,30 @@ IO_Stream IO_OpenFileToWrite(FIL_Path path, b8 append, b8 allowRead)
     return (IO_Stream) {.procedure = IO_Internal_FileStreamProc, .data = streamData.asPtr};
 }
 
-static isize IO_Internal_FileStreamProc(IO_StreamMode mode, rawptr data, isize position, Slice_(u8) buffer)
+static inline isize IO_Internal_InvalidStreamValue(IO_StreamMode mode)
 {
-    IO_Internal_FileStreamData streamData = {.asPtr = data};
-
-    isize invalidOutput = -1;
-    if (true ||
+    if (false ||
         mode == IO_StreamMode_SeekAbsolute ||
         mode == IO_StreamMode_SeekRelative ||
         mode == IO_StreamMode_TruncateAtCursor ||
         mode == IO_StreamMode_TruncateToSize ||
         mode == IO_StreamMode_Flush ||
-        true)
+        mode == IO_StreamMode_Close ||
+        false)
     {
-        invalidOutput = (isize) false;
+        return (isize) false;
     }
+
+    return -1;
+}
+
+static isize IO_Internal_FileStreamProc(IO_StreamMode mode, rawptr data, isize position, Slice_(u8) buffer)
+{
+    IO_Internal_FileStreamData streamData = {.asPtr = data};
 
     if (streamData.handle == IO_Internal_InvalidFileStreamData)
     {
-        return invalidOutput;
+        return IO_Internal_InvalidStreamValue(mode);
     }
 
     if (mode == IO_StreamMode_GetSize)
@@ -344,6 +350,8 @@ static isize IO_Internal_FileStreamProc(IO_StreamMode mode, rawptr data, isize p
         #else
             #error "Unsupported platform"
         #endif
+
+        return IO_Internal_InvalidStreamValue(mode);
     }
 
     if (mode == IO_StreamMode_Read)
@@ -365,7 +373,7 @@ static isize IO_Internal_FileStreamProc(IO_StreamMode mode, rawptr data, isize p
         #endif
     }
 
-    if (mode == IO_StreamMode_Read)
+    if (mode == IO_StreamMode_Write)
     {
         #if MSR_WINDOWS
         {
@@ -385,7 +393,7 @@ static isize IO_Internal_FileStreamProc(IO_StreamMode mode, rawptr data, isize p
     }
 
     MSR_ASSERT(false && "unsupported stream mode");
-    return invalidOutput;
+    return IO_Internal_InvalidStreamValue(mode);
 }
 
 Slice_(u8) IO_ReadEntireFile(FIL_Path path, MEM_Allocator allocator)
@@ -408,6 +416,197 @@ b8 IO_WriteAllToFile(FIL_Path path, Slice_(u8) data, b8 append OPT_ARG)
     IO_Close(stream);
 
     return bytesWritten == (isize) data.count;
+}
+
+static isize IO_Internal_PipeProc(IO_StreamMode mode, rawptr data, isize position, Slice_(u8) buffer);
+
+b8 IO_CreatePipe(IO_Stream* outR, IO_Stream* outW)
+{
+    IO_Internal_FileStreamData rStream = {.handle = IO_Internal_InvalidFileStreamData};
+    IO_Internal_FileStreamData wStream = rStream;
+
+    if (outR) *outR = (IO_Stream) {.procedure = IO_Internal_PipeProc, .data = rStream.asPtr};
+    if (outW) *outW = (IO_Stream) {.procedure = IO_Internal_PipeProc, .data = wStream.asPtr};
+    if (!outR || !outW)
+        return false;
+
+    #if MSR_WINDOWS
+    {
+        HANDLE readHandle, writeHandle;
+        SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
+        if (!CreatePipe(&readHandle, &writeHandle, &sa, 0)) { return false; }
+
+        rStream.handle = readHandle;
+        wStream.handle = writeHandle;
+
+        outR->data = rStream.asPtr;
+        outW->data = wStream.asPtr;
+        return true;
+    }
+    #elif MSR_UNIX
+    {
+        int fds[2];
+        if (pipe(fds) != 0) { return false; }
+
+        rStream.handle = fds[0];
+        wStream.handle = fds[1];
+
+        outR->data = rStream.asPtr;
+        outW->data = wStream.asPtr;
+        return true;
+    }
+    #else
+    {
+        #error "unsupported platform"
+        return false;
+    }
+    #endif
+
+    return false;
+}
+
+static isize IO_Internal_PipeProc(IO_StreamMode mode, rawptr data, isize position, Slice_(u8) buffer)
+{
+    IO_Internal_FileStreamData streamData = {.asPtr = data};
+
+    if (streamData.handle == IO_Internal_InvalidFileStreamData)
+    {
+        return IO_Internal_InvalidStreamValue(mode);
+    }
+
+    if (false ||
+        mode == IO_StreamMode_GetCurrentPosition ||
+        mode == IO_StreamMode_SeekAbsolute ||
+        mode == IO_StreamMode_SeekRelative ||
+        mode == IO_StreamMode_TruncateAtCursor ||
+        mode == IO_StreamMode_TruncateToSize ||
+        mode == IO_StreamMode_Flush ||
+        false)
+    {
+        return IO_Internal_InvalidStreamValue(mode);
+    }
+
+    if (mode == IO_StreamMode_GetSize)
+    {
+        #if MSR_WINDOWS
+        {
+            DWORD bytesAvailable = 0;
+            if (!PeekNamedPipe(streamData.handle, NULL, 0, NULL, &bytesAvailable, NULL))
+                return -1;
+
+            return (isize) bytesAvailable;
+        }
+        #elif MSR_UNIX
+        {
+            int bytesAvailable = 0;
+            if (ioctl(streamData.handle, FIONREAD, &bytesAvailable) != 0)
+                return -1;
+
+            return (isize) bytesAvailable;
+        }
+        #else
+        {
+            #error "unsupported platform"
+            return -1;
+        }
+        #endif
+    }
+
+    if (mode == IO_StreamMode_Close)
+    {
+        #if MSR_WINDOWS
+        {
+            CloseHandle(streamData.handle);
+        }
+        #elif MSR_UNIX
+        {
+            close(streamData.handle);
+        }
+        #else
+        {
+            #error "unsupported platform"
+        }
+        #endif
+
+        return IO_Internal_InvalidStreamValue(mode);
+    }
+
+    if (mode == IO_StreamMode_Read)
+    {
+        #if MSR_WINDOWS
+        {
+            DWORD bytesRead = 0;
+            if (!ReadFile(streamData.handle, buffer.data, (DWORD) buffer.count, &bytesRead, NULL))
+            {
+                DWORD err = GetLastError();
+                if (err == ERROR_NO_DATA || err == ERROR_PIPE_NOT_CONNECTED)
+                    bytesRead = 0; // no data yet
+                else
+                    return IO_Internal_InvalidStreamValue(mode); // error
+            }
+
+            return (isize) bytesRead;
+        }
+        #elif MSR_UNIX
+        {
+            ssize_t bytesRead = read(streamData.handle, buffer.data, (size_t) buffer.count);
+            if (bytesRead < 0)
+            {
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                    bytesRead = 0; // no data yet
+                else
+                    return IO_Internal_InvalidStreamValue(mode); // error
+            }
+
+            return (isize) bytesRead;
+        }
+        #else
+        {
+            #error "unsupported platform"
+            return IO_Internal_InvalidStreamValue(mode);
+        }
+        #endif
+    }
+
+    if (mode == IO_StreamMode_Write)
+    {
+        #if MSR_WINDOWS
+        {
+            DWORD bytesWritten = 0;
+            if (!WriteFile(streamData.handle, buffer.data, (DWORD) buffer.count, &bytesWritten, NULL))
+            {
+                DWORD err = GetLastError();
+                if (err == ERROR_NO_DATA || err == ERROR_PIPE_NOT_CONNECTED)
+                    bytesWritten = 0; // cannot write now
+                else
+                    return -1; // error
+            }
+
+            return (isize) bytesWritten;
+        }
+        #elif MSR_UNIX
+        {
+            ssize_t bytesWritten = write(streamData.handle, buffer.data, (size_t) buffer.count);
+            if (bytesWritten < 0)
+            {
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                    bytesWritten = 0; // cannot write now
+                else
+                    return -1; // error
+            }
+
+            return (isize) bytesWritten;
+        }
+        #else
+        {
+            #error "unsupported platform"
+            return IO_Internal_InvalidStreamValue(mode);
+        }
+        #endif
+    }
+
+    MSR_ASSERT(false && "unsupported stream mode");
+    return IO_Internal_InvalidStreamValue(mode);
 }
 
 #undef IO_Internal_InvalidFileStreamData
