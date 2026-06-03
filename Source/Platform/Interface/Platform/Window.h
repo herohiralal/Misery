@@ -98,4 +98,40 @@ b8 WND_GetPtrPos(WND_Data* window, i16* posX, i16* posY);
  */
 b8 WND_Rename(WND_Data* window, utf8str newName);
 
+#if MSR_WINDOWS
+
+    struct HINSTANCE__;
+    typedef struct HINSTANCE__ *HINSTANCE;
+
+    static_assert( sizeof(WND_Handle) ==  sizeof(HINSTANCE), "window struct size mismatch");
+    static_assert(alignof(WND_Handle) == alignof(HINSTANCE), "window struct alignment mismatch");
+
+    static inline WND_Handle WND_ToHandle(HINSTANCE hInstance) { return *(WND_Handle*) &hInstance; }
+    static inline HINSTANCE WND_FromHandle(WND_Handle window) { return *(HINSTANCE*) &window; }
+
+#elif MSR_OSX
+
+    // using `rawptr` instead of `NSWindow*`
+    static_assert( sizeof(WND_Handle) ==  sizeof(rawptr), "window struct size mismatch");
+    static_assert(alignof(WND_Handle) == alignof(rawptr), "window struct alignment mismatch");
+
+    static inline WND_Handle WND_ToHandle(rawptr window) { return *(WND_Handle*) &window; }
+    static inline rawptr WND_FromHandle(WND_Handle window) { return *(rawptr*) &window; }
+
+#elif MSR_LINUX
+#elif MSR_ANDROID
+
+    struct ANativeWindow;
+    typedef struct ANativeWindow ANativeWindow;
+
+    static_assert( sizeof(WND_Handle) ==  sizeof(ANativeWindow*), "window struct size mismatch");
+    static_assert(alignof(WND_Handle) == alignof(ANativeWindow*), "window struct alignment mismatch");
+
+    static inline WND_Handle WND_ToHandle(ANativeWindow* window) { return *(WND_Handle*) &window; }
+    static inline ANativeWindow* WND_FromHandle(WND_Handle window) { return *(ANativeWindow**) &window; }
+
+#else
+    #error "unimplemented platform"
+#endif
+
 EXTERN_C_END
