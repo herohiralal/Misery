@@ -13,10 +13,32 @@ static inline Slice_(utf8str) APP_Internal_GetCmdArgs(i32 argc, cstring* argv)
     return args;
 }
 
+#if MSR_WINDOWS
+    #define MSR_ASSERT_UTF8_CODEPAGE() \
+        do \
+        { \
+            b8 isUtf8 = (GetACP() == CP_UTF8); \
+            MSR_ASSERT(isUtf8 && "Current codepage is not UTF-8."); \
+            if (!isUtf8) \
+            { \
+                MessageBoxExA( \
+                    nil, \
+                    "Please change the application codepage to UTF-8", \
+                    "Unsupported CodePage", \
+                    MB_OK | MB_ICONERROR, \
+                    0 \
+                ); \
+                return -1; \
+            } \
+        } while (0)
+#endif
+
 i32 APP_Main(i32 argc, cstring* argv, APP_EntryPointProc mainFn, b8 isGui)
 {
     #if MSR_WINDOWS
     {
+        MSR_ASSERT_UTF8_CODEPAGE();
+
         (void) isGui; // on windows, gui entry point will go to winmain
 
         APP_Handle app = APP_ToHandle(GetModuleHandleA(nil));
@@ -66,6 +88,8 @@ i32 APP_Main(i32 argc, cstring* argv, APP_EntryPointProc mainFn, b8 isGui)
 
     i32 APP_WinMain(HINSTANCE hInstance, PSTR pCmdLinePtr, APP_EntryPointProc mainFn)
     {
+        MSR_ASSERT_UTF8_CODEPAGE();
+
         APP_Handle app = APP_ToHandle(hInstance);
 
         int argc;
