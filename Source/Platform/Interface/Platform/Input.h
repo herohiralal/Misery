@@ -80,6 +80,8 @@ enum INP_CurrentKeyStates
     INP_CKS_Released = 1 << 2,
 };
 
+COL_DECLARE_FOR(INP_CurrentKeyState);
+
 /**
  * Any modifiers that are added to a key event.
  */
@@ -179,10 +181,9 @@ COL_DECLARE_FOR(INP_Evt);
  * Gather all input events for this frame.
  * Must be called once per frame before accessing events.
  * Clears previous frame's events and processes new Windows messages.
- * Requires a temp allocator to store a bunch of temporary stuff.
  * Not thread-safe.
  */
-void INP_GatherEvts(MEM_Allocator tempAllocator);
+void INP_GatherEvts(void);
 
 /**
  * Iterate across all events that were gathered this frame.

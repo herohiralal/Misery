@@ -20,6 +20,26 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
 
 #ifdef __cplusplus
 
+    EXTERN_C_END
+
+    template <typename T>
+    static inline T COL_Internal_SliceFromRaw(const COL_RawSlice& raw)
+    {
+        static_assert( sizeof(T) ==  sizeof(COL_RawSlice));
+        static_assert(alignof(T) == alignof(COL_RawSlice));
+        return *(T*) (&raw);
+    }
+
+    template <typename T>
+    static inline T COL_Internal_ListFromRaw(const COL_RawList& raw)
+    {
+        static_assert( sizeof(T) ==  sizeof(COL_RawList));
+        static_assert(alignof(T) == alignof(COL_RawList));
+        return *(T*) (&raw);
+    }
+
+    EXTERN_C_BEGIN
+
     #define COL_DECLARE_FOR(ty) \
         typedef struct \
         { \
@@ -45,9 +65,9 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
         \
         EXTERN_C_BEGIN
 
-    #define COL_SLICE_FROM_RAW(ty, raw) (Slice_(ty) {(ty*) raw.data, raw.count})
+    #define COL_SLICE_FROM_RAW(ty, raw) (COL_Internal_SliceFromRaw<Slice_(ty)>(raw))
 
-    #define COL_LIST_FROM_RAW(ty, raw) (List_(ty) {(ty*) raw.data, raw.count, raw.capacity, raw.allocator})
+    #define COL_LIST_FROM_RAW(ty, raw) (COL_Internal_ListFromRaw<List_(ty)>(raw))
 
     #define COL_RAW_PTR_FROM_SLICE_PTR(sl) (COL_CreateRawSlicePtr(sl))
 
@@ -251,6 +271,20 @@ void COL_DeleteRawList(COL_RawList* list);
             ); \
             \
             (listPtr)->count += (items).count; \
+        } \
+    } while(0)
+
+#define COL_RemoveIdxFromList(listPtr, idx) \
+    do \
+    { \
+        if ((idx) >= 0 && (idx) < (listPtr)->count) \
+        { \
+            MEM_Move( \
+                &((listPtr)->data[(idx)]), \
+                &((listPtr)->data[(idx) + 1]), \
+                ((listPtr)->count - (idx) - 1) * (isize) sizeof((listPtr)->data[0]) \
+            ); \
+            (listPtr)->count--; \
         } \
     } while(0)
 
