@@ -1,3 +1,4 @@
+#include "Core/Process.h"
 #include <Core/Core.h>
 
 MSR_NORETURN
@@ -27,9 +28,9 @@ PCH GetEnvironmentStringsA(void) { return GetEnvironmentStrings(); }
 #define GetEnvironmentStrings GetEnvironmentStringsW
 #endif
 
-PRC_EnvVars PRC_GetEnvVars(MEM_Allocator allocator)
+List_(PRC_EnvVarKVP) PRC_GetEnvVars(MEM_Allocator allocator)
 {
-    PRC_EnvVars output = {.allocator = allocator};
+    List_(PRC_EnvVarKVP) output = COL_NewList(PRC_EnvVarKVP, 0, allocator);
 
     isize envVarsCount = 0;
 
@@ -50,11 +51,7 @@ PRC_EnvVars PRC_GetEnvVars(MEM_Allocator allocator)
         #error "unsupported platform"
 #endif
 
-    output.data = COL_NewSlice(PRC_EnvVarKVP, envVarsCount, true, allocator);
-    if (!output.data.data || !output.data.count)
-        return (PRC_EnvVars) {0};
-
-    isize index = 0;
+    COL_ResizeList(&output, envVarsCount);
 
     isize fullLen = 0;
 #if MSR_WINDOWS
@@ -80,11 +77,14 @@ PRC_EnvVars PRC_GetEnvVars(MEM_Allocator allocator)
         isize keyLen = (isize) (strchr((char*) kvp.data, '=') - (char*) kvp.data);
         isize valLen = kvp.count - keyLen - 1; // -1 for '='
 
-        PRC_EnvVarKVP* kvpEntry = &(output.data.data[index]);
-        kvpEntry->kvp   = kvp;
-        kvpEntry->key   = STR_SubString(kvp, 0,          keyLen);
-        kvpEntry->value = STR_SubString(kvp, keyLen + 1, valLen);
-        index++;
+        PRC_EnvVarKVP var =
+        {
+            .kvp   = kvp,
+            .key   = STR_SubString(kvp, 0,          keyLen),
+            .value = STR_SubString(kvp, keyLen + 1, valLen)
+        };
+
+        COL_AppendToList(&output, var);
 
 #if MSR_UNIX
     }
@@ -96,18 +96,14 @@ PRC_EnvVars PRC_GetEnvVars(MEM_Allocator allocator)
         #error "unsupported platform"
 #endif
 
-    output.data = COL_SubSlice(output.data, 0, index); // in case of malformed entries
     return output;
 }
 
-void PRC_FreeEnvVars(PRC_EnvVars* vars)
+void PRC_FreeEnvVars(List_(PRC_EnvVarKVP)* envVars)
 {
-    if (!vars || !vars->data.data || !vars->data.count)
+    if (!envVars)
         return;
 
-    for (i64 i = 0; i < vars->data.count; i++)
-        COL_DeleteSlice(&(vars->data.data[i].kvp), vars->allocator);
-
-    COL_DeleteSlice(&vars->data, vars->allocator);
-    *vars = (PRC_EnvVars) {0};
+    COL_DeleteList(envVars);
+    *envVars = (List_(PRC_EnvVarKVP)) {0};
 }

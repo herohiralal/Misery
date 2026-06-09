@@ -25,30 +25,19 @@ typedef struct
 COL_DECLARE_FOR(PRC_EnvVarKVP)
 
 /**
- * A collection of environment variables represented as a slice of key-value pairs.
- * The `data` field contains the slice of environment variable key-value pairs.
- * The `allocator` field indicates the allocator used for the slice and its contents.
- */
-typedef struct
-{
-    Slice_(PRC_EnvVarKVP) data;
-    MEM_Allocator allocator;
-} PRC_EnvVars;
-
-/**
  * Retrieves all environment variables as a slice of key-value pairs.
  * The returned slice is allocated using the provided allocator.
  * The individual strings within the key-value pairs are also allocated using the same allocator.
  * For the key-value pairs, the `kvp` field contains the full "KEY=VALUE" string,
  * while the `key` and `value` fields are just 'views' into that string.
  */
-PRC_EnvVars PRC_GetEnvVars(MEM_Allocator);
+List_(PRC_EnvVarKVP) PRC_GetEnvVars(MEM_Allocator);
 
 /**
  * Frees the memory associated with the environment variables and its contents.
  * This should be called for any slice returned by `PRC_GetEnvVars` when it is no longer needed.
  */
-void PRC_FreeEnvVars(PRC_EnvVars*);
+void PRC_FreeEnvVars(List_(PRC_EnvVarKVP)* envVars);
 
 /**
  * A handle to a process.
