@@ -119,7 +119,7 @@ static cstring PRC_Internal_BuildWindowsProcessCmdLine(Slice_(utf8str) execAndAr
 
     List_(char) sb = COL_NewList(char, minLen, allocator);
 
-    for (i64 i = 0; i < execAndArgs.count; i++)
+    for (isize i = 0; i < execAndArgs.count; i++)
     {
         utf8str arg = execAndArgs.data[i];
 
@@ -127,7 +127,7 @@ static cstring PRC_Internal_BuildWindowsProcessCmdLine(Slice_(utf8str) execAndAr
 
         // Escape and quote the argument as needed
         b8 needsQuotes = false;
-        for (i64 j = 0; j < arg.count; j++)
+        for (isize j = 0; j < arg.count; j++)
         {
             if (false ||
                 arg.data[j] == '('  ||
@@ -165,24 +165,24 @@ static cstring PRC_Internal_BuildWindowsProcessCmdLine(Slice_(utf8str) execAndAr
 
         COL_AppendToList(&sb, '\"'); // start
 
-        i64 j = 0;
+        isize j = 0;
         while (j < arg.count)
         {
-            i64 backslashes = 0;
+            isize backslashes = 0;
 
             while (j < arg.count && arg.data[j] == '\\') { backslashes++; j++; }
 
             if (j == arg.count)
             {
                 // Escape all backslashes at the end
-                for (i64 k = 0; k < backslashes * 2; k++)
+                for (isize k = 0; k < backslashes * 2; k++)
                     COL_AppendToList(&sb, '\\');
                 break;
             }
             else if (arg.data[j] == '\"')
             {
                 // Escape all backslashes and the quote
-                for (i64 k = 0; k < (backslashes * 2) + 1; k++)
+                for (isize k = 0; k < (backslashes * 2) + 1; k++)
                     COL_AppendToList(&sb, '\\');
 
                 COL_AppendToList(&sb, '\"');
@@ -190,7 +190,7 @@ static cstring PRC_Internal_BuildWindowsProcessCmdLine(Slice_(utf8str) execAndAr
             else
             {
                 // No special handling needed, just output the backslashes
-                for (i64 k = 0; k < backslashes; k++)
+                for (isize k = 0; k < backslashes; k++)
                     COL_AppendToList(&sb, '\\');
 
                 COL_AppendToList(&sb, arg.data[j]);
@@ -261,8 +261,8 @@ Slice_(utf8str) PRC_Internal_SplitUnixPathList(utf8str pathStr, MEM_Allocator al
 
     Slice_(utf8str) paths = COL_NewSlice(utf8str, count + 1, false, allocator);
 
-    i64 index = 0;
-    for (i64 i = 0; i < pathStr.count; i++)
+    isize index = 0;
+    for (isize i = 0; i < pathStr.count; i++)
     {
         u8 c = pathStr.data[i];
         if (c == '\"') { quote = !quote; }
@@ -278,7 +278,7 @@ Slice_(utf8str) PRC_Internal_SplitUnixPathList(utf8str pathStr, MEM_Allocator al
 
     paths.data[index] = pathStr; paths.data[index].data += start; paths.data[index].count = pathStr.count - start;
 
-    for (i64 i = 0; i < paths.count; i++)
+    for (isize i = 0; i < paths.count; i++)
     {
         paths.data[i] = STR_Replace(paths.data[i], UTF8STR("\""), UTF8STR(""), allocator, false);
     }
@@ -412,7 +412,7 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
         utf8str exePath = execAndArgs.data[0];
 
         b8 isSimpleExePath = true;
-        for (i64 i = 0; i < exePath.count; i++)
+        for (isize i = 0; i < exePath.count; i++)
         {
             if (exePath.data[i] == '/' || exePath.data[i] == '\\')
             {
@@ -444,7 +444,7 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
         {
             currentEnvVars = PRC_GetEnvVars(tempAllocator).slice; // to ensure PATH is loaded
             utf8str pathVar = {0};
-            for (i64 i = 0; i < currentEnvVars.count; i++)
+            for (isize i = 0; i < currentEnvVars.count; i++)
             {
                 PRC_EnvVarKVP kvp = currentEnvVars.data[i];
                 if (STR_Eq(kvp.key, UTF8STR("PATH")))
@@ -458,7 +458,7 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
             Slice_(utf8str) pathDirs = PRC_Internal_SplitUnixPathList(pathVar, tempAllocator);
 
             b8 found = false;
-            for (i64 pi = 0; pi < pathDirs.count; pi++)
+            for (isize pi = 0; pi < pathDirs.count; pi++)
             {
                 utf8str dir = pathDirs.data[pi];
 
@@ -529,7 +529,7 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
         Slice_(cstring) cmd = COL_NewSlice(cstring, execAndArgs.count + 1, true, tempAllocator);
         if (!cmd.data || !cmd.count) goto exitFn;
 
-        for (i64 i = 0; i < execAndArgs.count; i++)
+        for (isize i = 0; i < execAndArgs.count; i++)
             cmd.data[i] = STR_CloneToCStr(execAndArgs.data[i], tempAllocator);
         cmd.data[execAndArgs.count] = nil; // null-terminate argv
 
@@ -543,7 +543,7 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
         {
             cenv = COL_NewSlice(cstring, environmentVariables.count + 1, true, tempAllocator).data;
             if (!cenv) goto exitFn;
-            for (i64 i = 0; i < environmentVariables.count; i++)
+            for (isize i = 0; i < environmentVariables.count; i++)
                 cenv[i] = STR_CloneToCStr(environmentVariables.data[i], tempAllocator);
             cenv[environmentVariables.count] = nil; // null-terminate envp
 
