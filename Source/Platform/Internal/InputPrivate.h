@@ -41,6 +41,6 @@ INP_Internal_State* INP_Internal_GetState(void);
 #define INP_INTERNAL_STATE(varName) \
     INP_Internal_State* varName = INP_Internal_GetState()
 
-void INP_Internal_ClearTempData(void);
+void INP_Internal_ClearTempData(INP_Internal_State* state);
 
 EXTERN_C_END

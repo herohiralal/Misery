@@ -1,5 +1,3 @@
-#include "Platform/Input.h"
-#include "Platform/Window.h"
 #include "win_Platform.h"
 
 #if MSR_WINDOWS
@@ -95,10 +93,8 @@ static i32 INP_Internal_FromKeyCode(INP_KeyCode keyCode)
     return 0;
 }
 
-static b8 INP_Internal_InitialiseInputSystem(void)
+static b8 INP_Internal_InitialiseInputSystem(INP_Internal_State* state)
 {
-    INP_INTERNAL_STATE(state);
-
     if (state->inputSystemInitialised)
         return true;
 
@@ -323,10 +319,9 @@ static void INP_Internal_ProcessRawInput(HWND wnd, HRAWINPUT handle)
     UINT dwSize;
     GetRawInputData(handle, RID_INPUT, nil, &dwSize, sizeof(RAWINPUTHEADER));
 
-    if (state->rawInputBuffer.count < (isize) dwSize)
+    if (state->rawInputBuffer.capacity < (isize) dwSize)
     {
         COL_ResizeList(&(state->rawInputBuffer), (isize) dwSize);
-        state->rawInputBuffer.count = (isize) dwSize;
     }
 
     UINT writtenBytes = GetRawInputData(handle, RID_INPUT, state->rawInputBuffer.data, &dwSize, sizeof(RAWINPUTHEADER));
@@ -557,12 +552,12 @@ LRESULT CALLBACK INP_Internal_WindowsInputCallback(HWND wnd, UINT msg, WPARAM wP
 
 void INP_GatherEvts(void)
 {
-    if (!INP_Internal_InitialiseInputSystem())
+    INP_INTERNAL_STATE(state);
+
+    if (!INP_Internal_InitialiseInputSystem(state))
         return;
 
-    INP_Internal_ClearTempData();
-
-    INP_INTERNAL_STATE(state);
+    INP_Internal_ClearTempData(state);
 
     INP_KeyModifier modifiers[3] = {INP_KM_Alt, INP_KM_Ctrl,    INP_KM_Shift};
     INP_KeyCode      keycodes[3] = {INP_KC_Alt, INP_KC_Control, INP_KC_Shift};

@@ -14,11 +14,6 @@ INP_Internal_State* INP_Internal_GetState(void)
             s = INP_Internal_State { };
             s.tempAllocator = MEM_AllocatorFromArena(&a);
 
-            s.droppedFiles = COL_NewList(utf8str, 0, s.tempAllocator);
-            s.resizes = COL_NewList(INP_WindowResizeData, 0, s.tempAllocator);
-            s.moves = COL_NewList(INP_WindowMoveData, 0, s.tempAllocator);
-            s.evts = COL_NewList(INP_Evt, 0, s.tempAllocator);
-
             s.keyStates = COL_NewSlice(INP_CurrentKeyState, (isize) INP_KC_NUM, true, MEM_main);
 
             #if MSR_WINDOWS
@@ -27,6 +22,8 @@ INP_Internal_State* INP_Internal_GetState(void)
                 s.keysDown = COL_NewList(i32, 32, MEM_main);
             }
             #endif
+
+            INP_Internal_ClearTempData(&s);
         }
 
         ~InputState()

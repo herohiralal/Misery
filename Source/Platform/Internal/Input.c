@@ -1,14 +1,7 @@
 #include "InputPrivate.h"
 
-void INP_Internal_ClearTempData(void)
+void INP_Internal_ClearTempData(INP_Internal_State* state)
 {
-    INP_INTERNAL_STATE(state);
-
-    COL_ClearList(&(state->evts));
-    COL_ClearList(&(state->resizes));
-    COL_ClearList(&(state->moves));
-    COL_ClearList(&(state->droppedFiles));
-
     MEM_DeallocateAll(state->tempAllocator);
 
     state->droppedFiles = COL_NewList(utf8str, 8, state->tempAllocator);
