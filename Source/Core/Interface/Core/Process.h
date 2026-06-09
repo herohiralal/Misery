@@ -40,18 +40,52 @@ List_(PRC_EnvVarKVP) PRC_GetEnvVars(MEM_Allocator);
 void PRC_FreeEnvVars(List_(PRC_EnvVarKVP)* envVars);
 
 /**
- * A handle to a process.
- * The `pid` field is the process ID.
- * On Windows, this is `dwProcessId`.
- * On Unix-like systems, this is the PID.
- * The `handle` field is a platform-specific handle to the process.
- * On Windows, this is a HANDLE.
- * On Unix-like systems, this is pidfd.
+ * An opaque handle to a process.
  */
 typedef struct
 {
-    i64 pid;
     u64 handle;
 } PRC_Handle;
+
+/**
+ * Checks if the given process handle is valid.
+ * A handle is considered valid if it represents an active process that can be waited on or killed.
+ */
+b8 PRC_IsValid(PRC_Handle handle);
+
+/**
+ * Starts a new process with the specified executable and arguments.
+ * Optionally, environment variables, working directory, and pipes for
+ * standard output and error can be provided.
+ *
+ * If not provided, environment variables and working directory are inherited
+ * from the current process. If provided, they must be in a an array of
+ * "KEY=VALUE" format.
+ *
+ * The pipe handles provided must be read ends for stdout and stderr respectively.
+ * If null, the respective output is discarded.
+ */
+PRC_Handle PRC_Run(
+    Slice_(utf8str) execAndArgs,
+    Slice_(utf8str) environmentVariables OPT_ARG,
+    DIR_Path        workingDirectory     OPT_ARG,
+    PRC_Handle*     stdOutPipe           OPT_ARG,
+    PRC_Handle*     stdErrPipe           OPT_ARG
+);
+
+/**
+ * Waits for the given process to exit and retrieves its exit code.
+ * Will also free the resources associated with the process handle.
+ * Returns true if the process exited cleanly or false on failure.
+ * The exit code is stored in *outExitCode if provided.
+ */
+b8 PRC_Wait(PRC_Handle* process, i32* outExitCode OPT_ARG);
+
+/**
+ * Kills the given process immediately.
+ * Will also free the resources associated with the process handle.
+ * Returns true if the signal/termination request succeeded.
+ */
+b8 PRC_Kill(PRC_Handle* process);
 
 EXTERN_C_END
