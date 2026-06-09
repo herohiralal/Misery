@@ -78,14 +78,14 @@ List_(PRC_EnvVarKVP) PRC_GetEnvVars(MEM_Allocator allocator)
         isize keyLen = (isize) (strchr((char*) kvp.data, '=') - (char*) kvp.data);
         isize valLen = kvp.count - keyLen - 1; // -1 for '='
 
-        PRC_EnvVarKVP var =
+        PRC_EnvVarKVP envVar =
         {
             .kvp   = kvp,
             .key   = STR_SubString(kvp, 0,          keyLen),
             .value = STR_SubString(kvp, keyLen + 1, valLen)
         };
 
-        COL_AppendToList(&output, var);
+        COL_AppendToList(&output, envVar);
 
 #if MSR_UNIX
     }
@@ -108,6 +108,8 @@ void PRC_FreeEnvVars(List_(PRC_EnvVarKVP)* envVars)
     COL_DeleteList(envVars);
     *envVars = (List_(PRC_EnvVarKVP)) {0};
 }
+
+#if MSR_WINDOWS
 
 static cstring PRC_Internal_BuildWindowsProcessCmdLine(Slice_(utf8str) execAndArgs, MEM_Allocator allocator)
 {
@@ -220,9 +222,7 @@ cstring PRC_Internal_BuildWindowsProcessEnvBlock(Slice_(utf8str) envVars, MEM_Al
         isize eqIdx = STR_Find(kv, UTF8STR("="), false);
         if (eqIdx == -1) { continue; } // malformed, skip
 
-        utf8str key   = STR_SubString(kv, 0,         eqIdx);
-        utf8str value = STR_SubString(kv, eqIdx + 1, kv.count - eqIdx - 1);
-
+        utf8str key = STR_SubString(kv, 0, eqIdx);
         b8 foundDuplicate = false;
         for (isize prevIdx = (currIdx + 1); prevIdx < envVars.count; prevIdx++)
         {
@@ -240,6 +240,8 @@ cstring PRC_Internal_BuildWindowsProcessEnvBlock(Slice_(utf8str) envVars, MEM_Al
     COL_AppendToList(&sb, '\0'); // final null terminator
     return sb.data;
 }
+
+#elif MSR_UNIX
 
 Slice_(utf8str) PRC_Internal_SplitUnixPathList(utf8str pathStr, MEM_Allocator allocator)
 {
@@ -283,6 +285,8 @@ Slice_(utf8str) PRC_Internal_SplitUnixPathList(utf8str pathStr, MEM_Allocator al
 
     return paths;
 }
+
+#endif
 
 #if MSR_WINDOWS
     typedef struct
@@ -330,7 +334,6 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
     MEM_ArenaAllocator tempArena = MEM_CreateArenaAllocator(8 * 1024, MEM_main);
     MEM_Allocator tempAllocator = MEM_AllocatorFromArena(&tempArena);
 
-    b8 success = false;
     #if MSR_WINDOWS
     {
         cstring cmdLine = PRC_Internal_BuildWindowsProcessCmdLine(execAndArgs, tempAllocator);
@@ -403,9 +406,9 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
             p.handle = pi.hProcess;
         }
     }
-    #elif PNSLR_UNIX
+    #elif MSR_UNIX
     {
-        PNSLR_StringBuilder exeBuilder = {.allocator = tempAllocator};
+        List_(char) exeBuilder = COL_NewList(char, 256, tempAllocator);
         utf8str exePath = execAndArgs.data[0];
 
         b8 isSimpleExePath = true;
@@ -418,15 +421,18 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
             }
         }
 
-        PNSLR_ArraySlice(PNSLR_EnvVarKeyValuePair) currentEnvVars = {0};
+        Slice_(PRC_EnvVarKVP) currentEnvVars = {0};
         if (!isSimpleExePath)
         {
-            PNSLR_ResetStringBuilder(&exeBuilder);
-            PNSLR_AppendStringToStringBuilder(&exeBuilder, exePath);
-            PNSLR_AppendByteToStringBuilder(&exeBuilder, '\0');
+            for (isize i = 0; i < exePath.count; i++)
+            {
+                char c = (char) exePath.data[i];
+                if (c == '\\') c = '/';
+                COL_AppendToList(&exeBuilder, c);
+            }
+            COL_AppendToList(&exeBuilder, '\0');
 
-            utf8str exePathWithNull = PNSLR_StringFromStringBuilder(&exeBuilder);
-            cstring exePathCStr = (cstring) exePathWithNull.data;
+            cstring exePathCStr = (cstring) exeBuilder.data;
 
             // check if path is executable
             if (access(exePathCStr, X_OK) != 0)
@@ -436,31 +442,44 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
         }
         else
         {
-            currentEnvVars = PNSLR_GetEnvironmentVariables(tempAllocator); // to ensure PATH is loaded
+            currentEnvVars = PRC_GetEnvVars(tempAllocator).slice; // to ensure PATH is loaded
             utf8str pathVar = {0};
             for (i64 i = 0; i < currentEnvVars.count; i++)
             {
-                if (PNSLR_AreStringsEqual(currentEnvVars.data[i].key, PNSLR_StringLiteral("PATH"), PNSLR_StringComparisonType_CaseSensitive))
+                PRC_EnvVarKVP kvp = currentEnvVars.data[i];
+                if (STR_Eq(kvp.key, UTF8STR("PATH")))
                 {
-                    pathVar = currentEnvVars.data[i].value;
+                    pathVar = kvp.value;
                     break;
                 }
             }
 
-            PNSLR_ArraySlice(utf8str) pathDirs = PNSLR_Internal_SplitUnixPathList(pathVar, tempAllocator);
+
+            Slice_(utf8str) pathDirs = PRC_Internal_SplitUnixPathList(pathVar, tempAllocator);
 
             b8 found = false;
-            for (i64 i = 0; i < pathDirs.count; i++)
+            for (i64 pi = 0; pi < pathDirs.count; pi++)
             {
-                utf8str dir = pathDirs.data[i];
-                PNSLR_ResetStringBuilder(&exeBuilder);
-                PNSLR_AppendStringToStringBuilder(&exeBuilder, dir);
-                PNSLR_AppendByteToStringBuilder(&exeBuilder, '/');
-                PNSLR_AppendStringToStringBuilder(&exeBuilder, exePath);
-                PNSLR_AppendByteToStringBuilder(&exeBuilder, '\0');
+                utf8str dir = pathDirs.data[pi];
 
-                utf8str fullPath = PNSLR_StringFromStringBuilder(&exeBuilder);
-                cstring fullPathCStr = (cstring) fullPath.data;
+                COL_ClearList(&exeBuilder);
+                for (isize i = 0; i < dir.count; i++)
+                {
+                    char c = (char) dir.data[i];
+                    if (c == '\\') c = '/';
+                    COL_AppendToList(&exeBuilder, c);
+                }
+
+                COL_AppendToList(&exeBuilder, '/');
+                for (isize i = 0; i < exePath.count; i++)
+                {
+                    char c = (char) exePath.data[i];
+                    if (c == '\\') c = '/';
+                    COL_AppendToList(&exeBuilder, c);
+                }
+                COL_AppendToList(&exeBuilder, '\0');
+
+                cstring fullPathCStr = (cstring) exeBuilder.data;
 
                 if (access(fullPathCStr, X_OK) == 0)
                 {
@@ -471,16 +490,28 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
 
             if (!found) // check in cwd
             {
-                PNSLR_ResetStringBuilder(&exeBuilder);
-                PNSLR_AppendStringToStringBuilder(&exeBuilder, workingDirectory.path);
-                if (workingDirectory.path.count > 0 && workingDirectory.path.data[workingDirectory.path.count - 1] != '/')
-                    PNSLR_AppendByteToStringBuilder(&exeBuilder, '/');
-                PNSLR_AppendStringToStringBuilder(&exeBuilder, PNSLR_StringLiteral("./"));
-                PNSLR_AppendStringToStringBuilder(&exeBuilder, exePath);
-                PNSLR_AppendByteToStringBuilder(&exeBuilder, '\0');
+                COL_ClearList(&exeBuilder);
+                for (isize i = 0; i < exePath.count; i++)
+                {
+                    char c = (char) exePath.data[i];
+                    if (c == '\\') c = '/';
+                    COL_AppendToList(&exeBuilder, c);
+                }
 
-                utf8str fullPath = PNSLR_StringFromStringBuilder(&exeBuilder);
-                cstring fullPathCStr = (cstring) fullPath.data;
+                if (exeBuilder.count && exeBuilder.data[exeBuilder.count - 1] != '/')
+                    COL_AppendToList(&exeBuilder, '/');
+
+                COL_AppendAllToList(&exeBuilder, UTF8STR("./"));
+                for (isize i = 0; i < exePath.count; i++)
+                {
+                    char c = (char) exePath.data[i];
+                    if (c == '\\') c = '/';
+                    COL_AppendToList(&exeBuilder, c);
+                }
+
+                COL_AppendToList(&exeBuilder, '\0');
+
+                cstring fullPathCStr = (cstring) exeBuilder.data;
 
                 if (access(fullPathCStr, X_OK) == 0)
                 {
@@ -493,37 +524,36 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
 
         cstring cwd = nil;
         if (workingDirectory.path.data && workingDirectory.path.count)
-            cwd = PNSLR_CStringFromString(workingDirectory.path, tempAllocator);
+            cwd = STR_CloneToCStr(workingDirectory.path, tempAllocator);
 
-
-        cstring* cmd = PNSLR_Allocate(tempAllocator, false, (i32) ((i64) sizeof(cstring) * (execAndArgs.count + 1)), (i32) alignof(cstring), PNSLR_GET_LOC(), nil);
-        if (!cmd) goto exitFn;
+        Slice_(cstring) cmd = COL_NewSlice(cstring, execAndArgs.count + 1, true, tempAllocator);
+        if (!cmd.data || !cmd.count) goto exitFn;
 
         for (i64 i = 0; i < execAndArgs.count; i++)
-            cmd[i] = PNSLR_CStringFromString(execAndArgs.data[i], tempAllocator);
-        cmd[execAndArgs.count] = nil; // null-terminate argv
+            cmd.data[i] = STR_CloneToCStr(execAndArgs.data[i], tempAllocator);
+        cmd.data[execAndArgs.count] = nil; // null-terminate argv
 
         cstring* env;
         cstring* cenv = nil;
         if (!environmentVariables.count || !environmentVariables.data)
         {
-            env = environ; // inherit from current process
+            env = (cstring*) environ; // inherit from current process
         }
         else
         {
-            cenv = PNSLR_Allocate(tempAllocator, false, (i32) ((i64) sizeof(cstring) * (environmentVariables.count + 1)), (i32) alignof(cstring), PNSLR_GET_LOC(), nil);
+            cenv = COL_NewSlice(cstring, environmentVariables.count + 1, true, tempAllocator).data;
             if (!cenv) goto exitFn;
             for (i64 i = 0; i < environmentVariables.count; i++)
-                cenv[i] = PNSLR_CStringFromString(environmentVariables.data[i], tempAllocator);
+                cenv[i] = STR_CloneToCStr(environmentVariables.data[i], tempAllocator);
             cenv[environmentVariables.count] = nil; // null-terminate envp
 
             env = cenv;
         }
 
-        static const i32 READ = 0;
-        static const i32 WRITE = 1;
+        const i32 READ = 0;
+        const i32 WRITE = 1;
 
-        int pipeVal[2];
+        i32 pipeVal[2];
         if (pipe(pipeVal) != 0) { goto exitFn; }
 
         // make read end close-on-exec
@@ -557,44 +587,43 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
                 // Close read end in child; child will write a single byte on failure.
                 close(pipeVal[READ]);
 
-                int nullFile = open("/dev/null", O_RDWR);
+                i32 nullFile = open("/dev/null", O_RDWR);
                 if (nullFile == -1)
                 {
-                    int errNoVal = errno;
+                    i32 errNoVal = errno;
                     // write 4 bytes of errno for safety
-                    (void)write(pipeVal[WRITE], &errNoVal, sizeof(errNoVal));
+                    (void) write(pipeVal[WRITE], &errNoVal, sizeof(errNoVal));
                     _exit(126);
                 }
 
-                int stdoutFile = stdOutPipe ? (i32) (i64) stdOutPipe->platformHandle : nullFile;
-                int stderrFile = stdErrPipe ? (i32) (i64) stdErrPipe->platformHandle : nullFile;
-                int stdinFile  = nullFile; // we do not support stdin for now
+                i32 stdoutFile = stdOutPipe ? ((IO_Internal_FileStreamData) {.asPtr = stdOutPipe->data}).handle : nullFile;
+                i32 stderrFile = stdErrPipe ? ((IO_Internal_FileStreamData) {.asPtr = stdErrPipe->data}).handle : nullFile;
+                i32 stdinFile  = nullFile; // we do not support stdin for now
 
                 if (dup2(stdoutFile, STDOUT_FILENO) == -1 ||
                     dup2(stderrFile, STDERR_FILENO) == -1 ||
                     dup2(stdinFile,  STDIN_FILENO)  == -1)
                 {
-                    int errNoVal = errno;
-                    (void)write(pipeVal[WRITE], &errNoVal, sizeof(errNoVal));
+                    i32 errNoVal = errno;
+                    (void) write(pipeVal[WRITE], &errNoVal, sizeof(errNoVal));
                     _exit(126);
                 }
 
                 if (cwd != nil && chdir(cwd) != 0)
                 {
-                    int errNoVal = errno;
-                    (void)write(pipeVal[WRITE], &errNoVal, sizeof(errNoVal));
+                    i32 errNoVal = errno;
+                    (void) write(pipeVal[WRITE], &errNoVal, sizeof(errNoVal));
                     _exit(126);
                 }
 
                 // exeBuilder contains the full executable path (we ensured '\0' was appended earlier).
-                utf8str fullExePath = PNSLR_StringFromStringBuilder(&exeBuilder);
-                cstring fullExePathCStr = (cstring) fullExePath.data;
+                cstring fullExePathCStr = (cstring) exeBuilder.data;
 
-                execve(fullExePathCStr, cmd, env);
+                execve(fullExePathCStr, (char* const*) cmd.data, (char* const*) env);
                 // If execve returns, it's an error
                 {
-                    int errNoVal = errno;
-                    (void)write(pipeVal[WRITE], &errNoVal, sizeof(errNoVal));
+                    i32 errNoVal = errno;
+                    (void) write(pipeVal[WRITE], &errNoVal, sizeof(errNoVal));
                     _exit(126);
                 }
 
@@ -606,14 +635,14 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
                 // Close write end in parent — child writes to it on error.
                 close(pipeVal[WRITE]);
 
-                int errNoVal = 0;
+                i32 errNoVal = 0;
 
                 // Read error info from child (child writes errno if it failed before exec).
-                // Child writes sizeof(int). Read that (or EOF).
+                // Child writes sizeof(i32). Read that (or EOF).
                 ssize_t totalRead = 0;
-                while (totalRead < (ssize_t)sizeof(int))
+                while (totalRead < (ssize_t) sizeof(i32))
                 {
-                    ssize_t r = read(pipeVal[READ], ((u8*)&errNoVal) + totalRead, (size_t) ((ssize_t) sizeof(int) - totalRead));
+                    ssize_t r = read(pipeVal[READ], ((u8*) &errNoVal) + totalRead, (size_t) ((ssize_t) sizeof(i32) - totalRead));
                     if (r > 0) { totalRead += r; continue; }
                     if (r == 0) { /* EOF: child closed without writing: treat as no-error */ break; }
                     if (r == -1)
@@ -631,7 +660,7 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
                     while (true)
                     {
                         siginfo_t info;
-                        int wpid = waitid(P_PID, (id_t) pid, &info, WEXITED);
+                        i32 wpid = waitid(P_PID, (id_t) pid, &info, WEXITED);
                         if (wpid == -1 && errno == EINTR)
                             continue; // interrupted, try again
                         break;
@@ -642,8 +671,7 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
                 }
 
                 // No error reported — child successfully exec'd (or at least didn't fail early).
-                *outProcessHandle = (PNSLR_ProcessHandle) {.pid = (i64) pid, .handle = 0};
-                success = true;
+                p.pid = pid;
                 break;
             }
         }
@@ -681,7 +709,7 @@ b8 PRC_Wait(PRC_Handle* process, i32* outExitCode)
     CloseHandle(p.handle);
     p.handle = nil;
 #else
-    int status = 0;
+    i32 status = 0;
     pid_t pidResult = waitpid(p.pid, &status, 0);
     if (pidResult == -1)
         return false;
