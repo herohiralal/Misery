@@ -8,4 +8,5 @@
 #include "Stream.h"
 #include "Process.h"
 #include "Format.h"
+#include "Threads.h"
 #include "App.h"
