@@ -69,8 +69,8 @@ PRC_Handle PRC_Run(
     Slice_(utf8str) execAndArgs,
     Slice_(utf8str) environmentVariables OPT_ARG,
     DIR_Path        workingDirectory     OPT_ARG,
-    PRC_Handle*     stdOutPipe           OPT_ARG,
-    PRC_Handle*     stdErrPipe           OPT_ARG
+    IO_Stream*      stdOutPipe           OPT_ARG,
+    IO_Stream*      stdErrPipe           OPT_ARG
 );
 
 /**
