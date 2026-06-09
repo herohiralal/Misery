@@ -358,7 +358,6 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
             MSR_ASSERT(nullHandle != INVALID_HANDLE_VALUE && "Failed to open NUL handle");
         }
 
-        ;
         HANDLE stdOutHandle = stdOutPipe ? ((IO_Internal_FileStreamData) {.asPtr = stdOutPipe->data}).handle : nullHandle;
         HANDLE stdErrHandle = stdErrPipe ? ((IO_Internal_FileStreamData) {.asPtr = stdErrPipe->data}).handle : nullHandle;
         HANDLE stdInHandle  = nullHandle; // we do not support stdin for now
