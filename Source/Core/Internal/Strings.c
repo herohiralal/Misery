@@ -152,7 +152,7 @@ isize STR_Find(utf8str str, utf8str subString, b8 ignoreCase)
     for (i32 i = 0; i <= strLen - subLen; i++)
     {
         utf8str strPart = STR_SubString(str, i, subString.count);
-        if (eq(strPart, str))
+        if (eq(strPart, subString))
             return i;
     }
 
@@ -171,7 +171,7 @@ isize STR_FindLast(utf8str str, utf8str subString, b8 ignoreCase)
     for (i32 i = strLen - subLen; i >= 0; i--)
     {
         utf8str strPart = STR_SubString(str, i, subString.count);
-        if (eq(strPart, str))
+        if (eq(strPart, subString))
             return i;
     }
 
