@@ -9,4 +9,5 @@
 #include "Process.h"
 #include "Format.h"
 #include "Threads.h"
+#include "Sync.h"
 #include "App.h"
