@@ -311,8 +311,24 @@ void COL_DeleteRawList(COL_RawList* list);
 
 #else
 
+    #if MSR_MSVC
+        #define COL_SLICE_INTERNAL_SUPPRESS_WARN MSR_SUPPRESS_WARN
+        #define COL_SLICE_INTERNAL_UNSUPPRESS_WARN MSR_UNSUPPRESS_WARN
+    #else
+        #define COL_SLICE_INTERNAL_SUPPRESS_WARN
+        #define COL_SLICE_INTERNAL_UNSUPPRESS_WARN
+    #endif
+
     #define COL_SLICE_INTERNAL(ty, ...) \
-        ((Slice_(ty)) {.data = (ty[]) {__VA_ARGS__}, .count = sizeof((ty[]) {__VA_ARGS__}) / sizeof(ty)})
+        ((Slice_(ty)) \
+        { \
+            COL_SLICE_INTERNAL_SUPPRESS_WARN \
+            .data = ((sizeof((ty[]) {(ty) {0}, __VA_ARGS__}) / sizeof(ty)) - 1) \
+                ? ((ty[]) {(ty) {0}, __VA_ARGS__} + 1) \
+                : nil, \
+            .count = (sizeof((ty[]) {(ty) {0}, __VA_ARGS__}) / sizeof(ty)) - 1, \
+            COL_SLICE_INTERNAL_UNSUPPRESS_WARN \
+        })
 
 #endif
 
