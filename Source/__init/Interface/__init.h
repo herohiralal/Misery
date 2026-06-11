@@ -271,6 +271,8 @@ static const MSR_Configuration MSR_CONFIGURATION =
     #define MSR_SWITCH 0
 #endif
 
+#define MSR_DESKTOP (MSR_WINDOWS || MSR_LINUX || MSR_OSX)
+#define MSR_MOBILE (MSR_ANDROID || MSR_IOS)
 #define MSR_UNIX (MSR_LINUX || MSR_OSX || MSR_ANDROID || MSR_IOS)
 #define MSR_APPLE (MSR_OSX || MSR_IOS)
 

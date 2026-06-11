@@ -131,4 +131,14 @@ b8 IO_WriteAllToFile(FIL_Path path, Slice_(u8) data, b8 append OPT_ARG);
  */
 b8 IO_CreatePipe(IO_Stream* outR, IO_Stream* outW);
 
+/**
+ * Get a stream that writes to the standard output (stdout). Returns an empty stream if stdout is not available.
+ */
+IO_Stream IO_GetStdOut(void);
+
+/**
+ * Get a stream that writes to the standard error (stderr). Returns an empty stream if stderr is not available.
+ */
+IO_Stream IO_GetStdErr(void);
+
 EXTERN_C_END

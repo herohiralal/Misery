@@ -585,4 +585,52 @@ static isize IO_Internal_PipeProc(IO_StreamMode mode, rawptr data, isize positio
     return IO_Internal_InvalidStreamValue(mode);
 }
 
+IO_Stream IO_GetStdOut(void)
+{
+    #if MSR_WINDOWS
+    {
+        HANDLE stdoutHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+        if (stdoutHandle == INVALID_HANDLE_VALUE)
+            return (IO_Stream) {0};
+
+        IO_Internal_FileStreamData streamData = {.handle = stdoutHandle};
+        return (IO_Stream) {.procedure = IO_Internal_PipeProc, .data = streamData.asPtr};
+    }
+    #elif MSR_UNIX
+    {
+        IO_Internal_FileStreamData streamData = {.handle = STDOUT_FILENO};
+        return (IO_Stream) {.procedure = IO_Internal_PipeProc, .data = streamData.asPtr};
+    }
+    #else
+    {
+        #error "unsupported platform"
+        return (IO_Stream) {0};
+    }
+    #endif
+}
+
+IO_Stream IO_GetStdErr(void)
+{
+    #if MSR_WINDOWS
+    {
+        HANDLE stderrHandle = GetStdHandle(STD_ERROR_HANDLE);
+        if (stderrHandle == INVALID_HANDLE_VALUE)
+            return (IO_Stream) {0};
+
+        IO_Internal_FileStreamData streamData = {.handle = stderrHandle};
+        return (IO_Stream) {.procedure = IO_Internal_PipeProc, .data = streamData.asPtr};
+    }
+    #elif MSR_UNIX
+    {
+        IO_Internal_FileStreamData streamData = {.handle = STDERR_FILENO};
+        return (IO_Stream) {.procedure = IO_Internal_PipeProc, .data = streamData.asPtr};
+    }
+    #else
+    {
+        #error "unsupported platform"
+        return (IO_Stream) {0};
+    }
+    #endif
+}
+
 #undef IO_Internal_InvalidFileStreamData

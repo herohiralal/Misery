@@ -520,20 +520,19 @@ LRESULT CALLBACK INP_Internal_WindowsInputCallback(HWND wnd, UINT msg, WPARAM wP
                     if (fileNameLen == 0) continue;
 
                     utf8str fileName = COL_NewSlice(u8, fileNameLen, true, state->tempAllocator);
-                    UINT ok = DragQueryFileA(drop, i, (PSTR) fileName.data, fileNameLen);
-                    if (ok > 0)
+                    fileNameLen = DragQueryFileA(drop, i, (PSTR) fileName.data, fileNameLen);
+                    fileName.count = (isize) fileNameLen;
+
+                    COL_AppendToList(&(state->droppedFiles), fileName);
+
+                    INP_Evt evt =
                     {
-                        COL_AppendToList(&(state->droppedFiles), fileName);
+                        .ty            = INP_Evt_DropFile,
+                        .droppedFileId = (u16) (state->droppedFiles.count - 1),
+                        .windowId      = WND_ToHandle(wnd),
+                    };
 
-                        INP_Evt evt =
-                        {
-                            .ty            = INP_Evt_DropFile,
-                            .droppedFileId = (u16) (state->droppedFiles.count - 1),
-                            .windowId      = WND_ToHandle(wnd),
-                        };
-
-                        COL_AppendToList(&(state->evts), evt);
-                    }
+                    COL_AppendToList(&(state->evts), evt);
                 }
             }
 
