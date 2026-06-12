@@ -499,6 +499,12 @@ typedef struct
     Brahma_Files_To_Copy_Paged_List filesToCopyNextToOutput;
 
     /**
+     * The static libraries that this library depends on. These will be linked against when building the package that
+     * depends on this library.
+     */
+    Brahma_String_Paged_List externalDependencies;
+
+    /**
      * If this library fails to be created, for whatever reason, this should be filled with the error message.
      * Otherwise, it should be null. This will fail the build process.
      */
@@ -1698,6 +1704,7 @@ bool brahma_execute(Brahma_Args ex)
         PROFILE_SECTION_END("start compile processes");
     }
 
+    // windows manifest
     char* windowsManifestPath = NULL;
     if (!failed && ex.platform == BRAHMA_PLATFORM_WINDOWS && selectedPkg->outputType == BRAHMA_PACKAGE_OUTPUT_TYPE_EXECUTABLE)
     {
@@ -1716,6 +1723,37 @@ bool brahma_execute(Brahma_Args ex)
             fprintf(manifestFile, "</assembly>\n");
 
             fclose(manifestFile);
+        }
+    }
+
+    // gather all external deps
+    Brahma_String_Paged_List externalDeps; memset(&externalDeps, 0, sizeof(externalDeps));
+    if (!failed)
+    {
+        for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
+        {
+            Brahma_Library* lib = &(libDefs.data[libIdx]);
+            Brahma_String_Paged_List libExternalDeps = lib->externalDependencies;
+            for (size_t depIdx = 0; depIdx < libExternalDeps.count; depIdx++)
+            {
+                const char* dep = *brahma_index_string_paged_list(&libExternalDeps, depIdx);
+
+                // avoid duplicates
+                bool found = false;
+                for (size_t i = 0; i < externalDeps.count; i++)
+                {
+                    if (strcmp(dep, *brahma_index_string_paged_list(&externalDeps, i)) == 0)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    brahma_append_string_to_paged_list(&externalDeps, dep);
+                }
+            }
         }
     }
 
@@ -1835,11 +1873,24 @@ bool brahma_execute(Brahma_Args ex)
                 }
 
                 brahma_append_string_to_array_list(&linkArgs, brahma_sprintf("/Fo%s/", ex.intermediateOutputDir));
+
+                for (size_t i = 0; i < externalDeps.count; i++)
+                {
+                    const char* dep = *brahma_index_string_paged_list(&externalDeps, i);
+                    brahma_append_string_to_array_list(&linkArgs, dep);
+                }
             }
             else
             {
                 brahma_append_string_to_array_list(&linkArgs, "-o");
                 brahma_append_string_to_array_list(&linkArgs, output);
+
+                for (size_t i = 0; i < externalDeps.count; i++)
+                {
+                    const char* dep = *brahma_index_string_paged_list(&externalDeps, i);
+                    const char* arg = brahma_sprintf("-l%s", dep);
+                    brahma_append_string_to_array_list(&linkArgs, arg);
+                }
             }
 
             if (selectedPkg->outputType == BRAHMA_PACKAGE_OUTPUT_TYPE_DYNAMIC_LIBRARY)

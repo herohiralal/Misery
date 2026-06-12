@@ -483,14 +483,6 @@ typedef struct SrcLoc
 MSR_SUPPRESS_WARN
 
 #if MSR_WINDOWS
-    #pragma comment(lib, "iphlpapi.lib")
-    #pragma comment(lib, "Ws2_32.lib")
-    #pragma comment(lib, "User32.lib")
-    #pragma comment(lib, "Shell32.lib")
-    #pragma comment(lib, "Gdi32.lib")
-#endif
-
-#if MSR_WINDOWS
     #define _CRT_SECURE_NO_WARNINGS
     #define WIN32_LEAN_AND_MEAN
     #define VC_EXTRALEAN
