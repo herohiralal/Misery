@@ -133,6 +133,8 @@ static utf8str NormalisePath(utf8str path, b8 isDir, MEM_Allocator allocator)
 
     #if MSR_WINDOWS
     {
+        utf8str output = {0};
+
         i32 n = GetFullPathNameA(str, 0, nil, nil);
         if (n <= 0) { return (utf8str) {0}; }
 
@@ -161,7 +163,7 @@ static utf8str NormalisePath(utf8str path, b8 isDir, MEM_Allocator allocator)
         PTH_Internal_LazyPathBuffer outputBuffer = PTH_Internal_NewLazyPathBuffer(path, originalPath, volumeLength, allocator);
         b8 fail = false;
 
-        i32 r = 0, dotDot = 0;
+        isize r = 0, dotDot = 0;
         if (isRooted)
         {
             if (!PTH_Internal_AppendToLazyPathBuffer(&outputBuffer, '/'))
@@ -262,7 +264,7 @@ static utf8str NormalisePath(utf8str path, b8 isDir, MEM_Allocator allocator)
             }
         }
 
-        utf8str output = PTH_Internal_StringFromLazyPathBuffer(&outputBuffer);
+        output = PTH_Internal_StringFromLazyPathBuffer(&outputBuffer);
         for (i32 i = 0; i < output.count; i++)
         {
             if (output.data[i] == '\\') { output.data[i] = '/'; } // normalise path separators
@@ -329,8 +331,6 @@ static utf8str NormalisePath(utf8str path, b8 isDir, MEM_Allocator allocator)
         return STR_AliasCStr(out);
     }
     #endif
-
-    return (utf8str) {0};
 }
 
 typedef struct
@@ -720,8 +720,6 @@ TIM_Value FIL_LastModified(FIL_Path path)
         return (TIM_Value){.ns = (i64) statBuf.st_mtime * 1000000000 + statBuf.st_mtim.tv_nsec};
     }
     #endif
-
-    return (TIM_Value) {0};
 }
 
 b8 FIL_Exists(FIL_Path path)

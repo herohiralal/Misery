@@ -437,8 +437,6 @@ b8 IO_CreatePipe(IO_Stream* outR, IO_Stream* outW)
         return false;
     }
     #endif
-
-    return false;
 }
 
 static isize IO_Internal_PipeProc(IO_StreamMode mode, rawptr data, isize position, Slice_(u8) buffer)

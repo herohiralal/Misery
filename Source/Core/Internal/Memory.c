@@ -357,7 +357,7 @@ rawptr MEM_ArenaAllocatorProc(
     return nil; // invalid mode
 }
 
-MEM_Allocator MEM_GetMainAllocator()
+MEM_Allocator MEM_GetMainAllocator(void)
 {
     return (MEM_Allocator) {.procedure = MEM_DefaultAllocatorProc, .data = nil};
 }

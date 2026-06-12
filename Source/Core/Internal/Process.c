@@ -680,7 +680,9 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
         #error "Process creation not implemented on this platform"
     #endif
 
+#if MSR_UNIX
 exitFn:
+#endif
     MEM_DestroyArenaAllocator(&tempArena);
     return PRC_ToHandle(p);
 }
