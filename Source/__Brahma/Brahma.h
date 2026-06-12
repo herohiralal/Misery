@@ -1265,6 +1265,35 @@ bool brahma_execute(Brahma_Args ex)
         PROFILE_SECTION_END("gather interface dependencies");
     }
 
+    // gather all interface+internal deps
+    Brahma_Library_Idx_Paged_List allLibAllDeps = { NULL, 0, 0 };
+    Brahma_Data_Chunk_Array_List libAllDepChunks = { NULL, 0, 0 };
+    if (!failed)
+    {
+        brahma_reserve_data_chunk_array_list_capacity(&libAllDepChunks, libDefs.count);
+
+        for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
+        {
+            Brahma_Library* lib = &(libDefs.data[libIdx]);
+
+            Brahma_Data_Chunk chunk;
+            size_t startCount =  allLibAllDeps.count;
+
+            char* error = NULL;
+            if (!brahma_append_all_library_deps(&libDefs, lib, &allLibAllDeps, startCount, false, false, &error, NULL))
+            {
+                ex.log(BRAHMA_LOG_ERROR "Failed to resolve dependencies for library '%s'.\n\tDetails: %s.\n", lib->name, error ? error : "<unknown>");
+                failed = true;
+            }
+
+            chunk.start = (uint16_t) startCount;
+            chunk.count = (uint16_t) (allLibAllDeps.count - startCount);
+            brahma_append_data_chunk_to_array_list(&libAllDepChunks, chunk);
+        }
+
+        PROFILE_SECTION_END("gather interface+internal dependencies");
+    }
+
     // files gather
     Brahma_Data_Chunk_Array_List internalCFileChunks = { NULL, 0, 0 };
     Brahma_String_Paged_List internalCFilePaths; memset(&internalCFilePaths, 0, sizeof(internalCFilePaths));
@@ -1648,10 +1677,10 @@ bool brahma_execute(Brahma_Args ex)
                 // add all includes
                 {
                     uint16_t libIdx = toProcess[i].fileLibIdxs->data[j];
-                    Brahma_Data_Chunk libInterfaceDepsChunk = libInterfaceDepChunks.data[libIdx];
-                    for (size_t k = libInterfaceDepsChunk.start; k < (size_t) (libInterfaceDepsChunk.start + libInterfaceDepsChunk.count); k++)
+                    Brahma_Data_Chunk libAllDepsChunk = libAllDepChunks.data[libIdx];
+                    for (size_t k = libAllDepsChunk.start; k < (size_t) (libAllDepsChunk.start + libAllDepsChunk.count); k++)
                     {
-                        uint16_t depLibIdx = *brahma_index_library_idx_paged_list(&allLibInterfaceDeps, k);
+                        uint16_t depLibIdx = *brahma_index_library_idx_paged_list(&allLibAllDeps, k);
                         const char* includePath = allInterfacePaths.data[depLibIdx];
                         if (includePath)
                         {
