@@ -4,6 +4,7 @@
 BRAHMA_IMPLEMENT_LIBRARY(ExtDeps_Core)
 {
     brahma_append_string_to_paged_list(&library->interfaceDependencies, "__init");
+    brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_RadDbgMarkup");
 
     if (package->platform == BRAHMA_PLATFORM_WINDOWS)
     {

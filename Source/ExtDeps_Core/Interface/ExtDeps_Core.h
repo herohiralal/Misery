@@ -92,12 +92,6 @@ MSR_SUPPRESS_WARN
 #include <stdarg.h>
 #include <ctype.h>
 
-#if !MSR_DBG || !MSR_WINDOWS
-    // raddbg is only supported on windows
-    // and we obviously don't want it in release builds
-    #define RADDBG_MARKUP_STUBS 1
-#endif
-#include "ExtDeps/raddbg/raddbg_markup.h"
-#undef RADDBG_MARKUP_STUBS
+#include <RadDbgMarkup.h>
 
 MSR_UNSUPPRESS_WARN
