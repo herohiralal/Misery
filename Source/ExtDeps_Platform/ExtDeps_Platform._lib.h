@@ -3,8 +3,6 @@
 
 BRAHMA_IMPLEMENT_LIBRARY(ExtDeps_Platform)
 {
-    brahma_append_string_to_paged_list(&library->interfaceDependencies, "__init");
-    brahma_append_string_to_paged_list(&library->interfaceDependencies, "Core");
     brahma_append_string_to_paged_list(&library->interfaceDependencies, "ExtDeps_Core");
 
     if (package->platform == BRAHMA_PLATFORM_WINDOWS)

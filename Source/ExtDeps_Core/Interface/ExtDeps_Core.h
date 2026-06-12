@@ -97,7 +97,7 @@ MSR_SUPPRESS_WARN
     // and we obviously don't want it in release builds
     #define RADDBG_MARKUP_STUBS 1
 #endif
-#include "raddbg/raddbg_markup.h"
+#include "ExtDeps/raddbg/raddbg_markup.h"
 #undef RADDBG_MARKUP_STUBS
 
 MSR_UNSUPPRESS_WARN

@@ -5,7 +5,7 @@
 #endif
 
 #define RADDBG_MARKUP_IMPLEMENTATION 1
-#include <raddbg/raddbg_markup.h>
+#include <ExtDeps/raddbg/raddbg_markup.h>
 #undef RADDBG_MARKUP_IMPLEMENTATION
 
 #undef RADDBG_MARKUP_STUBS
