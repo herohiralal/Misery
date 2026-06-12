@@ -12,4 +12,11 @@ BRAHMA_IMPLEMENT_LIBRARY(Platform)
         brahma_append_string_to_paged_list(&library->externalDependencies, "user32.lib");
         brahma_append_string_to_paged_list(&library->externalDependencies, "gdi32.lib");
     }
+    else if (package->platform == BRAHMA_PLATFORM_LINUX)
+    {
+        brahma_append_string_to_paged_list(&library->externalDependencies, "xcb");
+        brahma_append_string_to_paged_list(&library->externalDependencies, "xcb-keysyms");
+        brahma_append_string_to_paged_list(&library->externalDependencies, "xcb-xinput");
+        brahma_append_string_to_paged_list(&library->externalDependencies, "xcb-icccm");
+    }
 }

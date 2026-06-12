@@ -4,6 +4,8 @@
 
 #if MSR_WINDOWS
 
+EXTERN_C_BEGIN
+
 LRESULT CALLBACK INP_Internal_WindowsInputCallback(HWND wnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 typedef struct
@@ -25,5 +27,7 @@ static inline WND_SavedData WND_FromSavedData(WND_NativeSavedData d)
     MEM_Copy(&result, &d, sizeof(WND_NativeSavedData));
     return result;
 }
+
+EXTERN_C_END
 
 #endif
