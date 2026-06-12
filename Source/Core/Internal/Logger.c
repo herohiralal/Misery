@@ -76,7 +76,11 @@ void LOG_Internal_AddEntry(const LOG_Internal_Entry* entry)
         {
             case LOG_Lvl_Debug: IO_Write(out, UTF8STR("\033[0m\033[90m"  )); break; // Reset, Dark Grey
             case LOG_Lvl_Fatal: IO_Write(out, UTF8STR("\033[0m\033[1;31m")); break; // Reset, Red
-            default:            IO_Write(out, UTF8STR("\033[0m"          )); break; // Reset
+
+            case LOG_Lvl_Info:
+            case LOG_Lvl_Warning:
+            case LOG_Lvl_Error:
+            default:            IO_Write(out, UTF8STR("\033[0m")); break; // Reset
         }
 
         IO_Write(out, timestampStr);
