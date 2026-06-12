@@ -36,14 +36,14 @@ void LOG_Internal_AddEntry(const LOG_Internal_Entry* entry);
     { \
         LOG_Internal_Entry NO_CLASH_entry_##__LINE__; \
         NO_CLASH_entry_##__LINE__.lvl = LOG_Lvl_##lvl_; \
-        static_assert(sizeof(cat_) >= 2 && sizeof(cat_) <= 8, "Category must be [1, 7] characters long (excluding null terminator)."); \
-        NO_CLASH_entry_##__LINE__.cat[0] = sizeof(cat_) > 1 ? (u8) cat_[0] : '-'; \
-        NO_CLASH_entry_##__LINE__.cat[1] = sizeof(cat_) > 2 ? (u8) cat_[1] : '-'; \
-        NO_CLASH_entry_##__LINE__.cat[2] = sizeof(cat_) > 3 ? (u8) cat_[2] : '-'; \
-        NO_CLASH_entry_##__LINE__.cat[3] = sizeof(cat_) > 4 ? (u8) cat_[3] : '-'; \
-        NO_CLASH_entry_##__LINE__.cat[4] = sizeof(cat_) > 5 ? (u8) cat_[4] : '-'; \
-        NO_CLASH_entry_##__LINE__.cat[5] = sizeof(cat_) > 6 ? (u8) cat_[5] : '-'; \
-        NO_CLASH_entry_##__LINE__.cat[6] = sizeof(cat_) > 7 ? (u8) cat_[6] : '-'; \
+        static_assert(sizeof(cat_) >= 2 && sizeof(cat_) <= 8, "Category \"" cat_ "\" must be [1, 7] characters long (excluding null terminator)."); \
+        NO_CLASH_entry_##__LINE__.cat[0] = (0 >= 7 - (sizeof(cat_) - 1)) ? (u8)cat_[0 - (7 - (sizeof(cat_) - 1))] : '-'; \
+        NO_CLASH_entry_##__LINE__.cat[1] = (1 >= 7 - (sizeof(cat_) - 1)) ? (u8)cat_[1 - (7 - (sizeof(cat_) - 1))] : '-'; \
+        NO_CLASH_entry_##__LINE__.cat[2] = (2 >= 7 - (sizeof(cat_) - 1)) ? (u8)cat_[2 - (7 - (sizeof(cat_) - 1))] : '-'; \
+        NO_CLASH_entry_##__LINE__.cat[3] = (3 >= 7 - (sizeof(cat_) - 1)) ? (u8)cat_[3 - (7 - (sizeof(cat_) - 1))] : '-'; \
+        NO_CLASH_entry_##__LINE__.cat[4] = (4 >= 7 - (sizeof(cat_) - 1)) ? (u8)cat_[4 - (7 - (sizeof(cat_) - 1))] : '-'; \
+        NO_CLASH_entry_##__LINE__.cat[5] = (5 >= 7 - (sizeof(cat_) - 1)) ? (u8)cat_[5 - (7 - (sizeof(cat_) - 1))] : '-'; \
+        NO_CLASH_entry_##__LINE__.cat[6] = (6 >= 7 - (sizeof(cat_) - 1)) ? (u8)cat_[6 - (7 - (sizeof(cat_) - 1))] : '-'; \
         NO_CLASH_entry_##__LINE__.msg = UTF8STR(fmtMsg); \
         NO_CLASH_entry_##__LINE__.fmtArgs = FMTARGS(__VA_ARGS__); \
         NO_CLASH_entry_##__LINE__.loc = SRC_LOC(); \

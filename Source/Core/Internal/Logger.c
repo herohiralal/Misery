@@ -49,7 +49,7 @@ void LOG_Internal_AddEntry(const LOG_Internal_Entry* entry)
 
             int n = snprintf(
                 timestampBuf, sizeof(timestampBuf),
-                " [%04d-%02d-%02d] [%02d:%02d:%02d] ",
+                "[%04d-%02d-%02d] [%02d:%02d:%02d] ",
                 (i32) yr, (i32) mnth, (i32) day,
                 (i32) hr, (i32) min, (i32) sec
             );
@@ -61,6 +61,7 @@ void LOG_Internal_AddEntry(const LOG_Internal_Entry* entry)
 
         IO_Stream out = IO_GetStdOut();
 
+
         switch ((enum LOG_Lvls) entry->lvl)
         {
             case LOG_Lvl_Debug:   IO_Write(out, UTF8STR("\033[0m\033[1m"   )); break; // Reset, Bold
@@ -70,7 +71,9 @@ void LOG_Internal_AddEntry(const LOG_Internal_Entry* entry)
             case LOG_Lvl_Fatal:   IO_Write(out, UTF8STR("\033[0m\033[1;41m")); break; // Reset, Bold Red background
         }
 
-        FMT_FPrintf(out, "[%] ", FMT(catStr));
+        IO_Write(out, UTF8STR("["));
+        IO_Write(out, catStr);
+        IO_Write(out, UTF8STR("] "));
 
         switch ((enum LOG_Lvls) entry->lvl)
         {
@@ -80,13 +83,13 @@ void LOG_Internal_AddEntry(const LOG_Internal_Entry* entry)
             case LOG_Lvl_Info:
             case LOG_Lvl_Warning:
             case LOG_Lvl_Error:
-            default:            IO_Write(out, UTF8STR("\033[0m")); break; // Reset
+            default:            IO_Write(out, UTF8STR("\033[0m"          )); break; // Reset
         }
 
-        IO_Write(out, timestampStr);
         FMT_FPrintf_(out, entry->msg, entry->fmtArgs);
-        IO_Write(out, UTF8STR("\033[0m\033[90m")); // Reset, Dark Grey
-        FMT_FPrintf(out, " (from `%()` at %:%:%)", FMT(fnStr), FMT(fileStr), FMT(entry->loc.line), FMT(entry->loc.column));
+        IO_Write(out, UTF8STR("\033[0m\033[90m\n                      ")); // Reset, Dark Grey; new line and some padding
+        IO_Write(out, timestampStr);
+        FMT_FPrintf(out, "(from `%()` at %:%:%)", FMT(fnStr), FMT(fileStr), FMT(entry->loc.line), FMT(entry->loc.column));
         IO_Write(out, UTF8STR("\033[0m\n")); // Reset and newline
 
         SYN_UnlockMutex(&G_LOG_Internal_StdOutMutex);
