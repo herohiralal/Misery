@@ -565,6 +565,12 @@ MSR_SUPPRESS_WARN
     #include <Metal/Metal.h>
 #endif
 
+#if MSR_LINUX
+    #include <xcb/xcb.h>
+    #include <xcb/xcb_icccm.h>
+    #include <xcb/xinput.h>
+#endif
+
 #if MSR_ANDROID
     #include <jni.h>
     #include <android/log.h>

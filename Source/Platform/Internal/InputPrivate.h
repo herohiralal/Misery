@@ -32,6 +32,25 @@ typedef struct
     List_(i32) keysDown; // acts as a set
     b8 inputSystemInitialised;
 
+#elif MSR_LINUX
+
+    xcb_connection_t* connection;
+    xcb_screen_t*     screen;
+
+    // atoms
+    xcb_atom_t WM_PROTOCOLS;
+    xcb_atom_t WM_DELETE_WINDOW;
+    xcb_atom_t _NET_WM_STATE;
+    xcb_atom_t _NET_WM_STATE_FULLSCREEN;
+    xcb_atom_t _NET_WM_NAME;
+    xcb_atom_t UTF8_STRING;
+
+    // XInput2 opcode (for raw mouse input)
+    int xi2Opcode;
+    b8  xi2Available;
+
+    INP_KeyModifier cachedModifierStates;
+
 #endif
 } INP_Internal_State;
 
