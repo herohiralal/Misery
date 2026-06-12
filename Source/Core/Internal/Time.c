@@ -1,4 +1,4 @@
-#include <Core/Core.h>
+#include "CorePrivate.h"
 
 TIM_Value TIM_GetCurrentSystemTime(void)
 {

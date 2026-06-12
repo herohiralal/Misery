@@ -1,4 +1,4 @@
-#include <Core/Core.h>
+#include "CorePrivate.h"
 
 static inline Slice_(utf8str) APP_Internal_GetCmdArgs(i32 argc, cstring* argv)
 {

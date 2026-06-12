@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Platform/Platform.h>
+#include "PlatformPrivate.h"
 
 EXTERN_C_BEGIN
 

@@ -1,5 +1,4 @@
 #pragma once
-#include <Platform/Platform.h>
 #include "../InputPrivate.h"
 
 #if MSR_LINUX

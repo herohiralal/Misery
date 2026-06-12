@@ -1,5 +1,4 @@
-#include <Core/Core.h>
-#include "Core/Strings.h"
+#include "CorePrivate.h"
 #include "StreamPrivate.h"
 
 MSR_NORETURN

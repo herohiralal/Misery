@@ -1,4 +1,4 @@
-#include <Core/Core.h>
+#include "CorePrivate.h"
 #include "StreamPrivate.h"
 
 #if MSR_DESKTOP

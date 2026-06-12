@@ -162,35 +162,9 @@ FMT_Arg FMT_Ptr(const void* ptr);
         FMT_CTy_Ptr,
     } FMT_CTys;
 
-    static inline FMT_Arg FMT_Generic(FMT_CTys ty, ...)
-    {
-        FMT_Arg o = {0};
-
-        va_list l;
-        va_start(l, ty);
-        switch (ty)
-        {
-            case FMT_CTy_B8:   { i32     v = va_arg(l,     i32); o =   FMT_B8((b8)  v      ); break; }
-            case FMT_CTy_U8:   { i32     v = va_arg(l,     i32); o =   FMT_U8((u8)  v, 0   ); break; }
-            case FMT_CTy_U16:  { i32     v = va_arg(l,     i32); o =  FMT_U16((u16) v, 0   ); break; }
-            case FMT_CTy_U32:  { u32     v = va_arg(l,     u32); o =  FMT_U32(      v, 0   ); break; }
-            case FMT_CTy_U64:  { u64     v = va_arg(l,     u64); o =  FMT_U64(      v, 0   ); break; }
-            case FMT_CTy_I8:   { i32     v = va_arg(l,     i32); o =   FMT_I8((i8)  v, 0   ); break; }
-            case FMT_CTy_I16:  { i32     v = va_arg(l,     i32); o =  FMT_I16((i16) v, 0   ); break; }
-            case FMT_CTy_I32:  { i32     v = va_arg(l,     i32); o =  FMT_I32(      v, 0   ); break; }
-            case FMT_CTy_I64:  { i64     v = va_arg(l,     i64); o =  FMT_I64(      v, 0   ); break; }
-            case FMT_CTy_F32:  { f64     v = va_arg(l,     f64); o =  FMT_F32((f32) v, 0, 6); break; }
-            case FMT_CTy_F64:  { f64     v = va_arg(l,     f64); o =  FMT_F64(      v, 0, 6); break; }
-            case FMT_CTy_Str:  { utf8str v = va_arg(l, utf8str); o =  FMT_Str(      v, 0   ); break; }
-            case FMT_CTy_CStr: { cstring v = va_arg(l, cstring); o = FMT_CStr(      v, 0   ); break; }
-            case FMT_CTy_Ptr:  { rawptr  v = va_arg(l,  rawptr); o =  FMT_Ptr(      v      ); break; }
-            default:
-                break;
-        }
-        va_end(l);
-
-        return o;
-    }
+    // TODO: get rid of this, and use `FMT` differently
+    // ref - https://youtu.be/Ww26eO1WeGQ?si=9Msabu9i6RbXni0P&t=5673
+    inline FMT_Arg FMT_Generic(FMT_CTys ty, ...);
 
     #define FMT(x) \
         (_Generic((x), \

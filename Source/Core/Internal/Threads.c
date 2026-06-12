@@ -1,5 +1,4 @@
-#include "Core/Memory.h"
-#include <Core/Core.h>
+#include "CorePrivate.h"
 
 #if MSR_WINDOWS || MSR_OSX || MSR_IOS
     #define THR_Internal_MaxNameLen 64

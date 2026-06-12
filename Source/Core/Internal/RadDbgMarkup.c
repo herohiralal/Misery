@@ -1,10 +1,10 @@
-#include <Core/Core.h>
+#include "CorePrivate.h"
 
 #if MSR_DBG && MSR_WINDOWS
 
 MSR_SUPPRESS_WARN
 #define RADDBG_MARKUP_IMPLEMENTATION 1
-#include <Core/raddbg/raddbg_markup.h>
+#include <raddbg/raddbg_markup.h>
 #undef RADDBG_MARKUP_IMPLEMENTATION
 MSR_UNSUPPRESS_WARN
 

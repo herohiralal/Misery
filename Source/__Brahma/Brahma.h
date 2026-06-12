@@ -2033,8 +2033,10 @@ bool brahma_execute(Brahma_Args ex)
     }
 
     // output .clangd
-    if (!failed && ex.clangdOutputDir)
+    if (ex.clangdOutputDir)
     {
+        ex.log("Generating .clangd configuration file for clangd at '%s'.\n", ex.clangdOutputDir);
+
         char* clangdConfigPath = brahma_sprintf("%s/.clangd", ex.clangdOutputDir);
         FILE* clangdConfigFile = fopen(clangdConfigPath, "w");
         bool fileWriteFailed = false;
@@ -2135,7 +2137,7 @@ bool brahma_execute(Brahma_Args ex)
                     fprintf(clangdConfigFile,
                         "---\n"
                         "If:\n"
-                        "  PathMatch: .*/%s/.*\n"
+                        "  PathMatch: .*/%s/Interface/.*\n"
                         "CompileFlags:\n"
                         "  Add:\n"
                         "",
@@ -2145,6 +2147,30 @@ bool brahma_execute(Brahma_Args ex)
                     for (size_t i = interfaceDepsChunk.start; i < (size_t) (interfaceDepsChunk.start + interfaceDepsChunk.count); i++)
                     {
                         uint16_t depLibIdx = *brahma_index_library_idx_paged_list(&allLibInterfaceDeps, i);
+                        const char* depInterfacePath = allInterfacePaths.data[depLibIdx];
+                        if (depInterfacePath)
+                        {
+                            fprintf(clangdConfigFile, "    - -I%s\n", depInterfacePath);
+                        }
+                    }
+                }
+
+                Brahma_Data_Chunk allDepsChunk = libAllDepChunks.data[libIdx];
+                if (allDepsChunk.count)
+                {
+                    fprintf(clangdConfigFile,
+                        "---\n"
+                        "If:\n"
+                        "  PathMatch: .*/%s/Internal/.*\n"
+                        "CompileFlags:\n"
+                        "  Add:\n"
+                        "",
+                        lib->name
+                    );
+
+                    for (size_t i = allDepsChunk.start; i < (size_t) (allDepsChunk.start + allDepsChunk.count); i++)
+                    {
+                        uint16_t depLibIdx = *brahma_index_library_idx_paged_list(&allLibAllDeps, i);
                         const char* depInterfacePath = allInterfacePaths.data[depLibIdx];
                         if (depInterfacePath)
                         {
