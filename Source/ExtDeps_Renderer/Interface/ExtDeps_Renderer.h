@@ -1,22 +1,14 @@
 #pragma once
 #include <ExtDeps_Platform.h>
 
-#ifndef REN_VK
-    // TODO: add MoltenVK to support OSX/iOS
-    #define REN_VK (MSR_WINDOWS || MSR_LINUX || MSR_ANDROID)
-#endif
+#include <DirectX12.h>
+#include <DirectX12MemoryAllocator.h>
 
-#ifndef REN_DX12
-    #define REN_DX12 (MSR_WINDOWS || MSR_XSERIES)
-#endif
+#include <VulkanHeaders.h>
+#include <VulkanLoader.h>
+#include <VulkanMemoryAllocator.h>
 
-#ifndef REN_MTL
-    // TODO: implement
-    #define REN_MTL 0 /*(MSR_APPLE)*/
-#endif
+#include <DirectXShaderCompiler.h>
 
 MSR_SUPPRESS_WARN
-
-
-
 MSR_UNSUPPRESS_WARN
