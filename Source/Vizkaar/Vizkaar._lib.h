@@ -22,22 +22,6 @@ BRAHMA_IMPLEMENT_LIBRARY(Vizkaar)
         return;
     }
 
-    // d3d12 agility sdk files
-    if (package->platform == BRAHMA_PLATFORM_WINDOWS)
-    {
-        Brahma_String_KVP d3d12core      = {brahma_sprintf("Dependencies/D3D12/windows-%s/D3D12Core.dll",      arch), "D3D12/D3D12Core.dll"};
-        Brahma_String_KVP d3d12sdkLayers = {brahma_sprintf("Dependencies/D3D12/windows-%s/d3d12SDKLayers.dll", arch), "D3D12/d3d12SDKLayers.dll"};
-        Brahma_String_KVP d3dconfig      = {brahma_sprintf("Dependencies/D3D12/windows-%s/d3dconfig.exe",      arch), "D3D12/d3dconfig.exe"};
-        Brahma_String_KVP d3dCodeLicense = {brahma_sprintf("Dependencies/D3D12/LICENSE-CODE.txt",              arch), "D3D12/LICENSE-CODE.txt"};
-        Brahma_String_KVP license        = {brahma_sprintf("Dependencies/D3D12/LICENSE.txt",                   arch), "D3D12/LICENSE.txt"};
-
-        brahma_append_files_to_copy_to_paged_list(&library->filesToCopyNextToOutput, d3d12core);
-        brahma_append_files_to_copy_to_paged_list(&library->filesToCopyNextToOutput, d3d12sdkLayers);
-        brahma_append_files_to_copy_to_paged_list(&library->filesToCopyNextToOutput, d3dconfig);
-        brahma_append_files_to_copy_to_paged_list(&library->filesToCopyNextToOutput, d3dCodeLicense);
-        brahma_append_files_to_copy_to_paged_list(&library->filesToCopyNextToOutput, license);
-    }
-
     // dxc files
     if (package->platform == BRAHMA_PLATFORM_WINDOWS)
     {

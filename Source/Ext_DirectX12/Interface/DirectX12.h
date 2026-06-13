@@ -33,5 +33,9 @@ MSR_SUPPRESS_WARN
         #undef D3DX12_NO_CHECK_FEATURE_SUPPORT_CLASS
         #undef D3DX12_NO_STATE_OBJECT_HELPERS
     #endif
+
+    __declspec(dllexport) extern const UINT D3D12SDKVersion;
+    __declspec(dllexport) extern const char* D3D12SDKPath;
+
 #endif
 MSR_UNSUPPRESS_WARN
