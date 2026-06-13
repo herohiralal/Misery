@@ -10,5 +10,8 @@
 
 #include <DirectXShaderCompiler.h>
 
+// TODO: implement
+#define REN_MTL 0 /* (MSR_APPLE) */
+
 MSR_SUPPRESS_WARN
 MSR_UNSUPPRESS_WARN

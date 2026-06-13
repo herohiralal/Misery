@@ -20,7 +20,9 @@ MSR_SUPPRESS_WARN
         #define VK_USE_PLATFORM_XCB_KHR
     #endif
 
-    #define VK_NO_PROTOTYPES 1
+    #if !MSR_APPLE
+        #define VK_NO_PROTOTYPES 1
+    #endif
     #include "ExtDeps/vulkan/vulkan.h"
 #endif
 MSR_UNSUPPRESS_WARN
