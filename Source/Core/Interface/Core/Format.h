@@ -91,26 +91,37 @@ typedef Slice_(FMT_Arg) FMT_Args;
 
 FMT_Arg FMT_B8(b8 v);
 
-FMT_Arg FMT_U64(u64 v, FMT_IntBase base OPT_ARG);
-FMT_Arg FMT_U32(u32 v, FMT_IntBase base OPT_ARG);
-FMT_Arg FMT_U16(u16 v, FMT_IntBase base OPT_ARG);
-FMT_Arg FMT_U8(u8 v, FMT_IntBase base OPT_ARG);
+FMT_Arg FMT_U64(u64 v, FMT_IntBase base);
+FMT_Arg FMT_U32(u32 v, FMT_IntBase base);
+FMT_Arg FMT_U16(u16 v, FMT_IntBase base);
+FMT_Arg FMT_U8(u8 v, FMT_IntBase base);
 
-FMT_Arg FMT_I64(i64 v, FMT_IntBase base OPT_ARG);
-FMT_Arg FMT_I32(i32 v, FMT_IntBase base OPT_ARG);
-FMT_Arg FMT_I16(i16 v, FMT_IntBase base OPT_ARG);
-FMT_Arg FMT_I8(i8 v, FMT_IntBase base OPT_ARG);
+FMT_Arg FMT_I64(i64 v, FMT_IntBase base);
+FMT_Arg FMT_I32(i32 v, FMT_IntBase base);
+FMT_Arg FMT_I16(i16 v, FMT_IntBase base);
+FMT_Arg FMT_I8(i8 v, FMT_IntBase base);
 
-#ifdef __cplusplus
-FMT_Arg FMT_F64(f64 v, u16 minDecimalPlaces = 0, u16 maxDecimalPlaces = 6);
-FMT_Arg FMT_F32(f32 v, u16 minDecimalPlaces = 0, u16 maxDecimalPlaces = 6);
-#else
+static inline FMT_Arg FMT_U64_(u64 v) { return FMT_U64(v, FMT_IntBase_Dec); }
+static inline FMT_Arg FMT_U32_(u32 v) { return FMT_U32(v, FMT_IntBase_Dec); }
+static inline FMT_Arg FMT_U16_(u16 v) { return FMT_U16(v, FMT_IntBase_Dec); }
+static inline FMT_Arg FMT_U8_(u8 v) { return FMT_U8(v, FMT_IntBase_Dec); }
+
+static inline FMT_Arg FMT_I64_(i64 v) { return FMT_I64(v, FMT_IntBase_Dec); }
+static inline FMT_Arg FMT_I32_(i32 v) { return FMT_I32(v, FMT_IntBase_Dec); }
+static inline FMT_Arg FMT_I16_(i16 v) { return FMT_I16(v, FMT_IntBase_Dec); }
+static inline FMT_Arg FMT_I8_(i8 v) { return FMT_I8(v, FMT_IntBase_Dec); }
+
 FMT_Arg FMT_F64(f64 v, u16 minDecimalPlaces, u16 maxDecimalPlaces);
 FMT_Arg FMT_F32(f32 v, u16 minDecimalPlaces, u16 maxDecimalPlaces);
-#endif
+
+static inline FMT_Arg FMT_F64_(f64 v) { return FMT_F64(v, 0, 6); }
+static inline FMT_Arg FMT_F32_(f32 v) { return FMT_F32(v, 0, 6); }
 
 FMT_Arg FMT_Str(utf8str str, FMT_StrStyle style OPT_ARG);
 FMT_Arg FMT_CStr(cstring str, FMT_StrStyle style OPT_ARG);
+
+static inline FMT_Arg FMT_Str_(utf8str str) { return FMT_Str(str, FMT_StrStyle_Default); }
+static inline FMT_Arg FMT_CStr_(cstring str) { return FMT_CStr(str, FMT_StrStyle_Default); }
 
 FMT_Arg FMT_Ptr(const void* ptr);
 
@@ -120,22 +131,22 @@ FMT_Arg FMT_Ptr(const void* ptr);
     #define DECLARE_FMT_SPEC(fnSuffix, ty) \
         static inline FMT_Arg FMT_Generic(ty v) { return FMT_##fnSuffix(v); }
 
-    DECLARE_FMT_SPEC(B8,   b8)
-    DECLARE_FMT_SPEC(U8,   u8)
-    DECLARE_FMT_SPEC(U16,  u16)
-    DECLARE_FMT_SPEC(U32,  u32)
-    DECLARE_FMT_SPEC(U64,  u64)
-    DECLARE_FMT_SPEC(I8,   i8)
-    DECLARE_FMT_SPEC(I16,  i16)
-    DECLARE_FMT_SPEC(I32,  i32)
-    DECLARE_FMT_SPEC(I64,  i64)
-    DECLARE_FMT_SPEC(F32,  f32)
-    DECLARE_FMT_SPEC(F64,  f64)
-    DECLARE_FMT_SPEC(Str,  utf8str)
-    DECLARE_FMT_SPEC(CStr, cstring)
-    DECLARE_FMT_SPEC(Ptr,  const void*)
-    DECLARE_FMT_SPEC(Ptr,  rawptr)
-    DECLARE_FMT_SPEC(Ptr,  std::nullptr_t)
+    DECLARE_FMT_SPEC(B8,    b8)
+    DECLARE_FMT_SPEC(U8_,   u8)
+    DECLARE_FMT_SPEC(U16_,  u16)
+    DECLARE_FMT_SPEC(U32_,  u32)
+    DECLARE_FMT_SPEC(U64_,  u64)
+    DECLARE_FMT_SPEC(I8_,   i8)
+    DECLARE_FMT_SPEC(I16_,  i16)
+    DECLARE_FMT_SPEC(I32_,  i32)
+    DECLARE_FMT_SPEC(I64_,  i64)
+    DECLARE_FMT_SPEC(F32_,  f32)
+    DECLARE_FMT_SPEC(F64_,  f64)
+    DECLARE_FMT_SPEC(Str_,  utf8str)
+    DECLARE_FMT_SPEC(CStr_, cstring)
+    DECLARE_FMT_SPEC(Ptr,   const void*)
+    DECLARE_FMT_SPEC(Ptr,   rawptr)
+    DECLARE_FMT_SPEC(Ptr,   std::nullptr_t)
 
     #undef DECLARE_FMT_SPEC
 
@@ -144,47 +155,25 @@ FMT_Arg FMT_Ptr(const void* ptr);
     EXTERN_C_BEGIN
 #else
 
-    typedef enum
-    {
-        FMT_CTy_B8,
-        FMT_CTy_U8,
-        FMT_CTy_U16,
-        FMT_CTy_U32,
-        FMT_CTy_U64,
-        FMT_CTy_I8,
-        FMT_CTy_I16,
-        FMT_CTy_I32,
-        FMT_CTy_I64,
-        FMT_CTy_F32,
-        FMT_CTy_F64,
-        FMT_CTy_Str,
-        FMT_CTy_CStr,
-        FMT_CTy_Ptr,
-    } FMT_CTys;
-
-    // TODO: get rid of this, and use `FMT` differently
-    // ref - https://youtu.be/Ww26eO1WeGQ?si=9Msabu9i6RbXni0P&t=5673
-    inline FMT_Arg FMT_Generic(FMT_CTys ty, ...);
-
     #define FMT(x) \
         (_Generic((x), \
-            b8:          FMT_Generic(FMT_CTy_B8,   (x)), \
-            u8:          FMT_Generic(FMT_CTy_U8,   (x)), \
-            u16:         FMT_Generic(FMT_CTy_U16,  (x)), \
-            u32:         FMT_Generic(FMT_CTy_U32,  (x)), \
-            u64:         FMT_Generic(FMT_CTy_U64,  (x)), \
-            i8:          FMT_Generic(FMT_CTy_I8,   (x)), \
-            i16:         FMT_Generic(FMT_CTy_I16,  (x)), \
-            i32:         FMT_Generic(FMT_CTy_I32,  (x)), \
-            i64:         FMT_Generic(FMT_CTy_I64,  (x)), \
-            f32:         FMT_Generic(FMT_CTy_F32,  (x)), \
-            f64:         FMT_Generic(FMT_CTy_F64,  (x)), \
-            utf8str:     FMT_Generic(FMT_CTy_Str,  (x)), \
-            cstring:     FMT_Generic(FMT_CTy_CStr, (x)), \
-            char*:       FMT_Generic(FMT_CTy_CStr, (x)), \
-            const void*: FMT_Generic(FMT_CTy_Ptr,  (x)), \
-            rawptr:      FMT_Generic(FMT_CTy_Ptr,  (x))  \
-        ))
+            b8:          FMT_B8,    \
+            u8:          FMT_U8_,   \
+            u16:         FMT_U16_,  \
+            u32:         FMT_U32_,  \
+            u64:         FMT_U64_,  \
+            i8:          FMT_I8_,   \
+            i16:         FMT_I16_,  \
+            i32:         FMT_I32_,  \
+            i64:         FMT_I64_,  \
+            f32:         FMT_F32_,  \
+            f64:         FMT_F64_,  \
+            utf8str:     FMT_Str_,  \
+            cstring:     FMT_CStr_, \
+            char*:       FMT_CStr_, \
+            const void*: FMT_Ptr,   \
+            rawptr:      FMT_Ptr    \
+        )(x))
 
 #endif
 
