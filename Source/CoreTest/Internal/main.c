@@ -206,7 +206,6 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
     return 0;
 }
 
-/*
 #if MSR_DBG && MSR_WINDOWS
     // cli uses `int main` and gui uses `WinMain`
     // using the former in debug mode on windows
@@ -215,6 +214,5 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
 
     APP_AS_CLI_EXEC(RealMain);
 #else
-*/
     APP_AS_GUI_EXEC(RealMain);
-// #endif
+#endif
