@@ -689,6 +689,7 @@ bool brahma_append_all_library_deps(
     size_t firstLibDepIdx,
     bool ignoreInterfaceDeps,
     bool ignoreInternalDeps,
+    bool ignoreInternalDepsOfInternalDeps,
     char** error,
     void* cycleChecker);
 
@@ -1107,7 +1108,7 @@ bool brahma_execute(Brahma_Args ex)
 
             Brahma_Library_Idx_Paged_List libIdxs; memset(&libIdxs, 0, sizeof(libIdxs));
             char* error = NULL;
-            if (!brahma_append_all_library_deps(&libDefs, primaryLib, &libIdxs, 0, false, false, &error, NULL))
+            if (!brahma_append_all_library_deps(&libDefs, primaryLib, &libIdxs, 0, false, false, false, &error, NULL))
             {
                 ex.log(BRAHMA_LOG_ERROR "Failed to resolve dependencies for primary library '%s'.\n\tDetails: %s.\n", primaryLib->name, error ? error : "<unknown>");
                 failed = true;
@@ -1251,7 +1252,7 @@ bool brahma_execute(Brahma_Args ex)
             size_t startCount =  allLibInterfaceDeps.count;
 
             char* error = NULL;
-            if (!brahma_append_all_library_deps(&libDefs, lib, &allLibInterfaceDeps, startCount, false, true, &error, NULL))
+            if (!brahma_append_all_library_deps(&libDefs, lib, &allLibInterfaceDeps, startCount, false, true, true, &error, NULL))
             {
                 ex.log(BRAHMA_LOG_ERROR "Failed to resolve dependencies for library '%s'.\n\tDetails: %s.\n", lib->name, error ? error : "<unknown>");
                 failed = true;
@@ -1280,7 +1281,7 @@ bool brahma_execute(Brahma_Args ex)
             size_t startCount =  allLibAllDeps.count;
 
             char* error = NULL;
-            if (!brahma_append_all_library_deps(&libDefs, lib, &allLibAllDeps, startCount, false, false, &error, NULL))
+            if (!brahma_append_all_library_deps(&libDefs, lib, &allLibAllDeps, startCount, false, false, true, &error, NULL))
             {
                 ex.log(BRAHMA_LOG_ERROR "Failed to resolve dependencies for library '%s'.\n\tDetails: %s.\n", lib->name, error ? error : "<unknown>");
                 failed = true;
@@ -2280,6 +2281,7 @@ bool brahma_append_all_library_deps(
     size_t firstLibDepIdx,
     bool ignoreInterfaceDeps,
     bool ignoreInternalDeps,
+    bool ignoreInternalDepsOfInternalDeps,
     char** error,
     void* cycleChecker)
 {
@@ -2331,7 +2333,8 @@ bool brahma_append_all_library_deps(
 
             Brahma_Library* directDepLib = &(allLibs->data[idxOfDirectDepLib]);
             if (!brahma_append_all_library_deps(allLibs, directDepLib, allLibDeps, firstLibDepIdx,
-                    ignoreInterfaceDeps, ignoreInternalDeps, error, &cycleCheckCurrentEntry))
+                    ignoreInterfaceDeps, ignoreInternalDepsOfInternalDeps ? true : ignoreInternalDeps, false,
+                    error, &cycleCheckCurrentEntry))
             {
                 if (error) *error = brahma_sprintf("(%s) -> %s", library->name, *error);
                 return false;
