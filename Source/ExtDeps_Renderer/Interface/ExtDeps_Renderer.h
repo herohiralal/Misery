@@ -8,10 +8,9 @@
 #include <VulkanLoader.h>
 #include <VulkanMemoryAllocator.h>
 
-#include <DirectXShaderCompiler.h>
+#include <MetalHeaders.h>
 
-// TODO: implement
-#define REN_MTL 0 /* (MSR_APPLE) */
+#include <DirectXShaderCompiler.h>
 
 MSR_SUPPRESS_WARN
 MSR_UNSUPPRESS_WARN
