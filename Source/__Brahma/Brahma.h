@@ -1564,11 +1564,6 @@ bool brahma_execute(Brahma_Args ex)
             }
             else
             {
-                if (ex.flags & BRAHMA_ARGS_FLAG_SHOW_WARNINGS)
-                {
-                    brahma_append_string_to_array_list(&commonCxxArgs, "-Wstrict-prototypes");
-                }
-
                 brahma_append_string_to_array_list(&commonCxxArgs, "-fno-exceptions");
                 brahma_append_string_to_array_list(&commonCxxArgs, "-fno-rtti");
                 brahma_append_string_to_array_list(&commonCxxArgs, "-std=c++14");
