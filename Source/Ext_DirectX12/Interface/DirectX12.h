@@ -2,11 +2,9 @@
 #include <__init.h>
 #include <ExtDeps_Platform.h>
 
-#ifdef REN_DX12
-    #error "REN_DX12 is already defined"
+#ifndef REN_DX12
+    #define REN_DX12 (MSR_WINDOWS || MSR_XSERIES)
 #endif
-
-#define REN_DX12 (MSR_WINDOWS || MSR_XSERIES)
 
 MSR_SUPPRESS_WARN
 #if REN_DX12

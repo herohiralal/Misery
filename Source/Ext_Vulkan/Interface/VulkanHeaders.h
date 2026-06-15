@@ -2,12 +2,10 @@
 #include <__init.h>
 #include <ExtDeps_Platform.h>
 
-#ifdef REN_VK
-    #error "REN_VK is already defined"
+#ifndef REN_VK
+    // TODO: add MoltenVK to support OSX/iOS
+    #define REN_VK (MSR_WINDOWS || MSR_LINUX || MSR_ANDROID)
 #endif
-
-// TODO: add MoltenVK to support OSX/iOS
-#define REN_VK (MSR_WINDOWS || MSR_LINUX || MSR_ANDROID)
 
 MSR_SUPPRESS_WARN
 #if REN_VK
