@@ -48,6 +48,11 @@
         _Pragma("GCC diagnostic ignored \"-Wall\"") \
         _Pragma("GCC diagnostic ignored \"-Wextra\"") \
         _Pragma("GCC diagnostic ignored \"-Wpedantic\"") \
+        _Pragma("GCC diagnostic ignored \"-Wconversion\"") \
+        _Pragma("GCC diagnostic ignored \"-Wswitch-enum\"") \
+        _Pragma("GCC diagnostic ignored \"-Wmissing-field-initializers\"") \
+        _Pragma("GCC diagnostic ignored \"-Wunused-variable\"") \
+        _Pragma("GCC diagnostic ignored \"-Wimplicit-fallthrough\"") \
 
     #define MSR_UNSUPPRESS_WARN \
         _Pragma("GCC diagnostic pop")
