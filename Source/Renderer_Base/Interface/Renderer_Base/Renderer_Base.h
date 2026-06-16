@@ -73,7 +73,7 @@ REN_DECLARE_OBJECT(Program, 1, 1);
 // ensure that the extended object can fit within the opaque padding
 // of the base object
 #define REN_EXTEND_OBJECT(gfxApi, name, ...) \
-    typedef struct REN_##gfxAPi##name \
+    typedef struct REN_##gfxApi##name \
     { \
         REN_##name##_Base base; \
         __VA_ARGS__ \
