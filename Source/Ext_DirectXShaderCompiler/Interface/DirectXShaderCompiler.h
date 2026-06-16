@@ -3,6 +3,7 @@
 
 #if MSR_WINDOWS || MSR_LINUX
     #ifdef __cplusplus
+        #include "Unknwn.h"
         #include "ExtDeps/dxc/dxcapi.h"
         #define DX_SHADER_COMPILER 1
     #endif
