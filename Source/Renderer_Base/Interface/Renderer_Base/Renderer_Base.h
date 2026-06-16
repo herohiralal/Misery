@@ -1,6 +1,7 @@
 #pragma once
 #include <Core/Core.h>
 #include <Platform/Platform.h>
+#include "Shaders_Base.h"
 
 EXTERN_C_BEGIN
 
@@ -35,14 +36,14 @@ enum REN_GfxAPITypes
  * multiple renderers, it's more common to have just one. The renderer is used as the primary
  * entry point for creating other renderer objects.
  */
-REN_DECLARE_OBJECT(Instance, 1, 1);
+REN_DECLARE_OBJECT(Instance, 1, 96);
 
 /**
  * A command buffer for recording rendering commands.
  * Modern graphics APIs often require command buffers that are allocated from the renderer,
  * and get submitted to the GPU for execution.
  */
-REN_DECLARE_OBJECT(CmdBuffer, 1, 1);
+REN_DECLARE_OBJECT(CmdBuffer, 1, 40);
 
 /**
  * Represents a texture resource that can be used for rendering.
@@ -54,7 +55,7 @@ REN_DECLARE_OBJECT(Texture, 1, 1);
  * A swap-chain manages the images that are presented to the screen, and handles
  * synchronization between rendering and presentation.
  */
-REN_DECLARE_OBJECT(SwapChain, 1, 1);
+REN_DECLARE_OBJECT(SwapChain, 1, 168);
 
 /**
  * Represents a shader program.
@@ -77,7 +78,7 @@ REN_DECLARE_OBJECT(Program, 1, 1);
     { \
         REN_##name##_Base base; \
         __VA_ARGS__ \
-    } REN_##gfxAPi##name; \
+    } REN_##gfxApi##name; \
     REN_OBJ_SIZE_CHECK(gfxApi, name)
 
 EXTERN_C_END
