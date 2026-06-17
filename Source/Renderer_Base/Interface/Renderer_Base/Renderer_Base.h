@@ -18,11 +18,10 @@ enum REN_GfxAPITypes
 };
 
 // declare a renderer object (with opaque padding)
-#define REN_DECLARE_OBJECT(name, basePadding, extensionPadding) \
+#define REN_DECLARE_OBJECT(name, extensionPadding) \
     typedef struct REN_##name##_Base \
     { \
         REN_GfxAPIType type; \
-        u8 padding[basePadding]; \
     } REN_##name##_Base; \
     typedef struct REN_##name \
     { \
@@ -47,14 +46,14 @@ typedef struct
  * multiple renderers, it's more common to have just one. The renderer is used as the primary
  * entry point for creating other renderer objects.
  */
-REN_DECLARE_OBJECT(Instance, 1, 96);
+REN_DECLARE_OBJECT(Instance, 96);
 
 /**
  * A command buffer for recording rendering commands.
  * Modern graphics APIs often require command buffers that are allocated from the renderer,
  * and get submitted to the GPU for execution.
  */
-REN_DECLARE_OBJECT(CmdBuffer, 1, 40);
+REN_DECLARE_OBJECT(CmdBuffer, 40);
 
 /**
  * Defines the available texture formats.
@@ -72,7 +71,7 @@ enum REN_TextureFormats
 /**
  * Represents a texture resource that can be used for rendering.
  */
-REN_DECLARE_OBJECT(Texture, 1, 1);
+REN_DECLARE_OBJECT(Texture, 1);
 
 /**
  * Configuration structure for swap-chain creation.
@@ -91,14 +90,14 @@ typedef struct
  * A swap-chain manages the images that are presented to the screen, and handles
  * synchronization between rendering and presentation.
  */
-REN_DECLARE_OBJECT(SwapChain, 1, 168);
+REN_DECLARE_OBJECT(SwapChain, 168);
 
 /**
  * Represents a shader program.
  * It represents a "pipeline" of shaders that can be used together, and the resources they
  * require.
  */
-REN_DECLARE_OBJECT(Program, 1, 1);
+REN_DECLARE_OBJECT(Program, 1);
 
 #undef REN_DECLARE_OBJECT
 
