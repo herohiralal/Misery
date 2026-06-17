@@ -3,6 +3,7 @@
 #include <ExtDeps_Renderer.h>
 #include <Renderer_Base/Renderer_Base.h>
 
+#if REN_VK
 EXTERN_C_BEGIN
 
 COL_DECLARE_FOR(VkLayerProperties);
@@ -71,3 +72,4 @@ REN_EXTEND_OBJECT(Vk, SwapChain,
 );
 
 EXTERN_C_END
+#endif

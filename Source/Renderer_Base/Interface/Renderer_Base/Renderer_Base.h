@@ -31,6 +31,17 @@ enum REN_GfxAPITypes
     } REN_##name;
 
 /**
+ * Configuration structure for renderer creation.
+ */
+typedef struct
+{
+    REN_GfxAPIType type;
+    APP_Handle appHandle;
+    MEM_Allocator allocator;
+    utf8str appName;
+} REN_InstanceCfg;
+
+/**
  * The main renderer interface.
  * This is the main object that represents the renderer instance. While a process may have
  * multiple renderers, it's more common to have just one. The renderer is used as the primary
@@ -46,9 +57,34 @@ REN_DECLARE_OBJECT(Instance, 1, 96);
 REN_DECLARE_OBJECT(CmdBuffer, 1, 40);
 
 /**
+ * Defines the available texture formats.
+ */
+typedef u8 REN_TextureFormat;
+enum REN_TextureFormats
+{
+    REN_TexFmt_Unknown,
+    REN_TexFmt_D32_Float,
+    REN_TexFmt_B8G8R8A8_UNorm,
+    REN_TexFmt_R8G8B8A8_UNorm,
+    REN_TexFmt_R16G16B16A16_UNorm,
+};
+
+/**
  * Represents a texture resource that can be used for rendering.
  */
 REN_DECLARE_OBJECT(Texture, 1, 1);
+
+/**
+ * Configuration structure for swap-chain creation.
+ */
+typedef struct
+{
+    u16     width;
+    u16     height;
+    b8      vSync;
+    u8      framesInFlight;
+    utf8str objectName;
+} REN_SwapChainCfg;
 
 /**
  * A swap-chain corresponding to a window that can be rendered to.
