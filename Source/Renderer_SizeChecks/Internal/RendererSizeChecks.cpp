@@ -27,7 +27,6 @@ struct REN_TNoValueOnFailure<true> { static constexpr const bool VALUE = true; }
     EXTERN_C_BEGIN
 
 #include <Renderer_Base/Renderer_Base.h>
-#include <Renderer_Null/Renderer_Null.h>
 #include <Renderer_Vk/Renderer_Vk.h>
 #include <Renderer_Dx12/Renderer_Dx12.h>
 #include <Renderer_Mtl/Renderer_Mtl.h>

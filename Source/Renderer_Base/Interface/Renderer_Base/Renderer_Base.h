@@ -93,6 +93,15 @@ typedef struct
 REN_DECLARE_OBJECT(SwapChain, 168);
 
 /**
+ * Configuration structure for shader program creation.
+ */
+typedef struct
+{
+    Slice_(SHD_ByteCode) shaders;
+    utf8str objectName;
+} REN_ProgramCfg;
+
+/**
  * Represents a shader program.
  * It represents a "pipeline" of shaders that can be used together, and the resources they
  * require.
@@ -114,6 +123,15 @@ REN_DECLARE_OBJECT(Program, 1);
         REN_##name##_Base base; \
         __VA_ARGS__ \
     } REN_##gfxApi##name; \
-    REN_OBJ_SIZE_CHECK(gfxApi, name)
+    REN_OBJ_SIZE_CHECK(gfxApi, name) \
+    static inline REN_##gfxApi##name* REN_To##gfxApi##name(REN_##name* base) \
+    { \
+        MSR_ASSERT(base->base.type == REN_GfxAPIType_##gfxApi && "Type mismatch!"); \
+        return (REN_##gfxApi##name*) base; \
+    } \
+    static inline REN_##name* REN_From##gfxApi##name(REN_##gfxApi##name* extended) \
+    { \
+        return (REN_##name*) extended; \
+    }
 
 EXTERN_C_END

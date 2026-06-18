@@ -9,22 +9,22 @@ void REN_LogVkResultOnFailure(VkResult result, utf8str fnCall, SrcLoc loc);
 void REN_SetVkObjDebugName(const REN_VkInstance* renderer, void* obj, VkObjectType objTy, utf8str fmtStr, FMT_Args fmtArgs, MEM_Allocator tempAllocator);
 
 #define REN_VK_CHECKED_CALL(call) \
-    REN_LogVkResultOnFailure((call), PNSLR_StringLiteral(#call), SRC_LOC())
+    REN_LogVkResultOnFailure((call), UTF8STR(#call), SRC_LOC())
 
-inline VkFormat REN_BreakVkTextureFormat(REN_TextureFormat fmt);
-inline REN_TextureFormat REN_MakeVkTextureFormat(VkFormat fmt);
+inline VkFormat REN_BreakVkTextureFormat(REN_TextureFormat);
+inline REN_TextureFormat REN_MakeVkTextureFormat(VkFormat);
 
-REN_VkInstance* MZNT_CreateRenderer_Vulkan(REN_InstanceCfg cfg);
-b8 MZNT_WaitTillRendererIdle_Vulkan(const REN_VkInstance* renderer);
-b8 MZNT_DestroyRenderer_Vulkan(REN_VkInstance* renderer);
+void REN_VkCreateRenderer(REN_Instance*, REN_InstanceCfg);
+void REN_VkWaitTillRendererIdle(const REN_Instance*);
+void REN_VkDestroyRenderer(REN_Instance*);
 
-REN_VkSwapChain* MZNT_CreateSwapChainFromWindow_Vulkan(REN_VkInstance* renderer, WND_Handle windowHandle, REN_SwapChainCfg cfg);
-b8 MZNT_ReconfigureSwapChain_Vulkan(REN_VkSwapChain* swapChain, REN_SwapChainCfg cfg);
-b8 MZNT_DestroySwapChain_Vulkan(REN_VkSwapChain* swapChain);
-REN_TextureFormat MZNT_GetSwapChainTextureFormat_Vulkan(const REN_VkSwapChain* swapChain);
-b8 MZNT_IterateSwapChain_Vulkan(REN_VkSwapChain* swapChain);
-REN_VkCmdBuffer* MZNT_GetSwapChainCommandBuffer_Vulkan(const REN_VkSwapChain* swapChain, u8* outImgIdx);
-b8 MZNT_PresentSwapChain_Vulkan(const REN_VkSwapChain* swapChain);
+void REN_VkCreateSwapChainFromWindow(REN_SwapChain*, REN_Instance*, WND_Handle, REN_SwapChainCfg);
+void REN_VkReconfigureSwapChain(REN_SwapChain*, REN_SwapChainCfg);
+void REN_VkDestroySwapChain(REN_SwapChain*);
+REN_TextureFormat REN_VkGetSwapChainTextureFormat(const REN_SwapChain*);
+void REN_VkIterateSwapChain(REN_SwapChain*);
+REN_CmdBuffer* REN_VkGetSwapChainCommandBuffer(const REN_SwapChain*, u8* outImgIdx);
+void REN_VkPresentSwapChain(const REN_SwapChain*);
 
 EXTERN_C_END
 #endif

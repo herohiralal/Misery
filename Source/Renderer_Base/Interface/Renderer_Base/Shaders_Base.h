@@ -32,4 +32,6 @@ typedef struct
     utf8str entryPoint;
 } SHD_ByteCode;
 
+COL_DECLARE_FOR(SHD_ByteCode);
+
 EXTERN_C_END
