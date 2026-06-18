@@ -46,7 +46,7 @@ typedef struct
  * multiple renderers, it's more common to have just one. The renderer is used as the primary
  * entry point for creating other renderer objects.
  */
-REN_DECLARE_OBJECT(Instance, 96);
+REN_DECLARE_OBJECT(Instance, 112);
 
 /**
  * A command buffer for recording rendering commands.

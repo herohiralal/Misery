@@ -21,6 +21,9 @@ COL_DECLARE_FOR(VkSemaphore);
 COL_DECLARE_FOR(VmaAllocation);
 
 REN_EXTEND_OBJECT(Vk, Instance,
+    MEM_Allocator allocator;
+    APP_Handle    appHandle;
+
     VkInstance       instance;
     VkPhysicalDevice physicalDevice;
     VkDevice         device;
