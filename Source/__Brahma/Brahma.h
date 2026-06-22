@@ -501,6 +501,8 @@ typedef struct
     /**
      * The static libraries that this library depends on. These will be linked against when building the package that
      * depends on this library.
+     *
+     * If the library is an apple framework, then prefix the library name with "framework:", e.g. "framework:Metal".
      */
     Brahma_String_Paged_List externalDependencies;
 
@@ -1955,8 +1957,25 @@ bool brahma_execute(Brahma_Args ex)
                 for (size_t i = 0; i < externalDeps.count; i++)
                 {
                     const char* dep = *brahma_index_string_paged_list(&externalDeps, i);
-                    const char* arg = brahma_sprintf("-l%s", dep);
-                    brahma_append_string_to_array_list(&linkArgs, arg);
+
+                    const char frameworkPrefix[] = "framework:";
+                    size_t frameworkPrefixLen = strlen(frameworkPrefix);
+                    // check for apple frameworks
+                    if (true &&
+                        (ex.platform == BRAHMA_PLATFORM_OSX || ex.platform == BRAHMA_PLATFORM_IOS) &&
+                        strlen(dep) > frameworkPrefixLen &&
+                        !strncmp(dep, frameworkPrefix, frameworkPrefixLen) &&
+                        true)
+                    {
+                        const char* frameworkName = dep + frameworkPrefixLen;
+                        brahma_append_string_to_array_list(&linkArgs, "-framework");
+                        brahma_append_string_to_array_list(&linkArgs, frameworkName);
+                    }
+                    else
+                    {
+                        const char* arg = brahma_sprintf("-l%s", dep);
+                        brahma_append_string_to_array_list(&linkArgs, arg);
+                    }
                 }
             }
 
