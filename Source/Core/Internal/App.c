@@ -55,7 +55,7 @@ i32 APP_Main(i32 argc, cstring* argv, APP_EntryPointProc mainFn, b8 isGui)
     {
         @autoreleasepool {
             NSApplication* nativeApp = [NSApplication sharedApplication];
-            APP_Handle app = APP_ToHandle((__bridge_retained rawptr) nativeApp);
+            APP_Handle app = APP_ToHandle((rawptr) nativeApp);
             Slice_(utf8str) args = APP_Internal_GetCmdArgs(argc, argv);
 
             // actual execution
@@ -63,7 +63,7 @@ i32 APP_Main(i32 argc, cstring* argv, APP_EntryPointProc mainFn, b8 isGui)
 
             COL_DeleteSlice(&args, MEM_main);
 
-            nativeApp = (__bridge_transfer NSApplication*) APP_FromHandle(app);
+            nativeApp = (NSApplication*) APP_FromHandle(app);
             [nativeApp terminate:nil];
 
             return exitCode;

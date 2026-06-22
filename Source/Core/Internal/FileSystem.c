@@ -716,8 +716,16 @@ TIM_Value FIL_LastModified(FIL_Path path)
         struct stat statBuf;
         if (stat(str, &statBuf) != 0) { return (TIM_Value) {0}; }
 
+        #ifdef __APPLE__
+            #define st_mtim st_mtimespec
+        #endif
+
         // convert seconds to nanoseconds and add the nanosecond part
         return (TIM_Value){.ns = (i64) statBuf.st_mtime * 1000000000 + statBuf.st_mtim.tv_nsec};
+
+        #ifdef __APPLE__
+            #undef st_mtim
+        #endif
     }
     #endif
 }

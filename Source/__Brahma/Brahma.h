@@ -50,7 +50,7 @@
         _Pragma("GCC diagnostic pop")
 #endif
 
-#if defined(__clang__) && !defined(_MSC_VER)
+#if defined(__clang__) && !defined(_MSC_VER) && !defined(__GNUC__)
     #pragma clang diagnostic error   "-Wall"
     #pragma clang diagnostic error   "-Wextra"
     #pragma clang diagnostic error   "-Wshadow"
@@ -957,6 +957,21 @@ bool brahma_execute(Brahma_Args ex)
         }
         #endif
     }
+    else if (ex.platform == BRAHMA_PLATFORM_OSX)
+    {
+        #if defined(__APPLE__)
+        {
+            toolchainPath    = "/usr/bin";
+            cCompilerPath    = "clang";
+            cxxCompilerPath  = "clang++";
+            staticLinkerPath = "ar";
+        }
+        #else
+        {
+            // TODO - cross compilation
+        }
+        #endif
+    }
 
     PROFILE_SECTION_END("get toolchains");
 
@@ -1547,6 +1562,8 @@ bool brahma_execute(Brahma_Args ex)
                     brahma_append_string_to_array_list(&commonCArgs, "-DNDEBUG");
                     brahma_append_string_to_array_list(&commonCArgs, "-flto");
                 }
+
+                brahma_append_string_to_array_list(&commonCArgs, "-fPIC"); // position independent code, for shared libraries
             }
         }
 
@@ -1582,10 +1599,13 @@ bool brahma_execute(Brahma_Args ex)
     // begin compile processes
     Brahma_Process_Array_List compileProcesses = { NULL, 0, 0 };
     Brahma_String_Array_List builtObjects = { NULL, 0, 0 };
+    Brahma_String_Paged_List allCompileCommands = { NULL, 0, 0 };
+    Brahma_Data_Chunk_Array_List compileCommandChunks = { NULL, 0, 0 };
     if (!failed)
     {
         brahma_reserve_process_array_list_capacity(&compileProcesses, (libUnityCFiles.count + libUnityCxxFiles.count));
         brahma_reserve_string_array_list_capacity(&builtObjects, (libUnityCFiles.count + libUnityCxxFiles.count));
+        brahma_reserve_data_chunk_array_list_capacity(&compileCommandChunks, (libUnityCFiles.count + libUnityCxxFiles.count));
 
         struct
         {
@@ -1593,17 +1613,20 @@ bool brahma_execute(Brahma_Args ex)
             const Brahma_String_Array_List* files;
             const Brahma_Library_Idx_Array_List* fileLibIdxs;
             const Brahma_String_Array_List* commonArgs;
+            const char* objCArg; // for obj-c++ on macOS/iOS
         } toProcess[2];
 
         toProcess[0].compilerPath = cCompilerPath;
         toProcess[0].files = &libUnityCFiles;
         toProcess[0].fileLibIdxs = &libUnityCFileLibIdxs;
         toProcess[0].commonArgs = &commonCArgs;
+        toProcess[0].objCArg = "objective-c";
 
         toProcess[1].compilerPath = cxxCompilerPath;
         toProcess[1].files = &libUnityCxxFiles;
         toProcess[1].fileLibIdxs = &libUnityCxxFileLibIdxs;
         toProcess[1].commonArgs = &commonCxxArgs;
+        toProcess[1].objCArg = "objective-c++";
 
         for (size_t i = 0; i < (sizeof(toProcess) / sizeof(toProcess[0])); i++)
         {
@@ -1621,6 +1644,12 @@ bool brahma_execute(Brahma_Args ex)
                 for (size_t k = 0; k < commonArgs->count; k++)
                 {
                     brahma_append_string_to_array_list(&compileArgs, commonArgs->data[k]);
+                }
+
+                if (ex.platform == BRAHMA_PLATFORM_OSX || ex.platform == BRAHMA_PLATFORM_IOS)
+                {
+                    brahma_append_string_to_array_list(&compileArgs, "-x");
+                    brahma_append_string_to_array_list(&compileArgs, toProcess[i].objCArg);
                 }
 
                 // compile-only; no link, and on windows, better diagnostics
@@ -1723,6 +1752,13 @@ bool brahma_execute(Brahma_Args ex)
 
                 brahma_append_process_to_array_list(&compileProcesses, compileProcess);
                 brahma_append_string_to_array_list(&builtObjects, objectFilePath);
+
+                Brahma_Data_Chunk compileCommandChunk;
+                compileCommandChunk.start = (uint16_t) allCompileCommands.count;
+                for (size_t k = 0; k < compileArgs.count; k++)
+                    brahma_append_string_to_paged_list(&allCompileCommands, compileArgs.data[k]);
+                compileCommandChunk.count = (uint16_t) (allCompileCommands.count - compileCommandChunk.start);
+                brahma_append_data_chunk_to_array_list(&compileCommandChunks, compileCommandChunk);
             }
         }
 
@@ -1800,6 +1836,13 @@ bool brahma_execute(Brahma_Args ex)
             {
                 ex.log("--------------------------------------------------------\n");
                 ex.log(BRAHMA_LOG_ERROR "Failed to compile '%s'.\n", builtObjects.data[i]);
+                ex.log("--------------------------------------------------------\n");
+                ex.log("Command: ");
+                Brahma_Data_Chunk compileCommandChunk = compileCommandChunks.data[i];
+                for (size_t k = compileCommandChunk.start; k < (size_t) (compileCommandChunk.start + compileCommandChunk.count); k++)
+                    ex.log("%s ", *brahma_index_string_paged_list(&allCompileCommands, k));
+                ex.log("\n");
+                ex.log("--------------------------------------------------------\n");
                 ex.log("%s", outputFromProcess);
                 ex.log("--------------------------------------------------------\n");
                 failed = true;
@@ -1813,11 +1856,11 @@ bool brahma_execute(Brahma_Args ex)
     }
 
     // begin linking process
+    Brahma_String_Array_List linkArgs = { NULL, 0, 0 };
     Brahma_Process linkProcess = NULL;
     char* output = NULL;
     if (!failed)
     {
-        Brahma_String_Array_List linkArgs = { NULL, 0, 0 };
         brahma_reserve_string_array_list_capacity(&linkArgs, 16);
 
         brahma_append_string_to_array_list(&linkArgs,
@@ -1859,8 +1902,7 @@ bool brahma_execute(Brahma_Args ex)
             }
             else if (ex.platform == BRAHMA_PLATFORM_OSX || ex.platform == BRAHMA_PLATFORM_IOS)
             {
-                brahma_append_string_to_array_list(&linkArgs, "-static");
-                brahma_append_string_to_array_list(&linkArgs, "-o");
+                brahma_append_string_to_array_list(&linkArgs, "rcs");
                 brahma_append_string_to_array_list(&linkArgs, output);
             }
             else
@@ -1930,6 +1972,10 @@ bool brahma_execute(Brahma_Args ex)
                     if (ex.platform == BRAHMA_PLATFORM_LINUX || ex.platform == BRAHMA_PLATFORM_ANDROID)
                     {
                         brahma_append_string_to_array_list(&linkArgs, "-fPIC");
+                    }
+                    if (ex.platform == BRAHMA_PLATFORM_OSX || ex.platform == BRAHMA_PLATFORM_IOS)
+                    {
+                        brahma_append_string_to_array_list(&linkArgs, "-dynamiclib");
                     }
                 }
             }
@@ -2176,6 +2222,8 @@ bool brahma_execute(Brahma_Args ex)
                 }
             }
 
+            bool objC = (ex.platform == BRAHMA_PLATFORM_OSX || ex.platform == BRAHMA_PLATFORM_IOS);
+
             fprintf(clangdConfigFile,
                 "---\n"
                 "If:\n"
@@ -2186,6 +2234,17 @@ bool brahma_execute(Brahma_Args ex)
                 "    - -std=c++14\n"
                 "    - -fno-exceptions\n"
                 "    - -fno-rtti\n"
+            );
+
+            if (objC)
+            {
+                fprintf(clangdConfigFile,
+                    "    - -x\n"
+                    "    - objective-c++\n"
+                );
+            }
+
+            fprintf(clangdConfigFile,
                 "---\n"
                 "If:\n"
                 "  PathMatch: .*\\.(h|c)$\n"
@@ -2194,6 +2253,14 @@ bool brahma_execute(Brahma_Args ex)
                 "    - -xc\n"
                 "    - -std=c11\n"
             );
+
+            if (objC)
+            {
+                fprintf(clangdConfigFile,
+                    "    - -x\n"
+                    "    - objective-c\n"
+                );
+            }
 
             fileWriteFailed = (fclose(clangdConfigFile) != 0);
         }
@@ -2222,6 +2289,12 @@ bool brahma_execute(Brahma_Args ex)
         {
             ex.log("--------------------------------------------------------\n");
             ex.log(BRAHMA_LOG_ERROR "Failed to link '%s'.\n", output);
+            ex.log("--------------------------------------------------------\n");
+            ex.log("Command: ");
+            for (size_t k = 0; k < linkArgs.count; k++)
+                ex.log("%s ", linkArgs.data[k]);
+            ex.log("\n");
+            ex.log("--------------------------------------------------------\n");
             ex.log("%s", outputFromProcess);
             ex.log("--------------------------------------------------------\n");
             failed = true;

@@ -456,9 +456,9 @@ PRC_Handle PRC_Run(Slice_(utf8str) execAndArgs, Slice_(utf8str) environmentVaria
             Slice_(utf8str) pathDirs = PRC_Internal_SplitUnixPathList(pathVar, tempAllocator);
 
             b8 found = false;
-            for (isize pi = 0; pi < pathDirs.count; pi++)
+            for (isize pIdx = 0; pIdx < pathDirs.count; pIdx++)
             {
-                utf8str dir = pathDirs.data[pi];
+                utf8str dir = pathDirs.data[pIdx];
 
                 COL_ClearList(&exeBuilder);
                 for (isize i = 0; i < dir.count; i++)

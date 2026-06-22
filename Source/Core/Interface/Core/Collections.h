@@ -25,16 +25,16 @@ typedef struct COL_RawList { rawptr data; isize count; isize capacity; MEM_Alloc
     template <typename T>
     static inline T COL_Internal_SliceFromRaw(const COL_RawSlice& raw)
     {
-        static_assert( sizeof(T) ==  sizeof(COL_RawSlice));
-        static_assert(alignof(T) == alignof(COL_RawSlice));
+        static_assert( sizeof(T) ==  sizeof(COL_RawSlice), "size of target slice type must match size of COL_RawSlice");
+        static_assert(alignof(T) == alignof(COL_RawSlice), "alignment of target slice type must match alignment of COL_RawSlice");
         return *(T*) (&raw);
     }
 
     template <typename T>
     static inline T COL_Internal_ListFromRaw(const COL_RawList& raw)
     {
-        static_assert( sizeof(T) ==  sizeof(COL_RawList));
-        static_assert(alignof(T) == alignof(COL_RawList));
+        static_assert( sizeof(T) ==  sizeof(COL_RawList), "size of target list type must match size of COL_RawList");
+        static_assert(alignof(T) == alignof(COL_RawList), "alignment of target list type must match alignment of COL_RawList");
         return *(T*) (&raw);
     }
 
@@ -164,8 +164,8 @@ void COL_DeleteRawSlice(COL_RawSlice* slice, MEM_Allocator);
     template <typename T>
     struct COL_SliceFromRaw
     {
-        static_assert( sizeof(T) ==  sizeof(COL_RawSlice));
-        static_assert(alignof(T) == alignof(COL_RawSlice));
+        static_assert( sizeof(T) ==  sizeof(COL_RawSlice), "size of target slice type must match size of COL_RawSlice");
+        static_assert(alignof(T) == alignof(COL_RawSlice), "alignment of target slice type must match alignment of COL_RawSlice");
 
         static inline T Convert(const COL_RawSlice& raw) { return *(T*) (&raw); }
     };

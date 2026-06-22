@@ -215,7 +215,7 @@ void SYN_ExecuteDoOnce(SYN_DoOnce* once, SYN_DoOnceCallback callback);
  */
 typedef struct alignas(MSR_PTR_SIZE) SYN_Event
 {
-    u8 buffer[14 * MSR_PTR_SIZE];
+    u8 buffer[15 * MSR_PTR_SIZE];
 } SYN_Event;
 
 /**
