@@ -32,6 +32,10 @@ typedef struct
     List_(i32) keysDown; // acts as a set
     b8 inputSystemInitialised;
 
+#elif MSR_OSX
+
+    INP_KeyModifier cachedModifierStates;
+
 #elif MSR_LINUX
 
     INP_KeyModifier cachedModifierStates;
