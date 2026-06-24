@@ -83,10 +83,10 @@ void REN_VkCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
     }
     #endif
 
+    outBaseInstance->base.type = REN_GfxAPIType_Vk;
     REN_VkInstance* output = REN_ToVkInstance(outBaseInstance);
     MSR_ASSERT(output && "output must not be null");
 
-    output->base.type = REN_GfxAPIType_Vk;
     output->allocator = cfg.allocator;
     output->appHandle = cfg.appHandle;
 
@@ -158,6 +158,12 @@ void REN_VkCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
 
         #if MSR_APPLE
             if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_EXT_METAL_SURFACE_EXTENSION_NAME)))
+            {
+                COL_AppendToList(&enabledExtensions, ext->extensionName);
+                continue;
+            }
+
+            if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME)))
             {
                 COL_AppendToList(&enabledExtensions, ext->extensionName);
                 continue;
@@ -235,7 +241,7 @@ void REN_VkCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
     REN_VK_CHECKED_CALL(vkCreateInstance(&(VkInstanceCreateInfo)
     {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        .flags = 0,
+        .flags = 0 | (MSR_APPLE ? VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR : 0),
         .pApplicationInfo = &(VkApplicationInfo)
         {
             .sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO,
