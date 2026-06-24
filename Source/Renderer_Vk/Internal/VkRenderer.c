@@ -77,7 +77,7 @@ static const VkFormat k_MZNT_Internal_PreferredVkDepthAttchFormat  = VK_FORMAT_D
 
 void REN_VkCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
 {
-    #if !MSR_APPLE
+    #if !MSR_IOS
     {
         REN_VK_CHECKED_CALL(volkInitialize());
     }
@@ -259,7 +259,7 @@ void REN_VkCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
         },
     }, nil, &output->instance));
 
-    #if !MSR_APPLE
+    #if !MSR_IOS
     {
         volkLoadInstanceOnly(output->instance);
     }
@@ -423,6 +423,14 @@ void REN_VkCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
         };
 
         REN_VK_CHECKED_CALL(vkCreateAndroidSurfaceKHR(output->instance, &surfaceCreateInfo, nil, &tempSurfaceForQueueSelect));
+    #elif MSR_APPLE
+        CAMetalLayer* tempLayer = [[CAMetalLayer alloc] init];
+
+        REN_VK_CHECKED_CALL(vkCreateMetalSurfaceEXT(output->instance, &(VkMetalSurfaceCreateInfoEXT)
+        {
+            .sType  = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT,
+            .pLayer = tempLayer,
+        }, nil, &tempSurfaceForQueueSelect));
     #else
         #error "unimplemented"
     #endif
@@ -434,6 +442,8 @@ void REN_VkCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
         DestroyWindow(tempWindow);
     #elif MSR_ANDROID
         // nothing to do
+    #elif MSR_OSX
+        [tempLayer release];
     #else
         #error "unimplemented"
     #endif
@@ -489,7 +499,7 @@ void REN_VkCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
         },
     }, nil, &output->device));
 
-    #if !MSR_APPLE
+    #if !MSR_IOS
     {
         volkLoadDevice(output->device);
     }
@@ -558,7 +568,7 @@ void REN_VkDestroyRenderer(REN_Instance* baseRenderer)
 
     COL_DeleteSlice(&(renderer->appName), renderer->allocator);
 
-    #if !MSR_APPLE
+    #if !MSR_IOS
     {
         volkFinalize();
     }

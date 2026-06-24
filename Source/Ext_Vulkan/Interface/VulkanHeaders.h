@@ -3,8 +3,8 @@
 #include <ExtDeps_Platform.h>
 
 #ifndef REN_VK
-    // TODO: add MoltenVK to support OSX/iOS
-    #define REN_VK (MSR_WINDOWS || MSR_LINUX || MSR_ANDROID)
+    // TODO: add MoltenVK framework linking to support iOS
+    #define REN_VK (MSR_WINDOWS || MSR_LINUX || MSR_ANDROID || MSR_OSX)
 #endif
 
 MSR_SUPPRESS_WARN
@@ -16,11 +16,14 @@ MSR_SUPPRESS_WARN
     #elif MSR_LINUX
         #define VK_USE_PLATFORM_XLIB_KHR
         #define VK_USE_PLATFORM_XCB_KHR
+    #elif MSR_APPLE
+        #define VK_USE_PLATFORM_METAL_EXT
     #endif
 
-    #if !MSR_APPLE
+    #if !MSR_IOS
         #define VK_NO_PROTOTYPES 1
     #endif
     #include "ExtDeps/vulkan/vulkan.h"
+    #include <QuartzCore/QuartzCore.h>
 #endif
 MSR_UNSUPPRESS_WARN
