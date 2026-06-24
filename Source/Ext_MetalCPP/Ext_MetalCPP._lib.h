@@ -8,7 +8,9 @@ BRAHMA_IMPLEMENT_LIBRARY(Ext_MetalCPP)
     if (package->platform == BRAHMA_PLATFORM_OSX || package->platform == BRAHMA_PLATFORM_IOS)
     {
         brahma_append_string_to_paged_list(&library->externalDependencies, "framework:Foundation");
+        brahma_append_string_to_paged_list(&library->externalDependencies, "framework:QuartzCore");
         brahma_append_string_to_paged_list(&library->externalDependencies, "framework:Metal");
+        brahma_append_string_to_paged_list(&library->externalDependencies, "framework:MetalKit");
     }
 
     if (package->platform == BRAHMA_PLATFORM_OSX)
