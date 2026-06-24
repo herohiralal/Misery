@@ -53,6 +53,7 @@
         _Pragma("GCC diagnostic ignored \"-Wmissing-field-initializers\"") \
         _Pragma("GCC diagnostic ignored \"-Wunused-variable\"") \
         _Pragma("GCC diagnostic ignored \"-Wimplicit-fallthrough\"") \
+        _Pragma("GCC diagnostic ignored \"-Wundef\"") \
 
     #define MSR_UNSUPPRESS_WARN \
         _Pragma("GCC diagnostic pop")
