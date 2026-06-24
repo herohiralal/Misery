@@ -67,14 +67,9 @@ MSR_SUPPRESS_WARN
     #include <signal.h>
     #include <dispatch/dispatch.h>
     #include <os/log.h>
-    #include <Foundation/Foundation.h>
-
-    #if MSR_OSX
-        #include <Cocoa/Cocoa.h>
-    #elif MSR_IOS
-        #include <UIKit/UIKit.h>
-    #endif
 #endif
+
+#include <AppKitHeaders.h>
 
 #if MSR_ANDROID
     #include <jni.h>

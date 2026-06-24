@@ -1,6 +1,5 @@
 #pragma once
 #include <__init.h>
-#include <ExtDeps_Platform.h>
 
 #ifndef REN_MTL
     #define REN_MTL (MSR_APPLE)

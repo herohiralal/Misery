@@ -1580,13 +1580,13 @@ bool brahma_execute(Brahma_Args ex)
             {
                 brahma_append_string_to_array_list(&commonCxxArgs, "/EHs-"); // no exception handling
                 brahma_append_string_to_array_list(&commonCxxArgs, "/GR-"); // no rtti
-                brahma_append_string_to_array_list(&commonCxxArgs, "/std:c++14");
+                brahma_append_string_to_array_list(&commonCxxArgs, "/std:c++17");
             }
             else
             {
                 brahma_append_string_to_array_list(&commonCxxArgs, "-fno-exceptions");
                 brahma_append_string_to_array_list(&commonCxxArgs, "-fno-rtti");
-                brahma_append_string_to_array_list(&commonCxxArgs, "-std=c++14");
+                brahma_append_string_to_array_list(&commonCxxArgs, "-std=c++17");
             }
         }
 
@@ -2250,7 +2250,7 @@ bool brahma_execute(Brahma_Args ex)
                 "CompileFlags:\n"
                 "  Add:\n"
                 "    - -xc++\n"
-                "    - -std=c++14\n"
+                "    - -std=c++17\n"
                 "    - -fno-exceptions\n"
                 "    - -fno-rtti\n"
             );

@@ -70,12 +70,13 @@ i32 APP_Main(i32 argc, cstring* argv, APP_EntryPointProc mainFn, b8 isGui);
 #elif MSR_OSX || MSR_LINUX
 
     #if MSR_OSX
-        // using `rawptr` instead of `NSApplication*`
-        static_assert( sizeof(rawptr) ==  sizeof(APP_Handle), "app struct size mismatch");
-        static_assert(alignof(rawptr) == alignof(APP_Handle), "app struct alignment mismatch");
+        @class NSApplication;
 
-        static inline APP_Handle APP_ToHandle(rawptr app) { return *(APP_Handle*) &app; }
-        static inline rawptr APP_FromHandle(APP_Handle app) { return *(rawptr*) &app; }
+        static_assert( sizeof(NSApplication*) ==  sizeof(APP_Handle), "app struct size mismatch");
+        static_assert(alignof(NSApplication*) == alignof(APP_Handle), "app struct alignment mismatch");
+
+        static inline APP_Handle APP_ToHandle(NSApplication* app) { return *(APP_Handle*) &app; }
+        static inline NSApplication* APP_FromHandle(APP_Handle app) { return *(NSApplication**) &app; }
     #elif MSR_LINUX
         // using usize stub, to aid compilation
         static_assert( sizeof(usize) ==  sizeof(APP_Handle), "app struct size mismatch");
