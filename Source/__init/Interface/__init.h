@@ -37,6 +37,7 @@
         #pragma GCC diagnostic error   "-Wstrict-prototypes"
     #endif
     #pragma GCC diagnostic ignored "-Wunused-parameter"
+    #pragma GCC diagnostic ignored "-Wunused-function"
     #pragma GCC diagnostic ignored "-Wunused-result"
     #pragma GCC diagnostic ignored "-Wuninitialized"
     #pragma GCC diagnostic ignored "-Wsign-conversion"
@@ -74,6 +75,7 @@
         #pragma clang diagnostic error   "-Wstrict-prototypes"
     #endif
     #pragma clang diagnostic ignored "-Wunused-parameter"
+    #pragma clang diagnostic ignored "-Wunused-function"
     #pragma clang diagnostic ignored "-Wunused-result"
     #pragma clang diagnostic ignored "-Wuninitialized"
     #pragma clang diagnostic ignored "-Wsign-conversion"

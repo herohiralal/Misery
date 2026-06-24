@@ -6,8 +6,8 @@ struct REN_TNoValueOnFailure { };
 template <>
 struct REN_TNoValueOnFailure<true> { static constexpr const bool VALUE = true; };
 
-#define REN_OBJ_SIZE_CHECK_NAME(name) \
-    ______________________________________________________IF_YOU_SEE_THIS_LINE_IN_YOUR_COMPILER_ERROR_THEN_SET_THE_PADDING_OF_TYPE_____REN_##name##_____TO_
+#define REN_OBJ_SIZE_CHECK_NAME(gfxApi, name) \
+    ______________________________________________________##gfxApi##IF_YOU_SEE_THIS_LINE_IN_YOUR_COMPILER_ERROR_THEN_SET_THE_PADDING_OF_TYPE_____REN_##name##_____TO_
 
 #define REN_OBJ_SIZE_CHECK(gfxApi, name) \
     static_assert( \
@@ -17,11 +17,11 @@ struct REN_TNoValueOnFailure<true> { static constexpr const bool VALUE = true; }
     ); \
     EXTERN_C_END \
     template <std::size_t N> \
-    struct REN_OBJ_SIZE_CHECK_NAME(name) \
+    struct REN_OBJ_SIZE_CHECK_NAME(gfxApi, name) \
         : public REN_TNoValueOnFailure<(sizeof(REN_##name) >= sizeof(REN_##gfxApi##name))> \
     { \
     }; \
-    static_assert(REN_OBJ_SIZE_CHECK_NAME(name)<sizeof(REN_##gfxApi##name)>::VALUE, \
+    static_assert(REN_OBJ_SIZE_CHECK_NAME(gfxApi, name)<sizeof(REN_##gfxApi##name)>::VALUE, \
         "The size of REN_" #name " must be greater than or equal to the size of REN_" #gfxApi #name "." \
     ); \
     EXTERN_C_BEGIN

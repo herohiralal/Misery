@@ -7,6 +7,12 @@
 
 MSR_SUPPRESS_WARN
 #if REN_MTL
-    // TODO: include headers here
+    #include <Metal/Metal.h>
+    #include <MetalKit/MetalKit.h>
+
+    #ifdef __cplusplus
+        #include <Metal/Metal.hpp>
+        #include <MetalKit/MetalKit.hpp>
+    #endif
 #endif
 MSR_UNSUPPRESS_WARN
