@@ -140,6 +140,13 @@ rawptr MEM_DefaultAllocatorProc(MEM_AllocatorMode, rawptr data, usize size, usiz
 rawptr MEM_ArenaAllocatorProc(MEM_AllocatorMode, rawptr data, usize size, usize align, rawptr oldMem, usize oldSize);
 
 /**
+ * Virtual list allocator that reserves a single virtual memory range and commits/decommits pages as needed.
+ * This allocator is designed for a single list instance and keeps a stable pointer to the list.
+ * It doesn't support multiple live allocations at the same time, and is not thread-safe.
+ */
+rawptr MEM_VirtualListAllocatorProc(MEM_AllocatorMode, rawptr data, usize size, usize align, rawptr oldMem, usize oldSize);
+
+/**
  * The payload for an arena allocator.
  */
 typedef struct
@@ -168,6 +175,33 @@ MEM_Allocator MEM_AllocatorFromArena(MEM_ArenaAllocator* allocator);
  * Completely free all memory allocated by the arena allocator.
  */
 void MEM_DestroyArenaAllocator(MEM_ArenaAllocator* allocator);
+
+/**
+ * The payload for the virtual list allocator.
+ */
+typedef struct
+{
+    rawptr reservedMemory;
+    usize  reservedSize;
+    usize  committedSize;
+    b8     hasActiveAllocation;
+} MEM_VirtualListAllocator;
+
+/**
+ * Create a virtual list allocator that reserves one fixed virtual range.
+ * The reserve size is rounded up to page size.
+ */
+MEM_VirtualListAllocator MEM_CreateVirtualListAllocator(usize reserveSize);
+
+/**
+ * Cast a virtual list allocator payload to a generic allocator.
+ */
+MEM_Allocator MEM_AllocatorFromVirtualList(MEM_VirtualListAllocator* allocator);
+
+/**
+ * Destroy a virtual list allocator and release its reserved virtual memory.
+ */
+void MEM_DestroyVirtualListAllocator(MEM_VirtualListAllocator* allocator);
 
 // global allocator instances --------------------------------------------------------------------------------------------------
 

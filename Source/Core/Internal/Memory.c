@@ -307,6 +307,39 @@ void MEM_DestroyArenaAllocator(MEM_ArenaAllocator* allocator)
     allocator->currentBlockCapacity = 0;
 }
 
+MEM_VirtualListAllocator MEM_CreateVirtualListAllocator(usize reserveSize)
+{
+    if (!reserveSize)
+        return (MEM_VirtualListAllocator) {0};
+
+    usize pageSize = MEM_VirtualPageSize();
+    usize alignedReserveSize = (reserveSize + (pageSize - 1)) & ~(pageSize - 1);
+    if (alignedReserveSize < reserveSize)
+        return (MEM_VirtualListAllocator) {0};
+
+    return (MEM_VirtualListAllocator)
+    {
+        .reservedMemory = nil,
+        .reservedSize = alignedReserveSize,
+        .committedSize = 0,
+        .hasActiveAllocation = false,
+    };
+}
+
+MEM_Allocator MEM_AllocatorFromVirtualList(MEM_VirtualListAllocator* allocator)
+{
+    return (MEM_Allocator) {.data = allocator, .procedure = MEM_VirtualListAllocatorProc};
+}
+
+void MEM_DestroyVirtualListAllocator(MEM_VirtualListAllocator* allocator)
+{
+    if (!allocator)
+        return;
+
+    MEM_DeallocateAll(MEM_AllocatorFromVirtualList(allocator));
+    *allocator = (MEM_VirtualListAllocator) {0};
+}
+
 rawptr MEM_DefaultAllocatorProc(
     MEM_AllocatorMode mode,
     rawptr data,
@@ -502,6 +535,153 @@ rawptr MEM_ArenaAllocatorProc(
 
     MSR_ASSERT(false);
     return nil; // invalid mode
+}
+
+rawptr MEM_VirtualListAllocatorProc(
+    MEM_AllocatorMode mode,
+    rawptr data,
+    usize  size,
+    usize  align,
+    rawptr oldMem,
+    usize  oldSize
+)
+{
+    (void) align;
+    (void) oldSize;
+
+    MEM_VirtualListAllocator* allocator = (MEM_VirtualListAllocator*) data;
+    if (!allocator)
+        return nil;
+
+    usize pageSize = MEM_VirtualPageSize();
+    if (!pageSize)
+        return nil;
+
+    if (!allocator->reservedSize)
+        return nil;
+
+    usize alignedSize = (size + (pageSize - 1)) & ~(pageSize - 1);
+    if (alignedSize < size)
+        return nil;
+
+    if (mode == MEM_AllocatorMode_DeallocateAll)
+    {
+        if (allocator->reservedMemory)
+        {
+            MEM_VirtualRelease(allocator->reservedMemory, allocator->reservedSize);
+        }
+
+        allocator->reservedMemory = nil;
+        allocator->committedSize = 0;
+        allocator->hasActiveAllocation = false;
+        return nil;
+    }
+
+    if (mode == MEM_AllocatorMode_Allocate || mode == MEM_AllocatorMode_AllocateUninitialised)
+    {
+        // One live allocation at a time. Caller must deallocate before allocating again.
+        MSR_ASSERT(!allocator->hasActiveAllocation && "Virtual list allocator supports only one live allocation");
+        if (allocator->hasActiveAllocation)
+            return nil;
+
+        if (!allocator->reservedMemory)
+        {
+            allocator->reservedMemory = MEM_VirtualReserve(allocator->reservedSize);
+            if (!allocator->reservedMemory)
+                return nil;
+        }
+
+        if (alignedSize > allocator->reservedSize)
+        {
+            // out of memory
+            return nil;
+        }
+
+        if (alignedSize > allocator->committedSize)
+        {
+            rawptr commitBegin = ((u8*) allocator->reservedMemory) + allocator->committedSize;
+            usize commitSize = alignedSize - allocator->committedSize;
+            b8 committed = MEM_VirtualCommit(commitBegin, commitSize);
+            MSR_ASSERT(committed && "Virtual list allocator failed to commit pages");
+            if (!committed)
+                return nil;
+
+            allocator->committedSize = alignedSize;
+        }
+
+        allocator->hasActiveAllocation = true;
+        return allocator->reservedMemory;
+    }
+
+    if (mode == MEM_AllocatorMode_Reallocate || mode == MEM_AllocatorMode_ReallocateUninitialised)
+    {
+        if (!allocator->hasActiveAllocation && oldMem == nil)
+        {
+            // no active allocation, so we can treat this as an allocate
+            MEM_AllocatorMode m2 = MEM_AllocatorMode_AllocateUninitialised;
+            if (m2 == MEM_AllocatorMode_Reallocate)
+                m2 = MEM_AllocatorMode_Allocate;
+
+            return MEM_VirtualListAllocatorProc(m2, data, size, align, nil, 0);
+        }
+
+        MSR_ASSERT(oldMem == allocator->reservedMemory && "Virtual list allocator reallocate must use original address");
+        if (oldMem != allocator->reservedMemory)
+            return nil;
+
+        if (alignedSize > allocator->reservedSize)
+        {
+            // out of memory
+            return nil;
+        }
+
+        if (alignedSize > allocator->committedSize)
+        {
+            rawptr commitBegin = ((u8*) allocator->reservedMemory) + allocator->committedSize;
+            usize commitSize = alignedSize - allocator->committedSize;
+            b8 committed = MEM_VirtualCommit(commitBegin, commitSize);
+            MSR_ASSERT(committed && "Virtual list allocator failed to commit pages while growing");
+            if (!committed)
+                return nil;
+        }
+        else if (alignedSize < allocator->committedSize)
+        {
+            rawptr decommitBegin = ((u8*) allocator->reservedMemory) + alignedSize;
+            usize decommitSize = allocator->committedSize - alignedSize;
+            b8 decommitted = MEM_VirtualDecommit(decommitBegin, decommitSize);
+            MSR_ASSERT(decommitted && "Virtual list allocator failed to decommit pages while shrinking");
+            if (!decommitted)
+                return nil;
+        }
+
+        allocator->committedSize = alignedSize;
+        return allocator->reservedMemory;
+    }
+
+    if (mode == MEM_AllocatorMode_Deallocate)
+    {
+        if (!oldMem || !allocator->hasActiveAllocation)
+            return nil;
+
+        MSR_ASSERT(oldMem == allocator->reservedMemory && "Virtual list allocator deallocate must use original address");
+        if (oldMem != allocator->reservedMemory)
+            return nil;
+
+        if (allocator->committedSize)
+        {
+            b8 decommitted = MEM_VirtualDecommit(allocator->reservedMemory, allocator->committedSize);
+            MSR_ASSERT(decommitted && "Virtual list allocator failed to decommit memory on deallocate");
+            if (!decommitted)
+                return nil;
+        }
+
+        allocator->committedSize = 0;
+        allocator->hasActiveAllocation = false;
+        return nil;
+    }
+
+    MSR_ASSERT(false && "invalid allocator mode for virtual list allocator");
+    return nil;
 }
 
 MEM_Allocator MEM_GetMainAllocator(void)
