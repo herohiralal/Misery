@@ -37,6 +37,153 @@ static usize MEM_Internal_FixAlign(usize inAlign)
     #endif
 }
 
+usize MEM_VirtualPageSize(void)
+{
+    static usize staticPageSize = 0;
+    if (staticPageSize)
+        return staticPageSize;
+
+    #if MSR_WINDOWS
+    {
+        SYSTEM_INFO systemInfo = {0};
+        GetSystemInfo(&systemInfo);
+        staticPageSize = (usize) systemInfo.dwPageSize;
+    }
+    #elif MSR_UNIX
+    {
+        long pageSize = sysconf(_SC_PAGESIZE);
+        staticPageSize = pageSize < 0 ? 0 : (usize) pageSize;
+    }
+    #else
+    {
+        #error "unsupported platform"
+    }
+    #endif
+
+    if (!staticPageSize)
+        staticPageSize = 4096; // fallback to 4KiB if we couldn't get the page size
+
+    MSR_ASSERT((staticPageSize & (staticPageSize - 1)) == 0 && "Virtual page size must be a power of 2");
+
+    return staticPageSize;
+}
+
+rawptr MEM_VirtualReserve(usize size)
+{
+    if (!size)
+        return nil;
+
+    usize pageSize = MEM_VirtualPageSize();
+    usize alignedSize = (size + (pageSize - 1)) & ~(pageSize - 1);
+    MSR_ASSERT(alignedSize && "Virtual reserve size must be a power of 2");
+    MSR_ASSERT(alignedSize >= size && "Virtual reserve size overflowed");
+
+    #if MSR_WINDOWS
+    {
+        return VirtualAlloc(nil, (SIZE_T) alignedSize, MEM_RESERVE, PAGE_NOACCESS);
+    }
+    #elif MSR_UNIX
+    {
+        rawptr memory = mmap(nil, (size_t) alignedSize, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        return (memory == MAP_FAILED) ? nil : memory;
+    }
+    #else
+    {
+        #error "unsupported platform"
+    }
+    #endif
+}
+
+b8 MEM_VirtualCommit(rawptr memory, usize size)
+{
+    if (!memory || !size)
+        return false;
+
+    usize pageSize = MEM_VirtualPageSize();
+    MSR_ASSERT(((usize) memory & (pageSize - 1)) == 0 && "Virtual commit memory must be aligned to the virtual page size");
+
+    usize alignedSize = (size + (pageSize - 1)) & ~(pageSize - 1);
+    MSR_ASSERT(alignedSize && "Virtual commit size must be a power of 2");
+    MSR_ASSERT(alignedSize >= size && "Virtual commit size overflowed");
+
+    #if MSR_WINDOWS
+    {
+        rawptr result = VirtualAlloc(memory, (SIZE_T) alignedSize, MEM_COMMIT, PAGE_READWRITE);
+        return result == memory;
+    }
+    #elif MSR_UNIX
+    {
+        return mprotect(memory, (size_t) alignedSize, PROT_READ | PROT_WRITE) == 0;
+    }
+    #else
+    {
+        #error "unsupported platform"
+    }
+    #endif
+}
+
+b8 MEM_VirtualDecommit(rawptr memory, usize size)
+{
+    if (!memory || !size)
+        return false;
+
+    usize pageSize = MEM_VirtualPageSize();
+    MSR_ASSERT(((usize) memory & (pageSize - 1)) == 0 && "Virtual decommit memory must be aligned to the virtual page size");
+
+    usize alignedSize = (size + (pageSize - 1)) & ~(pageSize - 1);
+    MSR_ASSERT(alignedSize && "Virtual decommit size must be a power of 2");
+    MSR_ASSERT(alignedSize >= size && "Virtual decommit size overflowed");
+
+    #if MSR_WINDOWS
+    {
+        return VirtualFree(memory, (SIZE_T) alignedSize, MEM_DECOMMIT) != 0;
+    }
+    #elif MSR_UNIX
+    {
+        if (mprotect(memory, (size_t) alignedSize, PROT_NONE) != 0)
+            return false;
+
+        #if defined(MADV_DONTNEED)
+            madvise(memory, (size_t) alignedSize, MADV_DONTNEED);
+        #endif
+
+        return true;
+    }
+    #else
+    {
+        #error "unsupported platform"
+    }
+    #endif
+}
+
+b8 MEM_VirtualRelease(rawptr memory, usize size)
+{
+    if (!memory || !size)
+        return false;
+
+    usize pageSize = MEM_VirtualPageSize();
+    MSR_ASSERT(((usize) memory & (pageSize - 1)) == 0 && "Virtual release memory must be aligned to the virtual page size");
+
+    usize alignedSize = (size + (pageSize - 1)) & ~(pageSize - 1);
+    MSR_ASSERT(alignedSize && "Virtual release size must be a power of 2");
+    MSR_ASSERT(alignedSize >= size && "Virtual release size overflowed");
+
+    #if MSR_WINDOWS
+    {
+        (void) alignedSize; // unused
+        return VirtualFree(memory, 0, MEM_RELEASE) != 0;
+    }
+    #elif MSR_UNIX
+    {
+        return munmap(memory, (size_t) alignedSize) == 0;
+    }
+    #else
+    {
+        #error "unsupported platform"
+    }
+    #endif
+}
+
 rawptr MEM_Allocate(
     MEM_Allocator allocator,
     b8    zeroed,

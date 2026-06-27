@@ -19,6 +19,34 @@ void MEM_Move(rawptr dst, const void* src, usize num);
  */
 void MEM_Set(rawptr dst, i32 value, usize num);
 
+// virtual memory --------------------------------------------------------------------------------------------------------------
+
+/**
+ * Returns the system virtual memory page size in bytes.
+ */
+usize MEM_VirtualPageSize(void);
+
+/**
+ * Reserve a region of virtual memory address space.
+ * The returned memory is not readable or writable until committed.
+ */
+rawptr MEM_VirtualReserve(usize size);
+
+/**
+ * Commit a previously reserved virtual memory region, making it readable/writable.
+ */
+b8 MEM_VirtualCommit(rawptr memory, usize size);
+
+/**
+ * Decommit a committed virtual memory region while keeping the address space reserved.
+ */
+b8 MEM_VirtualDecommit(rawptr memory, usize size);
+
+/**
+ * Release a reserved virtual memory region.
+ */
+b8 MEM_VirtualRelease(rawptr memory, usize size);
+
 // allocators ------------------------------------------------------------------------------------------------------------------
 
 /**
