@@ -147,6 +147,12 @@ rawptr MEM_ArenaAllocatorProc(MEM_AllocatorMode, rawptr data, usize size, usize 
 rawptr MEM_VirtualListAllocatorProc(MEM_AllocatorMode, rawptr data, usize size, usize align, rawptr oldMem, usize oldSize);
 
 /**
+ * Virtual arena allocator that reserves one virtual memory range and commits pages on demand.
+ * This allocator is bump-only and decommits all committed pages when deallocate-all is called.
+ */
+rawptr MEM_VirtualArenaAllocatorProc(MEM_AllocatorMode, rawptr data, usize size, usize align, rawptr oldMem, usize oldSize);
+
+/**
  * The payload for an arena allocator.
  */
 typedef struct
@@ -202,6 +208,33 @@ MEM_Allocator MEM_AllocatorFromVirtualList(MEM_VirtualListAllocator* allocator);
  * Destroy a virtual list allocator and release its reserved virtual memory.
  */
 void MEM_DestroyVirtualListAllocator(MEM_VirtualListAllocator* allocator);
+
+/**
+ * The payload for the virtual arena allocator.
+ */
+typedef struct
+{
+    rawptr reservedMemory;
+    usize  reservedSize;
+    usize  committedSize;
+    usize  offset;
+} MEM_VirtualArenaAllocator;
+
+/**
+ * Create a virtual arena allocator with a fixed reserved virtual memory size.
+ * The reserve size is rounded up to page size.
+ */
+MEM_VirtualArenaAllocator MEM_CreateVirtualArenaAllocator(usize reserveSize);
+
+/**
+ * Cast a virtual arena allocator payload to a generic allocator.
+ */
+MEM_Allocator MEM_AllocatorFromVirtualArena(MEM_VirtualArenaAllocator* allocator);
+
+/**
+ * Destroy a virtual arena allocator and release its reserved virtual memory.
+ */
+void MEM_DestroyVirtualArenaAllocator(MEM_VirtualArenaAllocator* allocator);
 
 // global allocator instances --------------------------------------------------------------------------------------------------
 

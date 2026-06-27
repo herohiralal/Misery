@@ -340,6 +340,43 @@ void MEM_DestroyVirtualListAllocator(MEM_VirtualListAllocator* allocator)
     *allocator = (MEM_VirtualListAllocator) {0};
 }
 
+MEM_VirtualArenaAllocator MEM_CreateVirtualArenaAllocator(usize reserveSize)
+{
+    if (!reserveSize)
+        return (MEM_VirtualArenaAllocator) {0};
+
+    usize pageSize = MEM_VirtualPageSize();
+    usize alignedReserveSize = (reserveSize + (pageSize - 1)) & ~(pageSize - 1);
+    if (alignedReserveSize < reserveSize)
+        return (MEM_VirtualArenaAllocator) {0};
+
+    return (MEM_VirtualArenaAllocator)
+    {
+        .reservedMemory = nil,
+        .reservedSize = alignedReserveSize,
+        .committedSize = 0,
+        .offset = 0,
+    };
+}
+
+MEM_Allocator MEM_AllocatorFromVirtualArena(MEM_VirtualArenaAllocator* allocator)
+{
+    return (MEM_Allocator) {.data = allocator, .procedure = MEM_VirtualArenaAllocatorProc};
+}
+
+void MEM_DestroyVirtualArenaAllocator(MEM_VirtualArenaAllocator* allocator)
+{
+    if (!allocator)
+        return;
+
+    if (allocator->reservedMemory)
+    {
+        MEM_VirtualRelease(allocator->reservedMemory, allocator->reservedSize);
+    }
+
+    *allocator = (MEM_VirtualArenaAllocator) {0};
+}
+
 rawptr MEM_DefaultAllocatorProc(
     MEM_AllocatorMode mode,
     rawptr data,
@@ -681,6 +718,102 @@ rawptr MEM_VirtualListAllocatorProc(
     }
 
     MSR_ASSERT(false && "invalid allocator mode for virtual list allocator");
+    return nil;
+}
+
+rawptr MEM_VirtualArenaAllocatorProc(
+    MEM_AllocatorMode mode,
+    rawptr data,
+    usize  size,
+    usize  align,
+    rawptr oldMem,
+    usize  oldSize
+)
+{
+    (void) oldMem;
+    (void) oldSize;
+
+    MEM_VirtualArenaAllocator* arena = (MEM_VirtualArenaAllocator*) data;
+    if (!arena)
+        return nil;
+
+    if (mode == MEM_AllocatorMode_Deallocate)
+        return nil; // no-op
+
+    if (mode == MEM_AllocatorMode_Reallocate || mode == MEM_AllocatorMode_ReallocateUninitialised)
+    {
+        MEM_Allocator arenaAllocator = {.procedure = MEM_VirtualArenaAllocatorProc, .data = data};
+        b8 zeroed = (mode == MEM_AllocatorMode_Reallocate);
+        return MEM_DefaultReallocate(arenaAllocator, zeroed, oldMem, oldSize, size, align);
+    }
+
+    if (!arena->reservedSize)
+        return nil;
+
+    if (!arena->reservedMemory)
+    {
+        arena->reservedMemory = MEM_VirtualReserve(arena->reservedSize);
+        if (!arena->reservedMemory)
+            return nil;
+    }
+
+    usize pageSize = MEM_VirtualPageSize();
+
+    if (mode == MEM_AllocatorMode_DeallocateAll)
+    {
+        if (arena->committedSize)
+        {
+            b8 decommitted = MEM_VirtualDecommit(arena->reservedMemory, arena->committedSize);
+            MSR_ASSERT(decommitted && "Virtual arena allocator failed to decommit all committed pages");
+            if (!decommitted)
+                return nil;
+        }
+
+        arena->committedSize = 0;
+        arena->offset = 0;
+        return nil;
+    }
+
+    if (mode == MEM_AllocatorMode_Allocate || mode == MEM_AllocatorMode_AllocateUninitialised)
+    {
+        align = MEM_Internal_FixAlign(align);
+
+        usize alignedSize = (size + align - 1) & ~(align - 1);
+        usize alignedPtr = ((usize) arena->reservedMemory) + arena->offset;
+        alignedPtr = (alignedPtr + align - 1) & ~(align - 1);
+        usize alignedOffset = alignedPtr - (usize) arena->reservedMemory;
+
+        usize neededSize = alignedOffset + alignedSize;
+        if (neededSize < alignedOffset || neededSize < alignedSize)
+            return nil;
+
+        if (neededSize > arena->reservedSize)
+            return nil;
+
+        usize neededCommittedSize = (neededSize + (pageSize - 1)) & ~(pageSize - 1);
+        if (neededCommittedSize > arena->committedSize)
+        {
+            rawptr commitBegin = ((u8*) arena->reservedMemory) + arena->committedSize;
+            usize commitSize = neededCommittedSize - arena->committedSize;
+            b8 committed = MEM_VirtualCommit(commitBegin, commitSize);
+            MSR_ASSERT(committed && "Virtual arena allocator failed to commit pages");
+            if (!committed)
+                return nil;
+
+            arena->committedSize = neededCommittedSize;
+        }
+
+        rawptr result = (rawptr) alignedPtr;
+        arena->offset = neededSize;
+
+        b8 zeroed = (mode == MEM_AllocatorMode_Allocate);
+        if (zeroed)
+            MEM_Set(result, 0, size);
+
+        return result;
+    }
+
+    MSR_ASSERT(false && "invalid allocator mode for virtual arena allocator");
     return nil;
 }
 
