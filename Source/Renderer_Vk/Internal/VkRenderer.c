@@ -293,11 +293,11 @@ void REN_VkCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
 
     {
         utf8str nameStrToUse = cfg.appName;
-        if (sizeof(output->appNameBuffer) < cfg.appName.count)
-            nameStrToUse = STR_SubString(cfg.appName, 0, sizeof(output->appNameBuffer));
+        if (sizeof(output->buffers.appName) < cfg.appName.count)
+            nameStrToUse = STR_SubString(cfg.appName, 0, sizeof(output->buffers.appName));
 
-        MEM_Copy(output->appNameBuffer, nameStrToUse.data, nameStrToUse.count);
-        output->appName = (utf8str) {.data = output->appNameBuffer, .count = nameStrToUse.count};
+        MEM_Copy(output->buffers.appName, nameStrToUse.data, nameStrToUse.count);
+        output->appName = (utf8str) {.data = output->buffers.appName, .count = nameStrToUse.count};
     }
 
     u32 deviceCount = 0;

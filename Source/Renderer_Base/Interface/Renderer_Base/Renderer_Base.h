@@ -46,7 +46,7 @@ typedef struct
  * multiple renderers, it's more common to have just one. The renderer is used as the primary
  * entry point for creating other renderer objects.
  */
-REN_DECLARE_OBJECT(Instance, 112);
+REN_DECLARE_OBJECT(Instance, 128);
 
 /**
  * A command buffer for recording rendering commands.
@@ -90,7 +90,7 @@ typedef struct
  * A swap-chain manages the images that are presented to the screen, and handles
  * synchronization between rendering and presentation.
  */
-REN_DECLARE_OBJECT(SwapChain, 168);
+REN_DECLARE_OBJECT(SwapChain, 656);
 
 /**
  * Configuration structure for shader program creation.

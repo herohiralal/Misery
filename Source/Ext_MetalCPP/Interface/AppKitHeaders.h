@@ -4,6 +4,7 @@
 
 MSR_SUPPRESS_WARN
 #if MSR_APPLE
+    #include <objc/runtime.h>
     #include <Foundation/Foundation.h>
 
     #ifdef __cplusplus

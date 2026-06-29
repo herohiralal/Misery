@@ -1,5 +1,4 @@
 #include "osx_Platform.h"
-#include <objc/runtime.h>
 
 #if MSR_OSX
 

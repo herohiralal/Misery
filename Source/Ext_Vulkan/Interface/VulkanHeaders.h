@@ -24,6 +24,9 @@ MSR_SUPPRESS_WARN
         #define VK_NO_PROTOTYPES 1
     #endif
     #include "ExtDeps/vulkan/vulkan.h"
-    #include <QuartzCore/QuartzCore.h>
+
+    #if MSR_APPLE
+        #include <QuartzCore/QuartzCore.h>
+    #endif
 #endif
 MSR_UNSUPPRESS_WARN
