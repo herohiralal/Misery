@@ -293,7 +293,7 @@ void REN_VkCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
 
     {
         utf8str nameStrToUse = cfg.appName;
-        if (sizeof(output->buffers.appName) < cfg.appName.count)
+        if (sizeof(output->buffers.appName) < (usize) cfg.appName.count)
             nameStrToUse = STR_SubString(cfg.appName, 0, sizeof(output->buffers.appName));
 
         MEM_Copy(output->buffers.appName, nameStrToUse.data, nameStrToUse.count);

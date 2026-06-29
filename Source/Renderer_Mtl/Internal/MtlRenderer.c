@@ -10,9 +10,15 @@ void REN_MtlCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
         REN_MtlInstance* output = REN_ToMtlInstance(outBaseInstance);
         MSR_ASSERT(output && "output must not be null");
 
-        output->allocator = cfg.allocator;
         output->appHandle = cfg.appHandle;
-        output->appName   = STR_Clone(cfg.appName, output->allocator);
+        {
+            utf8str nameStrToUse = cfg.appName;
+            if (sizeof(output->buffers.appName) < (usize) cfg.appName.count)
+                nameStrToUse = STR_SubString(cfg.appName, 0, sizeof(output->buffers.appName));
+
+            MEM_Copy(output->buffers.appName, nameStrToUse.data, nameStrToUse.count);
+            output->appName = (utf8str) {.data = output->buffers.appName, .count = nameStrToUse.count};
+        }
 
         output->device = [MTLCreateSystemDefaultDevice() retain];
         MSR_ASSERT(output->device && "Failed to create default Metal device");
@@ -68,8 +74,6 @@ void REN_MtlDestroyRenderer(REN_Instance* baseRenderer)
 
         [renderer->gfxQueue release];
         [renderer->device release];
-
-        COL_DeleteSlice(&(renderer->appName), renderer->allocator);
     }
 }
 

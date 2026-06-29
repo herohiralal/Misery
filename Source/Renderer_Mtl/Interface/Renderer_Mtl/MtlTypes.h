@@ -7,13 +7,17 @@
 EXTERN_C_BEGIN
 
 REN_EXTEND_OBJECT(Mtl, Instance,
-    MEM_Allocator       allocator;
     APP_Handle          appHandle;
 
     id<MTLDevice>       device;
     id<MTLCommandQueue> gfxQueue;
 
     utf8str             appName;
+
+    struct
+    {
+        u8 appName[32];
+    } buffers;
 );
 
 REN_EXTEND_OBJECT(Mtl, CmdBuffer,
