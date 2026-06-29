@@ -27,7 +27,8 @@ enum REN_GfxAPITypes
     { \
         REN_##name##_Base base; \
         u8 padding[extensionPadding]; \
-    } REN_##name;
+    } REN_##name; \
+    COL_DECLARE_FOR(REN_##name)
 
 /**
  * Configuration structure for renderer creation.
@@ -36,7 +37,6 @@ typedef struct
 {
     REN_GfxAPIType type;
     APP_Handle appHandle;
-    MEM_Allocator allocator;
     utf8str appName;
 } REN_InstanceCfg;
 
@@ -126,7 +126,7 @@ REN_DECLARE_OBJECT(Program, 1);
     REN_OBJ_SIZE_CHECK(gfxApi, name) \
     static inline REN_##gfxApi##name* REN_To##gfxApi##name(REN_##name* base) \
     { \
-        MSR_ASSERT(base->base.type == REN_GfxAPIType_##gfxApi && "Type mismatch!"); \
+        MSR_ASSERT(!!base && base->base.type == REN_GfxAPIType_##gfxApi && "Type mismatch!"); \
         return (REN_##gfxApi##name*) base; \
     } \
     static inline REN_##name* REN_From##gfxApi##name(REN_##gfxApi##name* extended) \

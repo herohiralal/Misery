@@ -21,7 +21,6 @@ COL_DECLARE_FOR(VkSemaphore);
 COL_DECLARE_FOR(VmaAllocation);
 
 REN_EXTEND_OBJECT(Vk, Instance,
-    MEM_Allocator allocator;
     APP_Handle    appHandle;
 
     VkInstance       instance;
@@ -35,7 +34,12 @@ REN_EXTEND_OBJECT(Vk, Instance,
     VkDebugUtilsMessengerEXT debugMessenger;
     utf8str                  appName;
 
-    VmaAllocator     vmaAllocator;
+    VmaAllocator vmaAllocator;
+
+    struct
+    {
+        u8 appName[32];
+    } buffers;
 );
 
 REN_EXTEND_OBJECT(Vk, CmdBuffer,
@@ -44,34 +48,44 @@ REN_EXTEND_OBJECT(Vk, CmdBuffer,
     VkCommandBuffer       cmdBuffer;
 );
 
-COL_DECLARE_FOR(REN_VkCmdBuffer);
-
 REN_EXTEND_OBJECT(Vk, SwapChain,
-    const REN_VkInstance* renderer;
-    VkSwapchainKHR        actual;
+    REN_VkInstance* renderer;
+    VkSwapchainKHR  actual;
 
     // surface info
-    VkSurfaceKHR         surface;
-    VkSurfaceFormatKHR   surfaceFmt;
-    VkExtent2D           surfaceSize;
+    VkSurfaceKHR       surface;
+    VkSurfaceFormatKHR surfaceFmt;
+    VkExtent2D         surfaceSize;
 
     // cfg
     b8 vSync;
     u8 framesInFlight;
 
     // syncing
-    b8                  allowCmdBuff;
-    u32                 curFrame, semIdx, curImgIdx;
-    Slice_(VkSemaphore) presentCompleteSemaphores;
-    Slice_(VkSemaphore) renderFinishedSemaphores;
-    Slice_(VkFence)     inFlightFences;
+    b8                 allowCmdBuff;
+    u32                curFrame, semIdx, curImgIdx;
+    List_(VkSemaphore) presentCompleteSemaphores;
+    List_(VkSemaphore) renderFinishedSemaphores;
+    List_(VkFence)     inFlightFences;
 
     // images
-    Slice_(VkImage)     imgs;
-    Slice_(VkImageView) imgViews;
+    List_(VkImage)     imgs;
+    List_(VkImageView) imgViews;
 
     // command buffers
-    Slice_(REN_VkCmdBuffer) cmdBuffers;
+    List_(REN_CmdBuffer) cmdBuffers;
+
+    struct
+    {
+        VkSemaphore presentCompleteSemaphores[4];
+        VkSemaphore renderFinishedSemaphores[4];
+        VkFence     inFlightFences[4];
+
+        VkImage     imgs[4];
+        VkImageView imgViews[4];
+
+        REN_CmdBuffer cmdBuffers[4];
+    } buffers;
 );
 
 EXTERN_C_END

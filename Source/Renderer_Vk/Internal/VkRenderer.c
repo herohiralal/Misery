@@ -83,11 +83,11 @@ void REN_VkCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
     }
     #endif
 
+    MSR_ASSERT(!!outBaseInstance && "outBaseInstance can't be null");
     outBaseInstance->base.type = REN_GfxAPIType_Vk;
     REN_VkInstance* output = REN_ToVkInstance(outBaseInstance);
     MSR_ASSERT(output && "output must not be null");
 
-    output->allocator = cfg.allocator;
     output->appHandle = cfg.appHandle;
 
     List_(cstring) enabledLayers = COL_NewList(cstring, 16, MEM_temp);
@@ -291,7 +291,14 @@ void REN_VkCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
         REN_VK_CHECKED_CALL(vkCreateDebugUtilsMessengerEXT(output->instance, &debugCreateInfo, nil, &output->debugMessenger));
     }
 
-    output->appName = STR_Clone(cfg.appName, output->allocator);
+    {
+        utf8str nameStrToUse = cfg.appName;
+        if (sizeof(output->appNameBuffer) < cfg.appName.count)
+            nameStrToUse = STR_SubString(cfg.appName, 0, sizeof(output->appNameBuffer));
+
+        MEM_Copy(output->appNameBuffer, nameStrToUse.data, nameStrToUse.count);
+        output->appName = (utf8str) {.data = output->appNameBuffer, .count = nameStrToUse.count};
+    }
 
     u32 deviceCount = 0;
     vkEnumeratePhysicalDevices(output->instance, &deviceCount, nil);
@@ -571,8 +578,6 @@ void REN_VkDestroyRenderer(REN_Instance* baseRenderer)
         vkDestroyDebugUtilsMessengerEXT(renderer->instance, renderer->debugMessenger, nil);
 
     vkDestroyInstance(renderer->instance, nil);
-
-    COL_DeleteSlice(&(renderer->appName), renderer->allocator);
 
     #if !MSR_IOS
     {
