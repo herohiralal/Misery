@@ -297,6 +297,15 @@ void REN_VkCreateSwapChainFromWindow(REN_SwapChain* outBaseSwapChain, REN_Instan
             .pLayer = metalLayer,
         }, nil, &output->surface));
     }
+    #elif MSR_LINUX
+    {
+        REN_VK_CHECKED_CALL(vkCreateXcbSurfaceKHR(renderer->instance, &(VkXcbSurfaceCreateInfoKHR)
+        {
+            .sType      = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
+            .connection = WND_GetXCBConnection(),
+            .window     = WND_FromHandle(windowHandle),
+        }, nil, &output->surface));
+    }
     #else
     {
         #error "unimplemented"
@@ -445,7 +454,7 @@ void REN_VkIterateSwapChain(REN_SwapChain* baseSwapChain)
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
         .semaphoreCount = 1,
         .pSemaphores = &(swapChain->timelineSem),
-        .pValues = &(waitValue),
+        .pValues = (uint64_t*) &(waitValue),
     }, U64_MAX));
 
     // get the next image, and wait if the image of that is still processing

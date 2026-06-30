@@ -73,6 +73,12 @@ WND_XCBContext* WND_GetXCBContext(void)
     return &G_WND_XCBCtx;
 }
 
+xcb_connection_t* WND_GetXCBConnection(void)
+{
+    WND_XCBContext* ctx = WND_GetXCBContext();
+    return ctx ? ctx->connection : nil;
+}
+
 // ─── Window ─────────────────────────────────────────────────────────────────
 
 WND_Data WND_Create(WND_Cfg cfg)
@@ -101,11 +107,15 @@ WND_Data WND_Create(WND_Cfg cfg)
         XCB_EVENT_MASK_FOCUS_CHANGE      |
         XCB_EVENT_MASK_EXPOSURE;
 
+    xcb_window_t parent = screen->root;
+    if (cfg.parent.handle)
+        parent = WND_FromHandle(cfg.parent);
+
     xcb_create_window(
         c,
         XCB_COPY_FROM_PARENT,
         win,
-        cfg.parent.handle ? (xcb_window_t) cfg.parent.handle : screen->root,
+        parent,
         x, y,
         cfg.sizeX ? cfg.sizeX : 800,
         cfg.sizeY ? cfg.sizeY : 600,
@@ -142,7 +152,7 @@ WND_Data WND_Create(WND_Cfg cfg)
 
     return (WND_Data)
     {
-        .handle    = (WND_Handle) { .handle = (usize) win },
+        .handle    = WND_ToHandle(win),
         .savedData = WND_FromSavedData(saved),
     };
 }
@@ -153,7 +163,7 @@ void WND_Destroy(WND_Data* window)
     WND_XCBContext* ctx = WND_GetXCBContext();
     if (!ctx) return;
 
-    xcb_window_t win = (xcb_window_t) window->handle.handle;
+    xcb_window_t win = WND_FromHandle(window->handle);
     if (!win) return;
 
     xcb_destroy_window(ctx->connection, win);
@@ -168,7 +178,7 @@ b8 WND_SetFullScreen(WND_Data* window, b8 status,
     WND_XCBContext* ctx = WND_GetXCBContext();
     if (!ctx) return false;
 
-    xcb_window_t win = (xcb_window_t) window->handle.handle;
+    xcb_window_t win = WND_FromHandle(window->handle);
     if (!win) return false;
 
     xcb_connection_t* c = ctx->connection;
@@ -231,7 +241,7 @@ b8 WND_GetDimensions(WND_Data* window,
     WND_XCBContext* ctx = WND_GetXCBContext();
     if (!ctx) return false;
 
-    xcb_window_t win = (xcb_window_t) window->handle.handle;
+    xcb_window_t win = WND_FromHandle(window->handle);
     if (!win) return false;
 
     xcb_connection_t* c = ctx->connection;
@@ -267,7 +277,7 @@ b8 WND_GetPtrPos(WND_Data* window, i16* posX, i16* posY)
     WND_XCBContext* ctx = WND_GetXCBContext();
     if (!ctx) return false;
 
-    xcb_window_t win = (xcb_window_t) window->handle.handle;
+    xcb_window_t win = WND_FromHandle(window->handle);
     if (!win) return false;
 
     xcb_query_pointer_cookie_t cookie = xcb_query_pointer(ctx->connection, win);
@@ -289,7 +299,7 @@ b8 WND_Rename(WND_Data* window, utf8str newName)
     WND_XCBContext* ctx = WND_GetXCBContext();
     if (!ctx) return false;
 
-    xcb_window_t win = (xcb_window_t) window->handle.handle;
+    xcb_window_t win = WND_FromHandle(window->handle);
     if (!win) return false;
 
     xcb_connection_t* c = ctx->connection;

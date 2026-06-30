@@ -19,6 +19,10 @@ VkFormat REN_BreakVkTextureFormat(REN_TextureFormat fmt)
 REN_TextureFormat REN_MakeVkTextureFormat(VkFormat fmt)
 {
     MSR_SUPPRESS_WARN // the enum has like 250+ cases...
+    #ifdef __GNUC__
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wswitch"
+    #endif
     #ifdef __clang__
         #pragma clang diagnostic push
         #pragma clang diagnostic ignored "-Wswitch"
@@ -32,6 +36,9 @@ REN_TextureFormat REN_MakeVkTextureFormat(VkFormat fmt)
     }
     #ifdef __clang__
         #pragma clang diagnostic pop
+    #endif
+    #ifdef __GNUC__
+        #pragma GCC diagnostic pop
     #endif
     MSR_UNSUPPRESS_WARN
 

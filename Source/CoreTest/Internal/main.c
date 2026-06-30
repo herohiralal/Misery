@@ -72,7 +72,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
 
     // save env vars as a markdown table
 
-    FIL_Path p = FIL_Normalise(UTF8STR("C:\\Users\\HeroHiralal\\Desktop\\misery.md"), MEM_temp);
+    FIL_Path p = FIL_Normalise(UTF8STR("misery.md"), MEM_temp);
     IO_Stream f = IO_OpenFileToWrite(p, false, false);
 
     SrcLoc srcLoc = SRC_LOC();

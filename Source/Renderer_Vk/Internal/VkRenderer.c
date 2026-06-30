@@ -307,6 +307,7 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
     devices.count = (isize) deviceCount;
 
     VkPhysicalDevice selectedDevice = VK_NULL_HANDLE;
+    u32 selectedDeviceScore = 0;
     for (isize i = 0; i < devices.count; i++)
     {
         VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptorBufferFeatures = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT};
@@ -346,6 +347,24 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
                 break;
         }
 
+        u32 score = 0;
+        score += (MSR_DESKTOP && deviceProperties.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) ? 1 : 0;
+        score += 0 +
+                deviceFeatures.features.samplerAnisotropy +
+                deviceFeatures11.shaderDrawParameters +
+                deviceFeatures12.descriptorIndexing +
+                deviceFeatures12.shaderSampledImageArrayNonUniformIndexing +
+                deviceFeatures12.descriptorBindingVariableDescriptorCount +
+                deviceFeatures12.runtimeDescriptorArray +
+                deviceFeatures12.bufferDeviceAddress +
+                deviceFeatures12.timelineSemaphore +
+                deviceFeatures13.synchronization2 +
+                deviceFeatures13.dynamicRendering +
+                meshFeatures.meshShader +
+                meshFeatures.taskShader +
+                descriptorBufferFeatures.descriptorBuffer +
+                0;
+
         LOG_Inf(
             VULKAN,
             "Device: %. ty: %.\n"
@@ -362,6 +381,7 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
             "\tmesh shaders:                                    %.\n" // VK_EXT_mesh_shader
             "\ttask shaders:                                    %.\n"
             "\tdescriptor buffer:                               %.\n" // VK_EXT_descriptor_buffer
+            "\t                                          SCORE: %.\n"
             "",
 
             FMT(deviceProperties.properties.deviceName),
@@ -379,27 +399,14 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
             FMT_B8(!!deviceFeatures13.dynamicRendering),
             FMT_B8(!!meshFeatures.meshShader),
             FMT_B8(!!meshFeatures.taskShader),
-            FMT_B8(!!descriptorBufferFeatures.descriptorBuffer)
+            FMT_B8(!!descriptorBufferFeatures.descriptorBuffer),
+            FMT_U32(score, FMT_IntBase_Dec)
         );
 
-        // prefer discrete gpu on desktop
-        if ((!MSR_DESKTOP || deviceProperties.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
-            && !!deviceFeatures.features.samplerAnisotropy
-            && !!deviceFeatures11.shaderDrawParameters
-            && !!deviceFeatures12.descriptorIndexing
-            && !!deviceFeatures12.shaderSampledImageArrayNonUniformIndexing
-            && !!deviceFeatures12.descriptorBindingVariableDescriptorCount
-            && !!deviceFeatures12.runtimeDescriptorArray
-            && !!deviceFeatures12.bufferDeviceAddress
-            && !!deviceFeatures12.timelineSemaphore
-            && !!deviceFeatures13.synchronization2
-            && !!deviceFeatures13.dynamicRendering
-            && !!meshFeatures.meshShader
-            && !!meshFeatures.taskShader
-            && !!descriptorBufferFeatures.descriptorBuffer
-            && selectedDevice == VK_NULL_HANDLE)
+        if (selectedDevice == VK_NULL_HANDLE || score > selectedDeviceScore)
         {
             selectedDevice = devices.data[i];
+            selectedDeviceScore = score;
         }
     }
 
@@ -447,6 +454,49 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
             .sType  = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT,
             .pLayer = tempLayer,
         }, nil, &tempSurfaceForQueueSelect));
+    #elif MSR_LINUX
+    xcb_connection_t* connection = nil;
+    xcb_window_t window = 0;
+    {
+        int screenIndex = 0;
+        connection = xcb_connect(NULL, &screenIndex);
+
+        xcb_screen_iterator_t screenIter = xcb_setup_roots_iterator(xcb_get_setup(connection));
+        while (screenIndex--)
+            xcb_screen_next(&screenIter);
+
+        xcb_screen_t* screen = screenIter.data;
+
+        window = xcb_generate_id(connection);
+
+        uint32_t values[] =
+        {
+            screen->black_pixel,
+            XCB_EVENT_MASK_NO_EVENT,
+        };
+
+        xcb_create_window(
+            connection,
+            XCB_COPY_FROM_PARENT,
+            window,
+            screen->root,
+            0, 0,
+            1, 1,
+            0,
+            XCB_WINDOW_CLASS_INPUT_OUTPUT,
+            screen->root_visual,
+            XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK,
+            values);
+
+        xcb_flush(connection);
+
+        REN_VK_CHECKED_CALL(vkCreateXcbSurfaceKHR(output->instance, &(VkXcbSurfaceCreateInfoKHR)
+        {
+            .sType      = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
+            .connection = connection,
+            .window     = window,
+        }, nil, &tempSurfaceForQueueSelect));
+    }
     #else
         #error "unimplemented"
     #endif
@@ -460,6 +510,9 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
         // nothing to do
     #elif MSR_OSX
         [tempLayer release];
+    #elif MSR_LINUX
+        xcb_destroy_window(connection, window);
+        xcb_disconnect(connection);
     #else
         #error "unimplemented"
     #endif

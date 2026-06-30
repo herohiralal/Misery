@@ -116,6 +116,7 @@ b8 WND_Rename(WND_Data* window, utf8str newName);
     static inline HWND WND_FromHandle(WND_Handle window) { return *(HWND*) &window; }
 
 #elif MSR_OSX
+
     @class NSWindow;
 
     static_assert( sizeof(WND_Handle) ==  sizeof(NSWindow*), "window struct size mismatch");
@@ -125,6 +126,17 @@ b8 WND_Rename(WND_Data* window, utf8str newName);
     static inline NSWindow* WND_FromHandle(WND_Handle window) { return *(NSWindow**) &window; }
 
 #elif MSR_LINUX
+
+    typedef struct xcb_connection_t xcb_connection_t;
+    typedef unsigned int xcb_window_t;
+
+    static_assert( sizeof(WND_Handle) >=  sizeof(xcb_window_t), "window struct size mismatch");
+    static_assert(alignof(WND_Handle) >= alignof(xcb_window_t), "window struct alignment mismatch");
+
+    static inline WND_Handle WND_ToHandle(xcb_window_t window) { WND_Handle output = {0}; *(xcb_window_t*) &output = window; return output; }
+    static inline xcb_window_t WND_FromHandle(WND_Handle window) { return *(xcb_window_t*) &window; }
+    xcb_connection_t* WND_GetXCBConnection(void);
+
 #elif MSR_ANDROID
 
     struct ANativeWindow;

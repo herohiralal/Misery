@@ -152,7 +152,7 @@ void INP_Internal_ProcessXCBEvents(void)
                 if (down && key < INP_KC_NUM)
                     repeat = !!(state->keyStates.data[key] & INP_CKS_Held);
 
-                WND_Handle wid = { .handle = (usize) kev->event };
+                WND_Handle wid = WND_ToHandle(kev->event);
                 INP_SendKeyEvt(state, wid, key, down, repeat, mods);
 
                 // Text input for printable keys on press only
@@ -174,7 +174,7 @@ void INP_Internal_ProcessXCBEvents(void)
             {
                 xcb_button_press_event_t* bev = (xcb_button_press_event_t*) ev;
                 b8 down = (evType == XCB_BUTTON_PRESS);
-                WND_Handle wid = { .handle = (usize) bev->event };
+                WND_Handle wid = WND_ToHandle(bev->event);
                 INP_KeyModifier mods = INP_XCBStateToModifiers(bev->state);
 
                 INP_KeyCode key = INP_KC_Unknown;
@@ -225,7 +225,7 @@ void INP_Internal_ProcessXCBEvents(void)
                     if (state->keyStates.data[k] & INP_CKS_Held)
                     {
                         xcb_focus_out_event_t* fev = (xcb_focus_out_event_t*) ev;
-                        WND_Handle wid = { .handle = (usize) fev->event };
+                        WND_Handle wid = WND_ToHandle(fev->event);
                         INP_SendKeyEvt(state, wid, (INP_KeyCode) k, false, false, INP_KM_None);
                     }
                 }
@@ -235,7 +235,7 @@ void INP_Internal_ProcessXCBEvents(void)
             case XCB_CONFIGURE_NOTIFY:
             {
                 xcb_configure_notify_event_t* cev = (xcb_configure_notify_event_t*) ev;
-                WND_Handle wid = { .handle = (usize) cev->window };
+                WND_Handle wid = WND_ToHandle(cev->window);
 
                 // Resize
                 {
@@ -281,7 +281,7 @@ void INP_Internal_ProcessXCBEvents(void)
                 if (cmev->type == ctx->WM_PROTOCOLS &&
                     cmev->data.data32[0] == ctx->WM_DELETE_WINDOW)
                 {
-                    WND_Handle wid = { .handle = (usize) cmev->window };
+                    WND_Handle wid = WND_ToHandle(cmev->window);
                     INP_Evt qevt = { .ty = INP_Evt_Quit, .windowId = wid };
                     COL_AppendToList(&(state->evts), qevt);
                 }
