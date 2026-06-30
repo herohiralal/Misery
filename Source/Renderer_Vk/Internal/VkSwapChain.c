@@ -70,36 +70,20 @@ static void REN_CreateVkSwapChain(REN_VkSwapChain* swapChain, REN_SwapChainCfg c
 
     swapChain->vSync = cfg.vSync;
 
-    if (swapChain->framesInFlight != cfg.framesInFlight)
+    for (isize i = 0; i < REN_FRAMES_IN_FLIGHT; i++)
     {
-        // destroy unneeded command buffers
-        for (isize i = cfg.framesInFlight; i < swapChain->framesInFlight; i++)
+        REN_VkCmdBuffer* cmdBuf = REN_ToVkCmdBuffer(&(swapChain->perFrameInFlight[i].cmdBuffer));
+
+        cmdBuf->base.type = REN_GfxAPIType_Vk;
+        cmdBuf->renderer  = swapChain->renderer;
+
+        MSR_ASSERT(
+            ((cmdBuf->cmdPool == VK_NULL_HANDLE) == (cmdBuf->cmdBuffer == VK_NULL_HANDLE)) &&
+            "cmdPool and cmdBuffer must either both be null or both be non-null"
+        );
+
+        if (cmdBuf->cmdPool != VK_NULL_HANDLE)
         {
-            REN_VkCmdBuffer* cmdBuf = REN_ToVkCmdBuffer(&(swapChain->cmdBuffers.data[i]));
-
-            vkFreeCommandBuffers(swapChain->renderer->device, cmdBuf->cmdPool, 1, &(cmdBuf->cmdBuffer));
-            vkDestroyCommandPool(swapChain->renderer->device, cmdBuf->cmdPool, nil);
-        }
-
-        // resize
-        swapChain->cmdBuffers = (List_(REN_CmdBuffer))
-        {
-            .data      = &(swapChain->buffers.cmdBuffers[0]),
-            .count     = cfg.framesInFlight,
-            .capacity  = sizeof(swapChain->buffers.cmdBuffers) / sizeof(swapChain->buffers.cmdBuffers[0]),
-            .allocator = (MEM_Allocator) {0},
-        };
-
-        MSR_ASSERT(swapChain->cmdBuffers.count <= swapChain->cmdBuffers.capacity && "Swap-chain command buffers count cannot be greater than the pre-allocated fixed-size buffer");
-
-        // initialise new command buffers
-        for (isize i = swapChain->framesInFlight; i < cfg.framesInFlight; i++)
-        {
-            REN_VkCmdBuffer* cmdBuf = REN_ToVkCmdBuffer(&(swapChain->cmdBuffers.data[i]));
-
-            cmdBuf->base.type = REN_GfxAPIType_Vk;
-            cmdBuf->renderer  = swapChain->renderer;
-
             REN_VK_CHECKED_CALL(vkCreateCommandPool(swapChain->renderer->device, &(VkCommandPoolCreateInfo)
             {
                 .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -107,6 +91,12 @@ static void REN_CreateVkSwapChain(REN_VkSwapChain* swapChain, REN_SwapChainCfg c
                 .queueFamilyIndex = swapChain->renderer->gfxQueueFamilyIndex,
             }, nil, &(cmdBuf->cmdPool)));
 
+            REN_VK_SET_OBJ_DEBUG_NAME(swapChain->renderer, cmdBuf->cmdPool, "%.swpch_%.cmdPool_%",
+                FMT(swapChain->renderer->appName), FMT(cfg.objectName), FMT(i));
+        }
+
+        if (cmdBuf->cmdBuffer != VK_NULL_HANDLE)
+        {
             REN_VK_CHECKED_CALL(vkAllocateCommandBuffers(swapChain->renderer->device, &(VkCommandBufferAllocateInfo)
             {
                 .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -114,33 +104,38 @@ static void REN_CreateVkSwapChain(REN_VkSwapChain* swapChain, REN_SwapChainCfg c
                 .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
                 .commandBufferCount = 1,
             }, &(cmdBuf->cmdBuffer)));
+
+            REN_VK_SET_OBJ_DEBUG_NAME(swapChain->renderer, cmdBuf->cmdBuffer, "%.swpch_%.cmdBuf_%",
+                FMT(swapChain->renderer->appName), FMT(cfg.objectName), FMT(i));
         }
-
-        // update count
-        swapChain->framesInFlight = cfg.framesInFlight;
-    }
-
-    for (isize i = 0; i < cfg.framesInFlight; i++)
-    {
-        REN_VkCmdBuffer* cmdBuf = REN_ToVkCmdBuffer(&(swapChain->cmdBuffers.data[i]));
-
-        REN_VK_SET_OBJ_DEBUG_NAME(swapChain->renderer, cmdBuf->cmdPool, "%.swpch_%.cmdPool_%", FMT(swapChain->renderer->appName), FMT(cfg.objectName), FMT(i));
-        REN_VK_SET_OBJ_DEBUG_NAME(swapChain->renderer, cmdBuf->cmdBuffer, "%.swpch_%.cmdBuf_%", FMT(swapChain->renderer->appName), FMT(cfg.objectName), FMT(i));
     }
 }
 
 static void REN_DestroyVkSwapChain(REN_VkSwapChain* swapChain)
 {
-    for (isize i = 0; i < swapChain->framesInFlight; i++)
+    for (isize i = 0; i < REN_FRAMES_IN_FLIGHT; i++)
     {
-        REN_VkCmdBuffer* cmdBuf = REN_ToVkCmdBuffer(&(swapChain->cmdBuffers.data[i]));
+        REN_VkCmdBuffer* cmdBuf = REN_ToVkCmdBuffer(&(swapChain->perFrameInFlight[i].cmdBuffer));
 
         vkFreeCommandBuffers(swapChain->renderer->device, cmdBuf->cmdPool, 1, &(cmdBuf->cmdBuffer));
         vkDestroyCommandPool(swapChain->renderer->device, cmdBuf->cmdPool, nil);
+
+        cmdBuf->cmdBuffer = VK_NULL_HANDLE;
+        cmdBuf->cmdPool   = VK_NULL_HANDLE;
     }
 
     vkDestroySwapchainKHR(swapChain->renderer->device, swapChain->actual, nil);
     vkDestroySurfaceKHR(swapChain->renderer->instance, swapChain->surface, nil);
+    #if MSR_OSX
+    {
+        NSWindow* window = WND_FromHandle(swapChain->window);
+        NSView* contentView = [window contentView];
+        CAMetalLayer* metalLayer = (CAMetalLayer*) [contentView layer];
+        contentView.wantsLayer = NO;
+        contentView.layer = nil;
+        [metalLayer release];
+    }
+    #endif
 }
 
 static void REN_CreateVkSwapChainImagesAndViews(REN_VkSwapChain* swapChain, REN_SwapChainCfg cfg)
@@ -152,7 +147,7 @@ static void REN_CreateVkSwapChainImagesAndViews(REN_VkSwapChain* swapChain, REN_
         swapChain->imgs = (List_(VkImage))
         {
             .data      = &(swapChain->buffers.imgs[0]),
-            .count     = imgCount,
+            .count     = (isize) imgCount,
             .capacity  = sizeof(swapChain->buffers.imgs) / sizeof(swapChain->buffers.imgs[0]),
             .allocator = (MEM_Allocator) {0},
         };
@@ -161,7 +156,8 @@ static void REN_CreateVkSwapChainImagesAndViews(REN_VkSwapChain* swapChain, REN_
 
         for (isize i = 0; i < swapChain->imgs.count; i++)
         {
-            REN_VK_SET_OBJ_DEBUG_NAME(swapChain->renderer, swapChain->imgs.data[i], "%.swpch_%.img_%", FMT(swapChain->renderer->appName), FMT(cfg.objectName), FMT(i));
+            REN_VK_SET_OBJ_DEBUG_NAME(swapChain->renderer, swapChain->imgs.data[i], "%.swpch_%.img_%",
+                FMT(swapChain->renderer->appName), FMT(cfg.objectName), FMT(i));
         }
     }
 
@@ -198,7 +194,8 @@ static void REN_CreateVkSwapChainImagesAndViews(REN_VkSwapChain* swapChain, REN_
                 },
             }, nil, &(swapChain->imgViews.data[i])));
 
-            REN_VK_SET_OBJ_DEBUG_NAME(swapChain->renderer, swapChain->imgViews.data[i], "%.swpch_%.imgview_%", FMT(swapChain->renderer->appName), FMT(cfg.objectName), FMT(i));
+            REN_VK_SET_OBJ_DEBUG_NAME(swapChain->renderer, swapChain->imgViews.data[i], "%.swpch_%.imgview_%",
+                FMT(swapChain->renderer->appName), FMT(cfg.objectName), FMT(i));
         }
     }
 }
@@ -208,7 +205,15 @@ static void REN_DestroyVkSwapChainImagesAndViews(REN_VkSwapChain* swapChain)
     for (isize i = 0; i < swapChain->imgViews.count; i++)
     {
         vkDestroyImageView(swapChain->renderer->device, swapChain->imgViews.data[i], nil);
+        swapChain->imgViews.data[i] = VK_NULL_HANDLE;
     }
+    swapChain->imgViews.count = 0;
+
+    for (isize i = 0; i < swapChain->imgs.count; i++)
+    {
+        swapChain->imgs.data[i] = VK_NULL_HANDLE;
+    }
+    swapChain->imgs.count = 0;
 }
 
 static void REN_UpdateVkSwapChainObjsDbgNames(REN_VkSwapChain* swapChain, REN_SwapChainCfg cfg)
@@ -236,6 +241,7 @@ void REN_VkCreateSwapChainFromWindow(REN_SwapChain* outBaseSwapChain, REN_Instan
     MSR_ASSERT(output && "output must not be null");
 
     output->renderer = renderer;
+    output->window   = windowHandle;
 
     #if MSR_WINDOWS
     {
@@ -252,6 +258,21 @@ void REN_VkCreateSwapChainFromWindow(REN_SwapChain* outBaseSwapChain, REN_Instan
         {
             .sType  = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
             .window = WND_FromHandle(windowHandle),
+        }, nil, &output->surface));
+    }
+    #elif MSR_OSX
+    {
+        NSWindow* window = WND_FromHandle(windowHandle);
+        NSView* contentView = [window contentView];
+        contentView.wantsLayer = YES;
+
+        CAMetalLayer* metalLayer = [CAMetalLayer layer];
+        contentView.layer = metalLayer;
+
+        REN_VK_CHECKED_CALL(vkCreateMetalSurfaceEXT(renderer->instance, &(VkMetalSurfaceCreateInfoEXT)
+        {
+            .sType  = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT,
+            .pLayer = metalLayer,
         }, nil, &output->surface));
     }
     #else

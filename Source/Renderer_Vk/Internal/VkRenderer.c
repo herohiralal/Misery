@@ -356,6 +356,7 @@ void REN_VkCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
             "\tdescriptor binding variable descriptor count:    %.\n"
             "\truntime descriptor array:                        %.\n"
             "\tbuffer device address:                           %.\n"
+            "\ttimeline semaphore:                              %.\n"
             "\tsynchronization 2:                               %.\n" // 1.3
             "\tdynamic rendering:                               %.\n"
             "\tmesh shaders:                                    %.\n" // VK_EXT_mesh_shader
@@ -373,6 +374,7 @@ void REN_VkCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
             FMT_B8(!!deviceFeatures12.descriptorBindingVariableDescriptorCount),
             FMT_B8(!!deviceFeatures12.runtimeDescriptorArray),
             FMT_B8(!!deviceFeatures12.bufferDeviceAddress),
+            FMT_B8(!!deviceFeatures12.timelineSemaphore),
             FMT_B8(!!deviceFeatures13.synchronization2),
             FMT_B8(!!deviceFeatures13.dynamicRendering),
             FMT_B8(!!meshFeatures.meshShader),
@@ -389,6 +391,7 @@ void REN_VkCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
             && !!deviceFeatures12.descriptorBindingVariableDescriptorCount
             && !!deviceFeatures12.runtimeDescriptorArray
             && !!deviceFeatures12.bufferDeviceAddress
+            && !!deviceFeatures12.timelineSemaphore
             && !!deviceFeatures13.synchronization2
             && !!deviceFeatures13.dynamicRendering
             && !!meshFeatures.meshShader
@@ -506,6 +509,7 @@ void REN_VkCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
                 .descriptorBindingVariableDescriptorCount  = VK_TRUE,
                 .runtimeDescriptorArray                    = VK_TRUE,
                 .bufferDeviceAddress                       = VK_TRUE,
+                .timelineSemaphore                         = VK_TRUE,
             },
             .synchronization2                              = VK_TRUE,
             .dynamicRendering                              = VK_TRUE,

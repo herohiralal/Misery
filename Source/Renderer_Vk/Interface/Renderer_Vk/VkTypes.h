@@ -50,6 +50,7 @@ REN_EXTEND_OBJECT(Vk, CmdBuffer,
 
 REN_EXTEND_OBJECT(Vk, SwapChain,
     REN_VkInstance* renderer;
+    WND_Handle      window;
     VkSwapchainKHR  actual;
 
     // surface info
@@ -59,32 +60,25 @@ REN_EXTEND_OBJECT(Vk, SwapChain,
 
     // cfg
     b8 vSync;
-    u8 framesInFlight;
 
     // syncing
-    b8                 allowCmdBuff;
-    u32                curFrame, semIdx, curImgIdx;
-    List_(VkSemaphore) presentCompleteSemaphores;
-    List_(VkSemaphore) renderFinishedSemaphores;
-    List_(VkFence)     inFlightFences;
-
-    // images
-    List_(VkImage)     imgs;
+    b8 allowCmdBuff;
+    u64 frameIdx, nextSignalValue;
+    List_(VkImage) imgs;
     List_(VkImageView) imgViews;
-
-    // command buffers
-    List_(REN_CmdBuffer) cmdBuffers;
+    List_(VkSemaphore) renderCompleteSems;
 
     struct
     {
-        VkSemaphore presentCompleteSemaphores[4];
-        VkSemaphore renderFinishedSemaphores[4];
-        VkFence     inFlightFences[4];
+        VkSemaphore imgAcquiredSem;
+        REN_CmdBuffer cmdBuffer;
+    } perFrameInFlight[REN_FRAMES_IN_FLIGHT];
 
-        VkImage     imgs[4];
+    struct
+    {
+        VkImage imgs[4];
         VkImageView imgViews[4];
-
-        REN_CmdBuffer cmdBuffers[4];
+        VkSemaphore renderCompleteSems[4];
     } buffers;
 );
 

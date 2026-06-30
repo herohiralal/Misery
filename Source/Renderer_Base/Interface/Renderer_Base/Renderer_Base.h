@@ -81,9 +81,17 @@ typedef struct
     u16     width;
     u16     height;
     b8      vSync;
-    u8      framesInFlight;
     utf8str objectName;
 } REN_SwapChainCfg;
+
+#ifndef REN_FRAMES_IN_FLIGHT
+    /**
+    * Defines the number of frames that can be in-flight at once.
+    * This is used to determine how many command buffers and synchronization objects to create.
+    * To change this value, declare it as a package define from Brahma.
+    */
+    #define REN_FRAMES_IN_FLIGHT (2u)
+#endif
 
 /**
  * A swap-chain corresponding to a window that can be rendered to.
