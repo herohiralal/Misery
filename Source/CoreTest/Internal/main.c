@@ -141,6 +141,14 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
 
     PRC_FreeEnvVars(&envVars);
 
+    REN_Instance ren = {0};
+    REN_Create(&ren, (REN_InstanceCfg)
+    {
+        .type = REN_GfxAPIType_Vk,
+        .appHandle = app,
+        .appName = UTF8STR("Misery"),
+    });
+
     WND_Data wnd = WND_Create((WND_Cfg)
     {
         .app = app,
@@ -150,6 +158,15 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
         .parent = (WND_Handle) {0},
         .bgCol = { 255, 127, 255, 255 },
         .acceptDropFiles = true,
+    });
+
+    REN_SwapChain swapChain = {0};
+    REN_CreateSwapChainFromWindow(&swapChain, &ren, wnd.handle, (REN_SwapChainCfg)
+    {
+        .width = 800,
+        .height = 600,
+        .vSync = true,
+        .objectName = UTF8STR("mainwindow"),
     });
 
     b8 running = true, fullscreen = false;
@@ -196,12 +213,35 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
             }
         }
 
-        WND_Rename(&wnd, FMT_TPrintf("Misery | cpu %ms", FMT_F32(dt * 1000, 2, 2)));
+        if (!running)
+            break;
 
-        THR_Sleep(10);
+        {
+            isize resizeIt = 0; INP_WindowResizeData resizeData;
+            while (INP_IterateResizeEvts(&resizeIt, &resizeData))
+            {
+                REN_ReconfigureSwapChain(&swapChain, (REN_SwapChainCfg)
+                {
+                    .width = resizeData.sizeX,
+                    .height = resizeData.sizeY,
+                    .vSync = true,
+                    .objectName = UTF8STR("mainwindow"),
+                });
+            }
+        }
+
+        REN_IterateSwapChain(&swapChain);
+        REN_CmdBuffer* cmdBuf = REN_GetSwapChainCommandBuffer(&swapChain, nil);
+        (void) cmdBuf;
+
+        REN_PresentSwapChain(&swapChain);
+
+        WND_Rename(&wnd, FMT_TPrintf("Misery | cpu %ms", FMT_F32(dt * 1000, 2, 2)));
     }
 
+    REN_DestroySwapChain(&swapChain);
     WND_Destroy(&wnd);
+    REN_Destroy(&ren);
 
     return 0;
 }

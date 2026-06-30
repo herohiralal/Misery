@@ -84,7 +84,7 @@ static void REN_CreateVkSwapChain(REN_VkSwapChain* swapChain, REN_SwapChainCfg c
             "cmdPool and cmdBuffer must either both be null or both be non-null"
         );
 
-        if (cmdBuf->cmdPool != VK_NULL_HANDLE)
+        if (cmdBuf->cmdPool == VK_NULL_HANDLE)
         {
             REN_VK_CHECKED_CALL(vkCreateCommandPool(swapChain->renderer->device, &(VkCommandPoolCreateInfo)
             {
@@ -97,7 +97,7 @@ static void REN_CreateVkSwapChain(REN_VkSwapChain* swapChain, REN_SwapChainCfg c
                 FMT(swapChain->renderer->appName), FMT(cfg.objectName), FMT(i));
         }
 
-        if (cmdBuf->cmdBuffer != VK_NULL_HANDLE)
+        if (cmdBuf->cmdBuffer == VK_NULL_HANDLE)
         {
             REN_VK_CHECKED_CALL(vkAllocateCommandBuffers(swapChain->renderer->device, &(VkCommandBufferAllocateInfo)
             {
@@ -431,7 +431,7 @@ void REN_VkIterateSwapChain(REN_SwapChain* baseSwapChain)
         VkSurfaceCapabilitiesKHR surfaceCaps = {0};
         REN_VK_CHECKED_CALL(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(swapChain->renderer->physicalDevice, swapChain->surface, &surfaceCaps));
         if (!surfaceCaps.currentExtent.width && !surfaceCaps.currentExtent.height) // minimised window
-            return false;
+            return;
     }
 
     // update swapchain indexing
@@ -459,7 +459,6 @@ void REN_VkIterateSwapChain(REN_SwapChain* baseSwapChain)
     ));
 
     swapChain->allowCmdBuff = true;
-    return true;
 }
 
 REN_CmdBuffer* REN_VkGetSwapChainCommandBuffer(REN_SwapChain* baseSwapChain, u8* outImgIdx)
@@ -485,7 +484,7 @@ void REN_VkPresentSwapChain(REN_SwapChain* baseSwapChain)
     REN_VkSwapChain* swapChain = REN_ToVkSwapChain(baseSwapChain);
     MSR_ASSERT(swapChain->renderer && "swapChain->renderer must not be null");
 
-    if (!swapChain->allowCmdBuff) return false;
+    if (!swapChain->allowCmdBuff) return;
 
     u64 frameInFlightIdx = swapChain->frameIdx % REN_FRAMES_IN_FLIGHT;
     REN_VkCmdBuffer* cmdBuf = REN_ToVkCmdBuffer(&(swapChain->perFrameInFlight[frameInFlightIdx].cmdBuffer));
@@ -633,8 +632,6 @@ void REN_VkPresentSwapChain(REN_SwapChain* baseSwapChain)
         .pImageIndices = &(swapChain->acquiredSwpchImgIdx),
         .pResults = nil,
     }));
-
-    return true;
 }
 
 #endif
