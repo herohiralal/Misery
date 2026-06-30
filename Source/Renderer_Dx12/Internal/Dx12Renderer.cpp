@@ -47,8 +47,8 @@ void REN_Dx12Create(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
         IDXGIAdapter1* hwAdapter = nil;
         for (u32 i = 0; output->dxgiFactory->EnumAdapters1(i, &hwAdapter) != DXGI_ERROR_NOT_FOUND; i++)
         {
-            DXGI_ADAPTER_DESC1 desc = { };
-            hwAdapter->GetDesc1(&desc);
+            DXGI_ADAPTER_DESC1 desc;
+            REN_DX12_CHECKED_CALL(hwAdapter->GetDesc1(&desc));
 
             if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
             {
@@ -89,16 +89,21 @@ void REN_Dx12Create(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
                 D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
             };
 
-            D3D12_INFO_QUEUE_FILTER filter = { };
-            filter.DenyList.NumIDs = (u32) (sizeof(hide) / sizeof(hide[0]));
-            filter.DenyList.pIDList = hide;
-            infoQueue->AddStorageFilterEntries(&filter);
+            D3D12_INFO_QUEUE_FILTER filter =
+            {
+                .DenyList =
+                {
+                    .NumIDs = (u32) (sizeof(hide) / sizeof(hide[0])),
+                    .pIDList = hide,
+                },
+            };
+            REN_DX12_CHECKED_CALL(infoQueue->AddStorageFilterEntries(&filter));
 
             ID3D12InfoQueue1* iq1 = nil;
             if (SUCCEEDED(output->device->QueryInterface(IID_PPV_ARGS(&iq1))))
             {
                 DWORD cookie = 0;
-                iq1->RegisterMessageCallback(REN_GetDx12DebugCallback(), D3D12_MESSAGE_CALLBACK_FLAG_NONE, nil, &cookie);
+                REN_DX12_CHECKED_CALL(iq1->RegisterMessageCallback(REN_GetDx12DebugCallback(), D3D12_MESSAGE_CALLBACK_FLAG_NONE, nil, &cookie));
                 output->dbgCallbackCookie = cookie;
 
                 iq1->Release();
@@ -110,18 +115,22 @@ void REN_Dx12Create(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
 
     // queue
     {
-        D3D12_COMMAND_QUEUE_DESC queueDesc = { };
-        queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-        queueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
+        D3D12_COMMAND_QUEUE_DESC queueDesc =
+        {
+            .Type     = D3D12_COMMAND_LIST_TYPE_DIRECT,
+            .Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
+        };
         REN_DX12_CHECKED_CALL(output->device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&(output->cmdQueue))));
     }
     REN_DX12_SET_OBJ_DEBUG_NAME(output, output->cmdQueue, "%.maincmdqueue", FMT(output->appName));
 
     // allocator
     {
-        D3D12MA::ALLOCATOR_DESC allocDesc = { };
-        allocDesc.pDevice = output->device;
-        allocDesc.pAdapter = output->adapter;
+        D3D12MA::ALLOCATOR_DESC allocDesc =
+        {
+            .pDevice  = output->device,
+            .pAdapter = output->adapter,
+        };
         REN_DX12_CHECKED_CALL(D3D12MA::CreateAllocator(&allocDesc, &(output->d3d12maAllocator)));
     }
 }

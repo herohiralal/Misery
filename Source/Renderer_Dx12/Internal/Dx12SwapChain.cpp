@@ -56,18 +56,24 @@ static void REN_CreateDx12SwapChain(REN_Dx12SwapChain* swapChain, REN_SwapChainC
         // swapchain & its properties
         swapChain->swapChainFormat = DXGI_FORMAT_B8G8R8A8_UNORM; // this is the most widely supported swapchain format, even though we render to a different format internally
 
-        DXGI_SWAP_CHAIN_DESC1 swapChainDesc = { };
-        swapChainDesc.Width = width;
-        swapChainDesc.Height = height;
-        swapChainDesc.Format = swapChain->swapChainFormat;
-        swapChainDesc.Stereo = FALSE;
-        swapChainDesc.SampleDesc.Count = 1;
-        swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        swapChainDesc.BufferCount = REN_FRAMES_IN_FLIGHT;
-        swapChainDesc.Scaling = DXGI_SCALING_NONE;
-        swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-        swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-        swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+        DXGI_SWAP_CHAIN_DESC1 swapChainDesc =
+        {
+            .Width = width,
+            .Height = height,
+            .Format = swapChain->swapChainFormat,
+            .Stereo = FALSE,
+            .SampleDesc =
+            {
+                .Count = 1,
+                .Quality = 0,
+            },
+            .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
+            .BufferCount = REN_FRAMES_IN_FLIGHT,
+            .Scaling = DXGI_SCALING_NONE,
+            .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
+            .AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED,
+            .Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING,
+        };
 
         IDXGISwapChain1* dxgiSwapChain = nil;
         REN_DX12_CHECKED_CALL(swapChain->renderer->dxgiFactory->CreateSwapChainForHwnd(
@@ -90,7 +96,7 @@ static void REN_CreateDx12SwapChain(REN_Dx12SwapChain* swapChain, REN_SwapChainC
 
     // get width/height
     {
-        DXGI_SWAP_CHAIN_DESC1 swapChainDesc = { };
+        DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
         swapChain->actual->GetDesc1(&swapChainDesc);
         swapChain->swapChainWidth = swapChainDesc.Width;
         swapChain->swapChainHeight = swapChainDesc.Height;
@@ -141,10 +147,12 @@ void REN_Dx12CreateSwapChainFromWindow(REN_SwapChain* outBaseSwapChain, REN_Inst
 
     // swapchain rtv heap
     {
-        D3D12_DESCRIPTOR_HEAP_DESC heapDesc = { };
-        heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-        heapDesc.NumDescriptors = REN_FRAMES_IN_FLIGHT;
-        heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+        D3D12_DESCRIPTOR_HEAP_DESC heapDesc =
+        {
+            .Type           = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+            .NumDescriptors = REN_FRAMES_IN_FLIGHT,
+            .Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
+        };
         REN_DX12_CHECKED_CALL(renderer->device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&(output->swapchainRtvHeap))));
 
         output->swapchainRtvDescriptorSize = renderer->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -324,20 +332,24 @@ void REN_Dx12PresentSwapChain(REN_SwapChain* baseSwapChain)
 
     // TODO: REMOVEEEE - swapchain: common -> rt
     {
-        D3D12_TEXTURE_BARRIER textureBarrier = { };
-        textureBarrier.SyncBefore = D3D12_BARRIER_SYNC_NONE;
-        textureBarrier.SyncAfter = D3D12_BARRIER_SYNC_RENDER_TARGET;
-        textureBarrier.AccessBefore = D3D12_BARRIER_ACCESS_NO_ACCESS;
-        textureBarrier.AccessAfter = D3D12_BARRIER_ACCESS_RENDER_TARGET;
-        textureBarrier.LayoutBefore = D3D12_BARRIER_LAYOUT_COMMON;
-        textureBarrier.LayoutAfter = D3D12_BARRIER_LAYOUT_RENDER_TARGET;
-        textureBarrier.pResource = swapChain->buffers.swapchainRTs[swapChain->curFrame];
-        textureBarrier.Subresources = CD3DX12_BARRIER_SUBRESOURCE_RANGE(U32_MAX);
+        D3D12_TEXTURE_BARRIER textureBarrier =
+        {
+            .SyncBefore = D3D12_BARRIER_SYNC_NONE,
+            .SyncAfter = D3D12_BARRIER_SYNC_RENDER_TARGET,
+            .AccessBefore = D3D12_BARRIER_ACCESS_NO_ACCESS,
+            .AccessAfter = D3D12_BARRIER_ACCESS_RENDER_TARGET,
+            .LayoutBefore = D3D12_BARRIER_LAYOUT_COMMON,
+            .LayoutAfter = D3D12_BARRIER_LAYOUT_RENDER_TARGET,
+            .pResource = swapChain->buffers.swapchainRTs[swapChain->curFrame],
+            .Subresources = CD3DX12_BARRIER_SUBRESOURCE_RANGE(U32_MAX),
+        };
 
-        D3D12_BARRIER_GROUP barrier = { };
-        barrier.Type = D3D12_BARRIER_TYPE_TEXTURE;
-        barrier.NumBarriers = 1;
-        barrier.pTextureBarriers = &textureBarrier;
+        D3D12_BARRIER_GROUP barrier =
+        {
+            .Type = D3D12_BARRIER_TYPE_TEXTURE,
+            .NumBarriers = 1,
+            .pTextureBarriers = &textureBarrier,
+        };
 
         cmdBuffer->cmdList->Barrier(1, &barrier);
     }
@@ -355,20 +367,24 @@ void REN_Dx12PresentSwapChain(REN_SwapChain* baseSwapChain)
 
     // TODO: REMOVEEEE - swapchain: rt -> present
     {
-        D3D12_TEXTURE_BARRIER textureBarrier = { };
-        textureBarrier.SyncBefore = D3D12_BARRIER_SYNC_RENDER_TARGET;
-        textureBarrier.SyncAfter = D3D12_BARRIER_SYNC_NONE;
-        textureBarrier.AccessBefore = D3D12_BARRIER_ACCESS_RENDER_TARGET;
-        textureBarrier.AccessAfter = D3D12_BARRIER_ACCESS_NO_ACCESS;
-        textureBarrier.LayoutBefore = D3D12_BARRIER_LAYOUT_RENDER_TARGET;
-        textureBarrier.LayoutAfter = D3D12_BARRIER_LAYOUT_PRESENT;
-        textureBarrier.pResource = swapChain->buffers.swapchainRTs[swapChain->curFrame];
-        textureBarrier.Subresources = CD3DX12_BARRIER_SUBRESOURCE_RANGE(U32_MAX);
+        D3D12_TEXTURE_BARRIER textureBarrier =
+        {
+            .SyncBefore = D3D12_BARRIER_SYNC_RENDER_TARGET,
+            .SyncAfter = D3D12_BARRIER_SYNC_NONE,
+            .AccessBefore = D3D12_BARRIER_ACCESS_RENDER_TARGET,
+            .AccessAfter = D3D12_BARRIER_ACCESS_NO_ACCESS,
+            .LayoutBefore = D3D12_BARRIER_LAYOUT_RENDER_TARGET,
+            .LayoutAfter = D3D12_BARRIER_LAYOUT_PRESENT,
+            .pResource = swapChain->buffers.swapchainRTs[swapChain->curFrame],
+            .Subresources = CD3DX12_BARRIER_SUBRESOURCE_RANGE(U32_MAX),
+        };
 
-        D3D12_BARRIER_GROUP barrier = { };
-        barrier.Type = D3D12_BARRIER_TYPE_TEXTURE;
-        barrier.NumBarriers = 1;
-        barrier.pTextureBarriers = &textureBarrier;
+        D3D12_BARRIER_GROUP barrier =
+        {
+            .Type = D3D12_BARRIER_TYPE_TEXTURE,
+            .NumBarriers = 1,
+            .pTextureBarriers = &textureBarrier,
+        };
 
         cmdBuffer->cmdList->Barrier(1, &barrier);
     }
