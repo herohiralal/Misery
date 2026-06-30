@@ -8,22 +8,37 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL REN_VkDbgCallback(
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* pUserData)
 {
-    utf8str general     = (types & VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT)     ? UTF8STR("[GENERAL] ")     : UTF8STR("");
-    utf8str validation  = (types & VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT)  ? UTF8STR("[VALIDATION] ")  : UTF8STR("");
-    utf8str performance = (types & VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) ? UTF8STR("[PERFORMANCE] ") : UTF8STR("");
+    u8 tagsBufferBuffer[50] = {0};
+    List_(u8) tagsBuffer = (List_(u8))
+    {
+        .data = tagsBufferBuffer,
+        .count = 0,
+        .capacity = sizeof(tagsBufferBuffer),
+        .allocator = (MEM_Allocator) {0},
+    };
+
+    if (types & VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT)
+        COL_AppendAllToList(&tagsBuffer, UTF8STR("[GENERAL] "));
+    if (types & VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT)
+        COL_AppendAllToList(&tagsBuffer, UTF8STR("[VALIDATION] "));
+    if (types & VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)
+        COL_AppendAllToList(&tagsBuffer, UTF8STR("[PERFORMANCE] "));
+
+    if (tagsBuffer.count)
+        tagsBuffer.count -= 1; // remove trailing space
 
     cstring msg = (cstring) pCallbackData->pMessage;
     if (false) { }
     else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
-        LOG_Err(VULKAN, "%%%%", FMT(general), FMT(validation), FMT(performance), FMT(msg));
+        LOG_Err(VULKAN, "% %", FMT(tagsBuffer.slice), FMT(msg));
     else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
-        LOG_Wrn(VULKAN, "%%%%", FMT(general), FMT(validation), FMT(performance), FMT(msg));
+        LOG_Wrn(VULKAN, "% %", FMT(tagsBuffer.slice), FMT(msg));
     else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
-        LOG_Inf(VULKAN, "%%%%", FMT(general), FMT(validation), FMT(performance), FMT(msg));
+        LOG_Inf(VULKAN, "% %", FMT(tagsBuffer.slice), FMT(msg));
     else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
-        LOG_Dbg(VULKAN, "%%%%", FMT(general), FMT(validation), FMT(performance), FMT(msg));
+        LOG_Dbg(VULKAN, "% %", FMT(tagsBuffer.slice), FMT(msg));
     else
-        LOG_Dbg(VULKAN, "%%%%", FMT(general), FMT(validation), FMT(performance), FMT(msg));
+        LOG_Dbg(VULKAN, "% %", FMT(tagsBuffer.slice), FMT(msg));
 
     return VK_FALSE;
 }

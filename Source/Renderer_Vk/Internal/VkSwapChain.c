@@ -73,10 +73,11 @@ static void REN_CreateVkSwapChain(REN_VkSwapChain* swapChain, REN_SwapChainCfg c
 
     for (isize i = 0; i < REN_FRAMES_IN_FLIGHT; i++)
     {
-        REN_VkCmdBuffer* cmdBuf = REN_ToVkCmdBuffer(&(swapChain->perFrameInFlight[i].cmdBuffer));
+        REN_CmdBuffer* baseCmdBuf = &(swapChain->perFrameInFlight[i].cmdBuffer);
+        baseCmdBuf->base.type = REN_GfxAPIType_Vk;
 
-        cmdBuf->base.type = REN_GfxAPIType_Vk;
-        cmdBuf->renderer  = swapChain->renderer;
+        REN_VkCmdBuffer* cmdBuf = REN_ToVkCmdBuffer(&(swapChain->perFrameInFlight[i].cmdBuffer));
+        cmdBuf->renderer = swapChain->renderer;
 
         MSR_ASSERT(
             ((cmdBuf->cmdPool == VK_NULL_HANDLE) == (cmdBuf->cmdBuffer == VK_NULL_HANDLE)) &&
