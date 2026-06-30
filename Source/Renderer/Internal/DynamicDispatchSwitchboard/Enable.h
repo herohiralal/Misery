@@ -11,7 +11,7 @@
 
 #if REN_VK
     #define RHI_FN_VK_BRANCH_RET(fnName, ...)    case REN_GfxAPIType_Vk:   return REN_Vk##fnName(__VA_ARGS__);
-    #define RHI_FN_VK_BRANCH_VOID(fnName, ...)   case REN_GfxAPIType_Vk:          REN_Vk##fnName(__VA_ARGS__);
+    #define RHI_FN_VK_BRANCH_VOID(fnName, ...)   case REN_GfxAPIType_Vk:          REN_Vk##fnName(__VA_ARGS__); break;
     #define RHI_FN_VK_BRANCH_FALLBACK()
 #else
     #define RHI_FN_VK_BRANCH_RET(fnName, ...)
@@ -21,7 +21,7 @@
 
 #if REN_DX12
     #define RHI_FN_DX12_BRANCH_RET(fnName, ...)  case REN_GfxAPIType_Dx12: return REN_Dx12##fnName(__VA_ARGS__);
-    #define RHI_FN_DX12_BRANCH_VOID(fnName, ...) case REN_GfxAPIType_Dx12:        REN_Dx12##fnName(__VA_ARGS__);
+    #define RHI_FN_DX12_BRANCH_VOID(fnName, ...) case REN_GfxAPIType_Dx12:        REN_Dx12##fnName(__VA_ARGS__); break;
     #define RHI_FN_DX12_BRANCH_FALLBACK()
 #else
     #define RHI_FN_DX12_BRANCH_RET(fnName, ...)
@@ -31,7 +31,7 @@
 
 #if REN_MTL
     #define RHI_FN_MTL_BRANCH_RET(fnName, ...)   case REN_GfxAPIType_Mtl:  return REN_Mtl##fnName(__VA_ARGS__);
-    #define RHI_FN_MTL_BRANCH_VOID(fnName, ...)  case REN_GfxAPIType_Mtl:         REN_Mtl##fnName(__VA_ARGS__);
+    #define RHI_FN_MTL_BRANCH_VOID(fnName, ...)  case REN_GfxAPIType_Mtl:         REN_Mtl##fnName(__VA_ARGS__); break;
     #define RHI_FN_MTL_BRANCH_FALLBACK()
 #else
     #define RHI_FN_MTL_BRANCH_RET(fnName, ...)
