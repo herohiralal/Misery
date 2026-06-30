@@ -116,13 +116,13 @@ b8 WND_Rename(WND_Data* window, utf8str newName);
     static inline HWND WND_FromHandle(WND_Handle window) { return *(HWND*) &window; }
 
 #elif MSR_OSX
+    @class NSWindow;
 
-    // using `rawptr` instead of `NSWindow*`
-    static_assert( sizeof(WND_Handle) ==  sizeof(rawptr), "window struct size mismatch");
-    static_assert(alignof(WND_Handle) == alignof(rawptr), "window struct alignment mismatch");
+    static_assert( sizeof(WND_Handle) ==  sizeof(NSWindow*), "window struct size mismatch");
+    static_assert(alignof(WND_Handle) == alignof(NSWindow*), "window struct alignment mismatch");
 
-    static inline WND_Handle WND_ToHandle(rawptr window) { return *(WND_Handle*) &window; }
-    static inline rawptr WND_FromHandle(WND_Handle window) { return *(rawptr*) &window; }
+    static inline WND_Handle WND_ToHandle(NSWindow* window) { return *(WND_Handle*) &window; }
+    static inline NSWindow* WND_FromHandle(WND_Handle window) { return *(NSWindow**) &window; }
 
 #elif MSR_LINUX
 #elif MSR_ANDROID

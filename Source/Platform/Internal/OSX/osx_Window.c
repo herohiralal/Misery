@@ -125,7 +125,7 @@ WND_Data WND_Create(WND_Cfg cfg)
 
         return (WND_Data)
         {
-            .handle = WND_ToHandle((rawptr) nativeWindow),
+            .handle = WND_ToHandle(nativeWindow),
             .savedData = WND_FromSavedData(saved),
         };
     }
@@ -136,7 +136,7 @@ void WND_Destroy(WND_Data* window)
     if (!window)
         return;
 
-    NSWindow* wnd = (NSWindow*) WND_FromHandle(window->handle);
+    NSWindow* wnd = WND_FromHandle(window->handle);
     if (!wnd)
         return;
 
@@ -152,7 +152,7 @@ b8 WND_SetFullScreen(WND_Data* window, b8 status, i16* posX, i16* posY, u16* siz
     if (!window)
         return false;
 
-    NSWindow* wnd = (NSWindow*) WND_FromHandle(window->handle);
+    NSWindow* wnd = WND_FromHandle(window->handle);
     if (!wnd)
         return false;
 
@@ -205,7 +205,7 @@ b8 WND_GetDimensions(WND_Data* window, i16* posX, i16* posY, u16* sizeX, u16* si
     if (!window)
         return false;
 
-    NSWindow* wnd = (NSWindow*) WND_FromHandle(window->handle);
+    NSWindow* wnd = WND_FromHandle(window->handle);
     if (!wnd)
         return false;
 
@@ -229,7 +229,7 @@ b8 WND_GetPtrPos(WND_Data* window, i16* posX, i16* posY)
     if (!window)
         return false;
 
-    NSWindow* wnd = (NSWindow*) WND_FromHandle(window->handle);
+    NSWindow* wnd = WND_FromHandle(window->handle);
     if (!wnd)
         return false;
 
@@ -250,7 +250,7 @@ b8 WND_Rename(WND_Data* window, utf8str newName)
     if (!window)
         return false;
 
-    NSWindow* wnd = (NSWindow*) WND_FromHandle(window->handle);
+    NSWindow* wnd = WND_FromHandle(window->handle);
     if (!wnd)
         return false;
 

@@ -87,7 +87,7 @@ static void INP_Internal_AddOrUpdateResizeEvt(NSWindow* wnd)
 {
     INP_INTERNAL_STATE(state);
 
-    WND_Handle wid = WND_ToHandle((rawptr) wnd);
+    WND_Handle wid = WND_ToHandle(wnd);
     INP_WindowResizeData* resize = nil;
     for (isize i = 0; i < state->resizes.count; ++i)
     {
@@ -115,7 +115,7 @@ static void INP_Internal_AddOrUpdateMoveEvt(NSWindow* wnd)
 {
     INP_INTERNAL_STATE(state);
 
-    WND_Handle wid = WND_ToHandle((rawptr) wnd);
+    WND_Handle wid = WND_ToHandle(wnd);
     INP_WindowMoveData* move = nil;
     for (isize i = 0; i < state->moves.count; ++i)
     {
@@ -192,7 +192,7 @@ static void INP_Internal_ReleaseAllHeldKeys(WND_Handle wid)
     INP_Evt evt =
     {
         .ty = INP_Evt_Quit,
-        .windowId = WND_ToHandle((rawptr) wnd),
+        .windowId = WND_ToHandle(wnd),
     };
     COL_AppendToList(&(state->evts), evt);
 
@@ -263,7 +263,7 @@ void INP_GatherEvts(void)
             break;
 
         NSWindow* wndObj = [event window];
-        WND_Handle wid = wndObj ? WND_ToHandle((rawptr) wndObj) : (WND_Handle) {0};
+        WND_Handle wid = WND_ToHandle(wndObj);
 
         NSEventType eventType = [event type];
 
