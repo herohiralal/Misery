@@ -47,6 +47,9 @@ PFN_vkDebugUtilsMessengerCallbackEXT REN_GetVkDebugCallback(void) { return REN_V
 
 void REN_LogVkResultOnFailure(VkResult result, utf8str fnCall, SrcLoc loc)
 {
+    if (result == VK_SUCCESS)
+        return;
+
     utf8str message = {0};
     // chatgpt generated
     switch (result)
@@ -104,25 +107,22 @@ void REN_LogVkResultOnFailure(VkResult result, utf8str fnCall, SrcLoc loc)
         default: message = UTF8STR("Unknown VkResult value"); break;
     }
 
-    if (result != VK_SUCCESS)
+    LOG_Internal_AddEntry(&(LOG_Internal_Entry)
     {
-        LOG_Internal_AddEntry(&(LOG_Internal_Entry)
-        {
-            .lvl     = LOG_Lvl_Error,
-            .cat[0]  = '-',
-            .cat[1]  = 'V',
-            .cat[2]  = 'U',
-            .cat[3]  = 'L',
-            .cat[4]  = 'K',
-            .cat[5]  = 'A',
-            .cat[6]  = 'N',
-            .msg     = UTF8STR("ERROR: % from %"),
-            .fmtArgs = FMTARGS(FMT(message), FMT(fnCall)),
-            .loc     = loc,
-        });
+        .lvl     = LOG_Lvl_Error,
+        .cat[0]  = '-',
+        .cat[1]  = 'V',
+        .cat[2]  = 'U',
+        .cat[3]  = 'L',
+        .cat[4]  = 'K',
+        .cat[5]  = 'A',
+        .cat[6]  = 'N',
+        .msg     = UTF8STR("ERROR: % from %"),
+        .fmtArgs = FMTARGS(FMT(message), FMT(fnCall)),
+        .loc     = loc,
+    });
 
-        MSR_ASSERT(false && "Vk error");
-    }
+    MSR_ASSERT(false && "Vk error");
 }
 
 void REN_SetVkObjDebugName(const REN_VkInstance* renderer, void* obj, VkObjectType objTy, utf8str fmtStr, FMT_Args fmtArgs)
