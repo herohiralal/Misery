@@ -4,7 +4,7 @@
 
 BRAHMA_IMPLEMENT_PACKAGE(Misery)
 {
-    package->primaryLibrary = "CoreTest";
+    package->primaryLibrary = "EntryPoint";
 
     // TODO: implement
     Brahma_String_KVP disableDx12 = {"REN_DX12", "0"};
