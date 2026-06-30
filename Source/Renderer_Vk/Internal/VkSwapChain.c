@@ -151,7 +151,9 @@ static void REN_CreateVkSwapChainImagesAndViews(REN_VkSwapChain* swapChain, REN_
             .capacity  = sizeof(swapChain->buffers.imgs) / sizeof(swapChain->buffers.imgs[0]),
             .allocator = (MEM_Allocator) {0},
         };
-        MSR_ASSERT(swapChain->imgs.count <= swapChain->imgs.capacity && "Swap-chain image count cannot be greater than the pre-allocated fixed-size buffer");
+        MSR_ASSERT(swapChain->imgs.count <= swapChain->imgs.capacity &&
+            "Swap-chain image count cannot be greater than the pre-allocated fixed-size buffer");
+
         REN_VK_CHECKED_CALL(vkGetSwapchainImagesKHR(swapChain->renderer->device, swapChain->actual, &imgCount, swapChain->imgs.data));
 
         for (isize i = 0; i < swapChain->imgs.count; i++)
@@ -169,7 +171,8 @@ static void REN_CreateVkSwapChainImagesAndViews(REN_VkSwapChain* swapChain, REN_
             .capacity  = sizeof(swapChain->buffers.imgViews) / sizeof(swapChain->buffers.imgViews[0]),
             .allocator = (MEM_Allocator) {0},
         };
-        MSR_ASSERT(swapChain->imgViews.count <= swapChain->imgViews.capacity && "Swap-chain image view count cannot be greater than the pre-allocated fixed-size buffer");
+        MSR_ASSERT(swapChain->imgViews.count <= swapChain->imgViews.capacity &&
+            "Swap-chain image view count cannot be greater than the pre-allocated fixed-size buffer");
 
         for (isize i = 0; i < swapChain->imgs.count; i++)
         {
@@ -198,35 +201,52 @@ static void REN_CreateVkSwapChainImagesAndViews(REN_VkSwapChain* swapChain, REN_
                 FMT(swapChain->renderer->appName), FMT(cfg.objectName), FMT(i));
         }
     }
+
+    {
+        swapChain->renderCompleteSems = (List_(VkSemaphore))
+        {
+            .data      = &(swapChain->buffers.renderCompleteSems[0]),
+            .count     = swapChain->imgs.count,
+            .capacity  = sizeof(swapChain->buffers.renderCompleteSems) / sizeof(swapChain->buffers.renderCompleteSems[0]),
+            .allocator = (MEM_Allocator) {0},
+        };
+        MSR_ASSERT(swapChain->renderCompleteSems.count <= swapChain->renderCompleteSems.capacity &&
+            "Swap-chain render complete semaphore count cannot be greater than the pre-allocated fixed-size buffer");
+
+        for (isize i = 0; i < swapChain->imgs.count; i++)
+        {
+            REN_VK_CHECKED_CALL(vkCreateSemaphore(swapChain->renderer->device, &(VkSemaphoreCreateInfo)
+            {
+                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            }, nil, &(swapChain->renderCompleteSems.data[i])));
+
+            REN_VK_SET_OBJ_DEBUG_NAME(swapChain->renderer, swapChain->renderCompleteSems.data[i], "%.swpch_%.rendercompletesem_%",
+                FMT(swapChain->renderer->appName), FMT(cfg.objectName), FMT(i));
+        }
+    }
 }
 
 static void REN_DestroyVkSwapChainImagesAndViews(REN_VkSwapChain* swapChain)
 {
+    for (isize i = 0; i < swapChain->renderCompleteSems.count; i++)
+    {
+        vkDestroySemaphore(swapChain->renderer->device, swapChain->renderCompleteSems.data[i], nil);
+        swapChain->renderCompleteSems.data[i] = VK_NULL_HANDLE;
+    }
+    COL_ClearList(&(swapChain->renderCompleteSems));
+
     for (isize i = 0; i < swapChain->imgViews.count; i++)
     {
         vkDestroyImageView(swapChain->renderer->device, swapChain->imgViews.data[i], nil);
         swapChain->imgViews.data[i] = VK_NULL_HANDLE;
     }
-    swapChain->imgViews.count = 0;
+    COL_ClearList(&(swapChain->imgViews));
 
     for (isize i = 0; i < swapChain->imgs.count; i++)
     {
         swapChain->imgs.data[i] = VK_NULL_HANDLE;
     }
-    swapChain->imgs.count = 0;
-}
-
-static void REN_UpdateVkSwapChainObjsDbgNames(REN_VkSwapChain* swapChain, REN_SwapChainCfg cfg)
-{
-    REN_VK_SET_OBJ_DEBUG_NAME(swapChain->renderer, swapChain->surface, "%.swpch_%.surface", FMT(swapChain->renderer->appName), FMT(cfg.objectName));
-
-    isize imgCount = swapChain->imgs.count;
-    for (isize i = 0; i < imgCount; i++)
-    {
-        REN_VK_SET_OBJ_DEBUG_NAME(swapChain->renderer, swapChain->presentCompleteSemaphores.data[i], "%.swpch_%.prescompsem_%", FMT(swapChain->renderer->appName), FMT(cfg.objectName), FMT(i));
-        REN_VK_SET_OBJ_DEBUG_NAME(swapChain->renderer, swapChain->renderFinishedSemaphores.data[i], "%.swpch_%.renderfinsem_%", FMT(swapChain->renderer->appName), FMT(cfg.objectName), FMT(i));
-        REN_VK_SET_OBJ_DEBUG_NAME(swapChain->renderer, swapChain->inFlightFences.data[i], "%.swpch_%.inflightfence_%", FMT(swapChain->renderer->appName), FMT(cfg.objectName), FMT(i));
-    }
+    COL_ClearList(&(swapChain->imgs));
 }
 
 void REN_VkCreateSwapChainFromWindow(REN_SwapChain* outBaseSwapChain, REN_Instance* baseRenderer, WND_Handle windowHandle, REN_SwapChainCfg cfg)
@@ -281,6 +301,9 @@ void REN_VkCreateSwapChainFromWindow(REN_SwapChain* outBaseSwapChain, REN_Instan
     }
     #endif
 
+    REN_VK_SET_OBJ_DEBUG_NAME(renderer, output->surface, "%.swpch_%.surface",
+        FMT(renderer->appName), FMT(cfg.objectName));
+
     // select format type
     {
         u32 formatCount = 0;
@@ -319,48 +342,36 @@ void REN_VkCreateSwapChainFromWindow(REN_SwapChain* outBaseSwapChain, REN_Instan
     REN_CreateVkSwapChain(output, cfg);
     REN_CreateVkSwapChainImagesAndViews(output, cfg);
 
-    output->semIdx = U32_MAX;
-    output->curFrame = U32_MAX;
+    output->frameIdx = 0;
+    output->nextSignalValue = REN_FRAMES_IN_FLIGHT + 1;
 
-    isize imgCount = output->imgs.count;
-    output->presentCompleteSemaphores = (List_(VkSemaphore))
     {
-        .data      = &(output->buffers.presentCompleteSemaphores[0]),
-        .count     = imgCount,
-        .capacity  = sizeof(output->buffers.presentCompleteSemaphores) / sizeof(output->buffers.presentCompleteSemaphores[0]),
-        .allocator = (MEM_Allocator) {0},
-    };
-    MSR_ASSERT(output->presentCompleteSemaphores.count <= output->presentCompleteSemaphores.capacity && "Number of present complete semaphores cannot be greater than the pre-allocated fixed-size buffer");
+        REN_VK_CHECKED_CALL(vkCreateSemaphore(renderer->device, &(VkSemaphoreCreateInfo)
+        {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            .pNext = &(VkSemaphoreTypeCreateInfo)
+            {
+                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+                .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+                .initialValue  = REN_FRAMES_IN_FLIGHT,
+            },
+        }, nil, &(output->timelineSem)));
 
-    output->renderFinishedSemaphores = (List_(VkSemaphore))
-    {
-        .data      = &(output->buffers.renderFinishedSemaphores[0]),
-        .count     = imgCount,
-        .capacity  = sizeof(output->buffers.renderFinishedSemaphores) / sizeof(output->buffers.renderFinishedSemaphores[0]),
-        .allocator = (MEM_Allocator) {0},
-    };
-    MSR_ASSERT(output->renderFinishedSemaphores.count <= output->renderFinishedSemaphores.capacity && "Number of render finished semaphores cannot be greater than the pre-allocated fixed-size buffer");
-
-    output->inFlightFences = (List_(VkFence))
-    {
-        .data      = &(output->buffers.inFlightFences[0]),
-        .count     = imgCount,
-        .capacity  = sizeof(output->buffers.inFlightFences) / sizeof(output->buffers.inFlightFences[0]),
-        .allocator = (MEM_Allocator) {0},
-    };
-    MSR_ASSERT(output->inFlightFences.count <= output->inFlightFences.capacity && "Number of in-flight fences cannot be greater than the pre-allocated fixed-size buffer");
-
-    for (isize i = 0; i < imgCount; i++)
-    {
-        VkSemaphoreCreateInfo semaphoreCI = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-        REN_VK_CHECKED_CALL(vkCreateSemaphore(renderer->device, &semaphoreCI, nil, &(output->presentCompleteSemaphores.data[i])));
-        REN_VK_CHECKED_CALL(vkCreateSemaphore(renderer->device, &semaphoreCI, nil, &(output->renderFinishedSemaphores.data[i])));
-
-        VkFenceCreateInfo fenceCI = {.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, .flags = VK_FENCE_CREATE_SIGNALED_BIT};
-        REN_VK_CHECKED_CALL(vkCreateFence(renderer->device, &fenceCI, nil, &(output->inFlightFences.data[i])));
+        REN_VK_SET_OBJ_DEBUG_NAME(renderer, output->timelineSem, "%.swpch_%.timelinesem",
+            FMT(renderer->appName), FMT(cfg.objectName));
     }
 
-    REN_UpdateVkSwapChainObjsDbgNames(output, cfg);
+    for (isize i = 0; i < REN_FRAMES_IN_FLIGHT; i++)
+    {
+        VkSemaphore* imgAcquiredSem = &(output->perFrameInFlight[i].imgAcquiredSem);
+        REN_VK_CHECKED_CALL(vkCreateSemaphore(renderer->device, &(VkSemaphoreCreateInfo)
+        {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        }, nil, imgAcquiredSem));
+
+        REN_VK_SET_OBJ_DEBUG_NAME(renderer, *imgAcquiredSem, "%.swpch_%.imgacquiredsem_%",
+            FMT(renderer->appName), FMT(cfg.objectName), FMT(i));
+    }
 }
 
 void REN_VkReconfigureSwapChain(REN_SwapChain* baseSwapChain, REN_SwapChainCfg cfg)
@@ -374,43 +385,35 @@ void REN_VkReconfigureSwapChain(REN_SwapChain* baseSwapChain, REN_SwapChainCfg c
 
     REN_CreateVkSwapChain(swapChain, cfg);
     REN_CreateVkSwapChainImagesAndViews(swapChain, cfg);
-
-    REN_UpdateVkSwapChainObjsDbgNames(swapChain, cfg);
 }
 
 void REN_VkDestroySwapChain(REN_SwapChain* baseSwapChain)
 {
-    if (!swapChain) return false;
-    if (!swapChain->renderer) FORCE_DBG_TRAP;
+    REN_VkSwapChain* swapChain = REN_ToVkSwapChain(baseSwapChain);
+    MSR_ASSERT(swapChain->renderer && "swapChain->renderer must not be null");
 
     MZNT_WaitTillRendererIdle_Vulkan(swapChain->renderer);
 
-    isize imgCount = swapChain->imgs.count;
-    for (isize i = 0; i < imgCount; i++)
+    for (isize i = 0; i < REN_FRAMES_IN_FLIGHT; i++)
     {
-        vkDestroyFence(swapChain->renderer->device, swapChain->inFlightFences.data[i], nil);
-        vkDestroySemaphore(swapChain->renderer->device, swapChain->renderFinishedSemaphores.data[i], nil);
-        vkDestroySemaphore(swapChain->renderer->device, swapChain->presentCompleteSemaphores.data[i], nil);
+        vkDestroySemaphore(swapChain->renderer->device, swapChain->perFrameInFlight[i].imgAcquiredSem, nil);
+        swapChain->perFrameInFlight[i].imgAcquiredSem = VK_NULL_HANDLE;
     }
 
-    PNSLR_FreeSlice(&(swapChain->renderFinishedSemaphores), swapChain->renderer->parent.allocator, PNSLR_GET_LOC(), nil);
-    PNSLR_FreeSlice(&(swapChain->presentCompleteSemaphores), swapChain->renderer->parent.allocator, PNSLR_GET_LOC(), nil);
-    PNSLR_FreeSlice(&(swapChain->inFlightFences), swapChain->renderer->parent.allocator, PNSLR_GET_LOC(), nil);
+    vkDestroySemaphore(swapChain->renderer->device, swapChain->timelineSem, nil);
+    swapChain->timelineSem = VK_NULL_HANDLE;
 
-    REN_DestroyVkSwapChainImagesAndViews(swapChain, tempAllocator);
-    REN_DestroyVkSwapChain(swapChain, tempAllocator);
-
-    PNSLR_Delete(swapChain, swapChain->renderer->parent.allocator, PNSLR_GET_LOC(), nil);
-    return true;
+    REN_DestroyVkSwapChainImagesAndViews(swapChain);
+    REN_DestroyVkSwapChain(swapChain);
 }
 
 REN_TextureFormat REN_VkGetSwapChainTextureFormat(REN_SwapChain* baseSwapChain)
 {
-    if (!swapChain) return MZNT_TextureFormat_Unknown;
+    REN_VkSwapChain* swapChain = REN_ToVkSwapChain(baseSwapChain);
+    if (!swapChain) return REN_TexFmt_Unknown;
 
-    MZNT_TextureFormat output = MZNT_Internal_MakeVkTextureFormat(swapChain->surfaceFmt.format);
-    if (output == MZNT_TextureFormat_Unknown) { FORCE_DBG_TRAP; }
-
+    REN_TextureFormat output = MZNT_Internal_MakeVkTextureFormat(swapChain->surfaceFmt.format);
+    MSR_ASSERT(output != REN_TexFmt_Unknown && "Failed to convert VkFormat to REN_TextureFormat");
     return output;
 }
 
