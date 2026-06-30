@@ -1,6 +1,7 @@
 #pragma once
 #include <__init.h>
 #include "Time.h"
+#include "Atomics.h"
 #include "Memory.h"
 #include "Collections.h"
 #include "Strings.h"

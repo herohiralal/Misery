@@ -374,6 +374,7 @@ typedef signed int          i32;
 typedef signed long long    i64;
 typedef float               f32;
 typedef double              f64;
+typedef u32                 b32;
 typedef void*               rawptr;
 typedef const char*         cstring;
 
@@ -443,6 +444,7 @@ typedef const char*         cstring;
 #endif
 
 static_assert(sizeof(b8)  == 1, " b8 must be 1 byte ");
+static_assert(sizeof(b32) == 4, "b32 must be 4 bytes");
 static_assert(sizeof(u8)  == 1, " u8 must be 1 byte ");
 static_assert(sizeof(i8)  == 1, " i8 must be 1 byte ");
 static_assert(sizeof(u16) == 2, "u16 must be 2 bytes");
