@@ -4,9 +4,9 @@
 #if REN_VK
 EXTERN_C_BEGIN
 
-void REN_VkCreateRenderer(REN_Instance*, REN_InstanceCfg);
+void REN_VkCreate(REN_Instance*, REN_InstanceCfg);
 void REN_VkWaitTillRendererIdle(REN_Instance*);
-void REN_VkDestroyRenderer(REN_Instance*);
+void REN_VkDestroy(REN_Instance*);
 
 void REN_VkCreateSwapChainFromWindow(REN_SwapChain*, REN_Instance*, WND_Handle, REN_SwapChainCfg);
 void REN_VkReconfigureSwapChain(REN_SwapChain*, REN_SwapChainCfg);

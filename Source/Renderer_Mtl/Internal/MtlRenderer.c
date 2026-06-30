@@ -2,7 +2,7 @@
 
 #if REN_MTL
 
-void REN_MtlCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
+void REN_MtlCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
 {
     @autoreleasepool
     {
@@ -62,7 +62,7 @@ void REN_MtlWaitTillRendererIdle(REN_Instance* baseRenderer)
     }
 }
 
-void REN_MtlDestroyRenderer(REN_Instance* baseRenderer)
+void REN_MtlDestroy(REN_Instance* baseRenderer)
 {
     @autoreleasepool
     {

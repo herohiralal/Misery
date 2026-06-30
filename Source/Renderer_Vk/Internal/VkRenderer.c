@@ -75,7 +75,7 @@ static Slice_(VkDeviceQueueCreateInfo) REN_SelectVkQueueFamilies(VkPhysicalDevic
 static const VkFormat k_MZNT_Internal_PreferredVkColourAttchFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 static const VkFormat k_MZNT_Internal_PreferredVkDepthAttchFormat  = VK_FORMAT_D32_SFLOAT_S8_UINT;
 
-void REN_VkCreateRenderer(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
+void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
 {
     #if !MSR_IOS
     {
@@ -566,7 +566,7 @@ void REN_VkWaitTillRendererIdle(REN_Instance* baseRenderer)
     REN_VK_CHECKED_CALL(vkDeviceWaitIdle(renderer->device));
 }
 
-void REN_VkDestroyRenderer(REN_Instance* baseRenderer)
+void REN_VkDestroy(REN_Instance* baseRenderer)
 {
     REN_VkInstance* renderer = REN_ToVkInstance(baseRenderer);
 

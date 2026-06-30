@@ -9,13 +9,13 @@ EXTERN_C_BEGIN
  * MAIN_THREAD
  * Creates a renderer instance based on the provided configuration.
  */
-void REN_CreateRenderer(REN_Instance* outInstance, REN_InstanceCfg cfg);
+void REN_Create(REN_Instance* outInstance, REN_InstanceCfg cfg);
 
 /**
  * MAIN_THREAD
  * Destroys the given renderer instance and frees associated resources.
  */
-void REN_DestroyRenderer(REN_Instance* renderer);
+void REN_Destroy(REN_Instance* renderer);
 
 /**
  * MAIN_THREAD

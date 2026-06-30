@@ -1,16 +1,16 @@
 #include <Renderer/Renderer.h>
 #include "DynamicDispatchSwitchboard/Enable.h"
 
-void REN_CreateRenderer(REN_Instance* outInstance, REN_InstanceCfg cfg)
+void REN_Create(REN_Instance* outInstance, REN_InstanceCfg cfg)
 {
-    RHI_FN_SWITCH_VOID(cfg.type, CreateRenderer, outInstance, cfg);
+    RHI_FN_SWITCH_VOID(cfg.type, Create, outInstance, cfg);
 }
 
-void REN_DestroyRenderer(REN_Instance* renderer)
+void REN_Destroy(REN_Instance* renderer)
 {
     RHI_FN_SWITCH_VOID(
         renderer ? renderer->base.type : REN_GfxAPIType_Null,
-        DestroyRenderer,
+        Destroy,
         renderer
     );
 }
