@@ -2,7 +2,7 @@
 
 #if REN_VK
 
-inline VkFormat REN_BreakVkTextureFormat(REN_TextureFormat fmt)
+VkFormat REN_BreakVkTextureFormat(REN_TextureFormat fmt)
 {
     switch ((enum REN_TextureFormats) fmt)
     {
@@ -16,7 +16,7 @@ inline VkFormat REN_BreakVkTextureFormat(REN_TextureFormat fmt)
     return VK_FORMAT_UNDEFINED;
 }
 
-inline REN_TextureFormat REN_MakeVkTextureFormat(VkFormat fmt)
+REN_TextureFormat REN_MakeVkTextureFormat(VkFormat fmt)
 {
     MSR_SUPPRESS_WARN // the enum has like 250+ cases...
     #ifdef __clang__

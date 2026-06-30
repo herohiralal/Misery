@@ -1,3 +1,4 @@
+#include "Renderer_Vk/VkFns.h"
 #include "VkPrivate.h"
 
 MSR_SUPPRESS_WARN
@@ -392,7 +393,7 @@ void REN_VkDestroySwapChain(REN_SwapChain* baseSwapChain)
     REN_VkSwapChain* swapChain = REN_ToVkSwapChain(baseSwapChain);
     MSR_ASSERT(swapChain->renderer && "swapChain->renderer must not be null");
 
-    MZNT_WaitTillRendererIdle_Vulkan(swapChain->renderer);
+    REN_VkWaitTillRendererIdle(REN_FromVkInstance(swapChain->renderer));
 
     for (isize i = 0; i < REN_FRAMES_IN_FLIGHT; i++)
     {
@@ -412,15 +413,15 @@ REN_TextureFormat REN_VkGetSwapChainTextureFormat(REN_SwapChain* baseSwapChain)
     REN_VkSwapChain* swapChain = REN_ToVkSwapChain(baseSwapChain);
     if (!swapChain) return REN_TexFmt_Unknown;
 
-    REN_TextureFormat output = MZNT_Internal_MakeVkTextureFormat(swapChain->surfaceFmt.format);
+    REN_TextureFormat output = REN_MakeVkTextureFormat(swapChain->surfaceFmt.format);
     MSR_ASSERT(output != REN_TexFmt_Unknown && "Failed to convert VkFormat to REN_TextureFormat");
     return output;
 }
 
 void REN_VkIterateSwapChain(REN_SwapChain* baseSwapChain)
 {
-    if (!swapChain) return false;
-    if (!swapChain->renderer) FORCE_DBG_TRAP;
+    REN_VkSwapChain* swapChain = REN_ToVkSwapChain(baseSwapChain);
+    MSR_ASSERT(swapChain->renderer && "swapChain->renderer must not be null");
 
     swapChain->allowCmdBuff = false;
 
@@ -433,31 +434,27 @@ void REN_VkIterateSwapChain(REN_SwapChain* baseSwapChain)
     }
 
     // update swapchain indexing
-    swapChain->semIdx = (swapChain->semIdx + 1) % (u32) swapChain->presentCompleteSemaphores.count;
-    swapChain->curFrame = (swapChain->curFrame + 1) % swapChain->framesInFlight;
+    swapChain->frameIdx++;
+    swapChain->nextSignalValue++;
 
-    // wait on submission of the new frame's command buffer
-    REN_VK_CHECKED_CALL(vkWaitForFences(
-        swapChain->renderer->device,
-        1, &(swapChain->inFlightFences.data[swapChain->curFrame]), // fences to wait on
-        VK_TRUE, // wait all
-        U64_MAX // timeout
-    ));
+    // wait on the timeline semaphore
+    u64 waitValue = swapChain->nextSignalValue - REN_FRAMES_IN_FLIGHT;
+    REN_VK_CHECKED_CALL(vkWaitSemaphores(swapChain->renderer->device, &(VkSemaphoreWaitInfo)
+    {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+        .semaphoreCount = 1,
+        .pSemaphores = &(swapChain->timelineSem),
+        .pValues = &(waitValue),
+    }, U64_MAX));
 
     // get the next image, and wait if the image of that is still processing
     REN_VK_CHECKED_CALL(vkAcquireNextImageKHR(
         swapChain->renderer->device,
         swapChain->actual,
         U64_MAX, // timeout
-        swapChain->presentCompleteSemaphores.data[swapChain->semIdx],
+        swapChain->perFrameInFlight[swapChain->frameIdx % REN_FRAMES_IN_FLIGHT].imgAcquiredSem,
         VK_NULL_HANDLE, // fence
-        &(swapChain->curImgIdx)
-    ));
-
-    // reset the fences, so they can be used again, once submission is done
-    REN_VK_CHECKED_CALL(vkResetFences(
-        swapChain->renderer->device,
-        1, &(swapChain->inFlightFences.data[swapChain->curFrame]) // reset fences
+        &(swapChain->acquiredSwpchImgIdx)
     ));
 
     swapChain->allowCmdBuff = true;
@@ -470,23 +467,27 @@ REN_CmdBuffer* REN_VkGetSwapChainCommandBuffer(REN_SwapChain* baseSwapChain, u8*
     outImgIdx = outImgIdx ? outImgIdx : &outImgIdxThrowaway;
     *outImgIdx = U8_MAX;
 
+    REN_VkSwapChain* swapChain = REN_ToVkSwapChain(baseSwapChain);
     if (!swapChain->allowCmdBuff) return nil;
 
-    REN_VkCmdBuffer* cmdBuf = &(swapChain->cmdBuffers.data[swapChain->curFrame]);
+    u64 frameInFlightIdx = swapChain->frameIdx % REN_FRAMES_IN_FLIGHT;
+    REN_CmdBuffer* baseCmdBuf = &(swapChain->perFrameInFlight[frameInFlightIdx].cmdBuffer);
+    REN_VkCmdBuffer* cmdBuf = REN_ToVkCmdBuffer(baseCmdBuf);
     REN_VK_CHECKED_CALL(vkResetCommandPool(swapChain->renderer->device, cmdBuf->cmdPool, 0));
 
-    *outImgIdx = (u8) swapChain->curFrame;
-    return cmdBuf;
+    *outImgIdx = (u8) frameInFlightIdx;
+    return baseCmdBuf;
 }
 
 void REN_VkPresentSwapChain(REN_SwapChain* baseSwapChain)
 {
-    if (!swapChain) return false;
-    if (!swapChain->renderer) FORCE_DBG_TRAP;
+    REN_VkSwapChain* swapChain = REN_ToVkSwapChain(baseSwapChain);
+    MSR_ASSERT(swapChain->renderer && "swapChain->renderer must not be null");
 
     if (!swapChain->allowCmdBuff) return false;
 
-    REN_VkCmdBuffer* cmdBuf = &(swapChain->cmdBuffers.data[swapChain->curFrame]);
+    u64 frameInFlightIdx = swapChain->frameIdx % REN_FRAMES_IN_FLIGHT;
+    REN_VkCmdBuffer* cmdBuf = REN_ToVkCmdBuffer(&(swapChain->perFrameInFlight[frameInFlightIdx].cmdBuffer));
 
     // TODO: REMOVEEEE - command buffer begin
     REN_VK_CHECKED_CALL(vkBeginCommandBuffer(cmdBuf->cmdBuffer, &(VkCommandBufferBeginInfo)
@@ -510,7 +511,7 @@ void REN_VkPresentSwapChain(REN_SwapChain* baseSwapChain)
                 .dstAccessMask       = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
                 .oldLayout           = VK_IMAGE_LAYOUT_UNDEFINED,
                 .newLayout           = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                .image               = swapChain->imgs.data[swapChain->curImgIdx],
+                .image               = swapChain->imgs.data[swapChain->acquiredSwpchImgIdx],
                 .subresourceRange    =
                 {
                     .aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -534,7 +535,7 @@ void REN_VkPresentSwapChain(REN_SwapChain* baseSwapChain)
             .pColorAttachments = &(VkRenderingAttachmentInfo)
             {
                 .sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                .imageView   = swapChain->imgViews.data[swapChain->curImgIdx],
+                .imageView   = swapChain->imgViews.data[swapChain->acquiredSwpchImgIdx],
                 .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                 .loadOp      = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .storeOp     = VK_ATTACHMENT_STORE_OP_STORE,
@@ -563,7 +564,7 @@ void REN_VkPresentSwapChain(REN_SwapChain* baseSwapChain)
                 .dstAccessMask       = VK_ACCESS_2_NONE,
                 .oldLayout           = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                 .newLayout           = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                .image               = swapChain->imgs.data[swapChain->curImgIdx],
+                .image               = swapChain->imgs.data[swapChain->acquiredSwpchImgIdx],
                 .subresourceRange    =
                 {
                     .aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -588,10 +589,9 @@ void REN_VkPresentSwapChain(REN_SwapChain* baseSwapChain)
         .waitSemaphoreInfoCount = 1,
         .pWaitSemaphoreInfos    = (VkSemaphoreSubmitInfo[])
         {
-            {
+            { // wait to acquire the image
                 .sType     = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-                .semaphore = swapChain->presentCompleteSemaphores.data[swapChain->semIdx],
-                .value     = 1,
+                .semaphore = swapChain->perFrameInFlight[frameInFlightIdx].imgAcquiredSem,
                 .stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
             },
         },
@@ -603,17 +603,22 @@ void REN_VkPresentSwapChain(REN_SwapChain* baseSwapChain)
                 .commandBuffer = cmdBuf->cmdBuffer,
             },
         },
-        .signalSemaphoreInfoCount = 1,
+        .signalSemaphoreInfoCount = 2,
         .pSignalSemaphoreInfos    = (VkSemaphoreSubmitInfo[])
         {
-            {
+            { // render work completion signal
                 .sType     = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-                .semaphore = swapChain->renderFinishedSemaphores.data[swapChain->curImgIdx],
-                .value     = 1,
-                .stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                .semaphore = swapChain->renderCompleteSems.data[swapChain->acquiredSwpchImgIdx],
+                .stageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT,
+            },
+            { // entire frame is completed
+                .sType     = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+                .semaphore = swapChain->timelineSem,
+                .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                .value     = swapChain->nextSignalValue,
             },
         },
-    }, swapChain->inFlightFences.data[swapChain->curFrame]));
+    }, VK_NULL_HANDLE));
 
     // present
     REN_VK_CHECKED_CALL(vkQueuePresentKHR(swapChain->renderer->gfxQueue, &(VkPresentInfoKHR)
@@ -621,10 +626,10 @@ void REN_VkPresentSwapChain(REN_SwapChain* baseSwapChain)
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .pNext = nil,
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &(swapChain->renderFinishedSemaphores.data[swapChain->curImgIdx]),
+        .pWaitSemaphores = &(swapChain->renderCompleteSems.data[swapChain->acquiredSwpchImgIdx]),
         .swapchainCount = 1,
         .pSwapchains = &(swapChain->actual),
-        .pImageIndices = &(swapChain->curImgIdx),
+        .pImageIndices = &(swapChain->acquiredSwpchImgIdx),
         .pResults = nil,
     }));
 

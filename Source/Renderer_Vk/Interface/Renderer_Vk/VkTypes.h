@@ -63,6 +63,7 @@ REN_EXTEND_OBJECT(Vk, SwapChain,
 
     // syncing
     b8 allowCmdBuff;
+    u32 acquiredSwpchImgIdx;
     u64 frameIdx, nextSignalValue;
     VkSemaphore timelineSem;
     List_(VkImage) imgs;

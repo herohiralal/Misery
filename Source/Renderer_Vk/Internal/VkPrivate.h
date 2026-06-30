@@ -161,8 +161,8 @@ void REN_SetVkObjDebugName(const REN_VkInstance* renderer, void* obj, VkObjectTy
 #define REN_VK_SET_OBJ_DEBUG_NAME(renderer, obj, fmt, ...) \
     REN_SetVkObjDebugName((renderer), (obj), REN_GET_VK_OBJECT_TYPE(obj), UTF8STR(fmt), FMTARGS(__VA_ARGS__))
 
-inline VkFormat REN_BreakVkTextureFormat(REN_TextureFormat);
-inline REN_TextureFormat REN_MakeVkTextureFormat(VkFormat);
+VkFormat REN_BreakVkTextureFormat(REN_TextureFormat);
+REN_TextureFormat REN_MakeVkTextureFormat(VkFormat);
 
 EXTERN_C_END
 #endif
