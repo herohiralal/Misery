@@ -26,7 +26,20 @@ REN_EXTEND_OBJECT(Mtl, CmdBuffer,
 );
 
 REN_EXTEND_OBJECT(Mtl, SwapChain,
-    const REN_MtlInstance* renderer;
+    REN_MtlInstance* renderer;
+    WND_Handle       window;
+
+    // cfg
+    b8 vSync;
+
+    // syncing
+    b8  allowCmdBuff;
+    u32 curFrame;
+
+    struct
+    {
+        REN_CmdBuffer cmdBuffers[REN_FRAMES_IN_FLIGHT];
+    } buffers;
 );
 
 EXTERN_C_END
