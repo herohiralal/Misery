@@ -5,6 +5,8 @@ BRAHMA_IMPLEMENT_LIBRARY(ExtDeps_Renderer)
 {
     brahma_append_string_to_paged_list(&library->interfaceDependencies, "ExtDeps_Platform");
 
+    brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_STB_Image");
+
     brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_DirectXShaderCompiler");
 
     brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_DirectX12");

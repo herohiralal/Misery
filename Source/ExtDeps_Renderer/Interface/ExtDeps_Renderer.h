@@ -1,6 +1,8 @@
 #pragma once
 #include <ExtDeps_Platform.h>
 
+#include <StbImage.h>
+
 #include <DirectX12.h>
 #include <DirectX12MemoryAllocator.h>
 
