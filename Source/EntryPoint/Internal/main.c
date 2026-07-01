@@ -125,7 +125,16 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
             SYN_SignalEvent(&G_ThreadSync.renThrWake);
         }
 
-        WND_Rename(&wnd, FMT_TPrintf("Misery | cpu %ms", FMT_F32(dt * 1000, 2, 2)));
+        utf8str rhi;
+        switch (ren.base.type)
+        {
+            case REN_GfxAPIType_Vk:   rhi = UTF8STR("VK");   break;
+            case REN_GfxAPIType_Dx12: rhi = UTF8STR("DX12"); break;
+            case REN_GfxAPIType_Mtl:  rhi = UTF8STR("MTL");  break;
+            case REN_GfxAPIType_Null: rhi = UTF8STR("NULL"); break;
+            default:                  rhi = UTF8STR("UKWN"); break;
+        }
+        WND_Rename(&wnd, FMT_TPrintf("Misery | % | cpu %ms", FMT(rhi), FMT_F32(dt * 1000, 2, 2)));
         MEM_DeallocateAll(MEM_temp);
     }
 

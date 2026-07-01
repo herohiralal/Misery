@@ -19,7 +19,7 @@ static void REN_CreateVkSwapChain(REN_VkSwapChain* swapChain, REN_SwapChainCfg c
     vkGetPhysicalDeviceSurfacePresentModesKHR(swapChain->renderer->physicalDevice, swapChain->surface, &presentModesCount, presentModes.data);
 
     VkPresentModeKHR selectedPresentMode = VK_PRESENT_MODE_FIFO_KHR; // always available
-    const VkPresentModeKHR preferredMode = cfg.vSync ? VK_PRESENT_MODE_MAILBOX_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR;
+    const VkPresentModeKHR preferredMode = cfg.vSync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR;
     for (isize i = 0; i < presentModes.count; i++)
     {
         if (presentModes.data[i] == preferredMode) // best quality
