@@ -1,6 +1,5 @@
 #include "MtlPrivate.h"
 
-MSR_SUPPRESS_WARN
 #if REN_MTL
 
 void REN_MtlCreateSwapChainFromWindow(REN_SwapChain* outBaseSwapChain, REN_Instance* baseRenderer, WND_Handle windowHandle, REN_SwapChainCfg cfg)
@@ -124,4 +123,3 @@ void REN_MtlPresentSwapChain(REN_SwapChain* baseSwapChain)
 }
 
 #endif
-MSR_UNSUPPRESS_WARN
