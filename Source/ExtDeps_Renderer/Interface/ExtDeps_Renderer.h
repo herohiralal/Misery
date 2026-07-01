@@ -2,6 +2,7 @@
 #include <ExtDeps_Platform.h>
 
 #include <StbImage.h>
+#include <MeshOpt.h>
 
 #include <DirectX12.h>
 #include <DirectX12MemoryAllocator.h>
