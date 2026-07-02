@@ -44,6 +44,21 @@
     #pragma GCC diagnostic ignored "-Wmissing-braces"
     #pragma GCC diagnostic ignored "-Wdouble-promotion"
 
+    #ifdef __cplusplus
+
+        #define MSR_C_ONLY_WARN_SUPPRESS
+
+        #define MSR_CXX_ONLY_WARN_SUPPRESS \
+            _Pragma("GCC diagnostic ignored \"-Wc++11-compat\"")
+
+    #else
+
+        #define MSR_CXX_ONLY_WARN_SUPPRESS
+
+        #define MSR_C_ONLY_WARN_SUPPRESS
+
+    #endif
+
     #define MSR_SUPPRESS_WARN \
         _Pragma("GCC diagnostic push")  \
         _Pragma("GCC diagnostic ignored \"-Wall\"") \
@@ -55,6 +70,10 @@
         _Pragma("GCC diagnostic ignored \"-Wunused-variable\"") \
         _Pragma("GCC diagnostic ignored \"-Wimplicit-fallthrough\"") \
         _Pragma("GCC diagnostic ignored \"-Wundef\"") \
+        _Pragma("GCC diagnostic ignored \"-Wfloat-equal\"") \
+        _Pragma("GCC diagnostic ignored \"-Wdeprecated\"") \
+        MSR_C_ONLY_WARN_SUPPRESS \
+        MSR_CXX_ONLY_WARN_SUPPRESS \
 
     #define MSR_UNSUPPRESS_WARN \
         _Pragma("GCC diagnostic pop")
