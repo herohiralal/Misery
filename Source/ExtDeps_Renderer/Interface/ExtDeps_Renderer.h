@@ -3,6 +3,7 @@
 
 #include <StbImage.h>
 #include <MeshOpt.h>
+#include <SpirvReflect.h>
 
 #include <DirectX12.h>
 #include <DirectX12MemoryAllocator.h>
