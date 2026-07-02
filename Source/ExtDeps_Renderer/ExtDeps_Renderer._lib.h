@@ -9,6 +9,7 @@ BRAHMA_IMPLEMENT_LIBRARY(ExtDeps_Renderer)
     brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_MeshOpt");
 
     brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_SpirvReflect");
+    brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_SpirvCross");
 
     brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_DirectXShaderCompiler");
 
