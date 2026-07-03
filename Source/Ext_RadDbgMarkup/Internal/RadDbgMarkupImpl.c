@@ -1,5 +1,6 @@
 #include <__init.h>
 
+#if MSR_BUILD_DEPS
 #if !MSR_DBG || !MSR_WINDOWS
     // raddbg is only supported on windows
     // and we obviously don't want it in release builds
@@ -11,3 +12,4 @@
 #undef RADDBG_MARKUP_IMPLEMENTATION
 
 #undef RADDBG_MARKUP_STUBS
+#endif

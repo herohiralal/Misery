@@ -1,6 +1,6 @@
 #include <VulkanLoader.h>
 
-#if REN_VK
+#if REN_VK && MSR_BUILD_DEPS
     MSR_SUPPRESS_WARN
     #define VMA_IMPLEMENTATION 1
     #include <VulkanMemoryAllocator.h>

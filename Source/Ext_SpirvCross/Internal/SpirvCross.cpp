@@ -1,6 +1,7 @@
 #include <__init.h>
 #include <SpirvCross.h>
 
+#if MSR_BUILD_DEPS
 MSR_SUPPRESS_WARN
 #define SPIRV_CROSS_C_API_GLSL 1
 #define SPIRV_CROSS_C_API_HLSL 1
@@ -19,3 +20,4 @@ MSR_SUPPRESS_WARN
 #include "ExtDeps/spirv_cross_util.cpp"
 #include "ExtDeps/spirv_cross_c.cpp"
 MSR_UNSUPPRESS_WARN
+#endif

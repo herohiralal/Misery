@@ -1974,17 +1974,21 @@ bool brahma_execute(Brahma_Args ex)
             "<UNKNOWN OUTPUT TYPE>"
         );
 
+        const char* outputPrefix = NULL;
         const char* extension = NULL;
         switch (selectedPkg->outputType)
         {
             case BRAHMA_PACKAGE_OUTPUT_TYPE_EXECUTABLE:
+                outputPrefix = "";
                 extension = (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? ".exe" : "";
                 break;
             case BRAHMA_PACKAGE_OUTPUT_TYPE_DYNAMIC_LIBRARY:
+                outputPrefix = (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? "" : "lib";
                 extension = (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? ".dll" :
                             (ex.platform == BRAHMA_PLATFORM_OSX || ex.platform == BRAHMA_PLATFORM_IOS) ? ".dylib" : ".so";
                 break;
             case BRAHMA_PACKAGE_OUTPUT_TYPE_STATIC_LIBRARY:
+                outputPrefix = (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? "" : "lib";
                 extension = (ex.platform == BRAHMA_PLATFORM_WINDOWS) ? ".lib" : ".a";
                 break;
             default:
@@ -1992,7 +1996,7 @@ bool brahma_execute(Brahma_Args ex)
                 break;
         }
 
-        output = brahma_sprintf("%s/%s%s", ex.outputDir, selectedPkg->name, extension);
+        output = brahma_sprintf("%s/%s%s%s", ex.outputDir, outputPrefix, selectedPkg->name, extension);
 
         if (selectedPkg->outputType == BRAHMA_PACKAGE_OUTPUT_TYPE_STATIC_LIBRARY)
         {
