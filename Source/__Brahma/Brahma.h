@@ -644,6 +644,9 @@ bool brahma_dir_exists(const char* path);
 // ensure that a directory exists, and create it if it doesn't; warning - it'll write to the string buffer, so make sure to provide a mutable string
 bool brahma_ensure_dir(char* path);
 
+// copy a file from srcPath to dstPath; returns true if successful, false otherwise
+bool brahma_copy_file(const char* srcPath, const char* dstPath);
+
 // visitor function to use for iterating a directory
 typedef bool (*Brahma_Directory_Visitor_Delegate)(void* payload, const char* path, bool isDirectory, bool* exploreCurrentDirectory);
 
@@ -1790,9 +1793,18 @@ bool brahma_execute(Brahma_Args ex)
     }
 
     // gather all external deps
+    char* staticLinkLibDir = NULL;
     Brahma_String_Paged_List externalDeps; memset(&externalDeps, 0, sizeof(externalDeps));
+    Brahma_String_Paged_List externalFrameworks; memset(&externalFrameworks, 0, sizeof(externalFrameworks));
     if (!failed)
     {
+        staticLinkLibDir = brahma_sprintf("%s/ExternalDeps", ex.intermediateOutputDir);
+        if (!brahma_ensure_dir(staticLinkLibDir))
+        {
+            ex.log(BRAHMA_LOG_ERROR "Failed to create external dependency directory '%s'.\n", staticLinkLibDir);
+            failed = true;
+        }
+
         for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
         {
             Brahma_Library* lib = &(libDefs.data[libIdx]);
@@ -1801,11 +1813,100 @@ bool brahma_execute(Brahma_Args ex)
             {
                 const char* dep = *brahma_index_string_paged_list(&libExternalDeps, depIdx);
 
+                const char relPathPrefix[] = "relpath:";
+                const char absPathPrefix[] = "abspath:";
+                const char globalPrefix[] = "global:";
+                const char frameworkPrefix[] = "framework:";
+
+                const char* toAdd = NULL;
+                Brahma_String_Paged_List* addTo = NULL;
+
+                char* absPath = NULL;
+                if (strncmp(dep, relPathPrefix, sizeof(relPathPrefix) - 1) == 0)
+                {
+                    absPath = brahma_sprintf("%s/%s", lib->owningDir, dep + sizeof(relPathPrefix) - 1);
+                }
+                else if (strncmp(dep, absPathPrefix, sizeof(absPathPrefix) - 1) == 0)
+                {
+                    absPath = brahma_sprintf("%s", dep + sizeof(absPathPrefix) - 1);
+                }
+
+                if (absPath != NULL)
+                {
+                    char* lastFwdSlash = strrchr(absPath, '/');
+                    char* lastBwdSlash = strrchr(absPath, '\\');
+                    char* lastSlash = (lastFwdSlash > lastBwdSlash) ? lastFwdSlash : lastBwdSlash;
+                    if (!lastSlash)
+                    {
+                        ex.log(BRAHMA_LOG_ERROR "Invalid external dependency path for '%s' in library '%s'.\n", dep, lib->name);
+                        failed = true;
+                        continue;
+                    }
+
+                    char* fileName = lastSlash + 1;
+                    char* dstPath = brahma_sprintf("%s/%s", staticLinkLibDir, fileName);
+
+                    if (!brahma_copy_file(absPath, dstPath))
+                    {
+                        ex.log(BRAHMA_LOG_ERROR "Failed to copy external dependency '%s' to '%s'.\n", absPath, dstPath);
+                        failed = true;
+                        continue;
+                    }
+
+                    ex.log(BRAHMA_LOG_INFO "Copied external dependency '%s' to '%s'.\n", absPath, dstPath);
+
+                    addTo = &externalDeps;
+                    if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
+                    {
+                        toAdd = fileName;
+                    }
+                    else
+                    {
+                        // for non-windows platforms, we wanna add the file name without the extension
+                        // or the lib prefix, if it exists, so that the linker can find it
+
+                        if (strncmp(fileName, "lib", sizeof("lib") - 1) == 0)
+                        {
+                            fileName += sizeof("lib") - 1;
+                        }
+
+                        char* lastDotInFileName = strrchr(fileName, '.');
+                        if (!lastDotInFileName)
+                        {
+                            ex.log(BRAHMA_LOG_ERROR "Invalid external dependency file name for '%s' in library '%s'. Unable to parse extension.\n", dep, lib->name);
+                            failed = true;
+                            continue;
+                        }
+
+                        size_t fileNameLen = (size_t) (lastDotInFileName - fileName);
+                        char* fileNameWithoutExt = brahma_sprintf("%.*s", (int) fileNameLen, fileName);
+                        toAdd = fileNameWithoutExt;
+                    }
+                }
+
+                if (absPath != NULL) { }
+                else if (strncmp(dep, globalPrefix, sizeof(globalPrefix) - 1) == 0)
+                {
+                    addTo = &externalDeps;
+                    toAdd = dep + sizeof(globalPrefix) - 1;
+                }
+                else if (strncmp(dep, frameworkPrefix, sizeof(frameworkPrefix) - 1) == 0)
+                {
+                    addTo = &externalFrameworks;
+                    toAdd = dep + sizeof(frameworkPrefix) - 1;
+                }
+                else
+                {
+                    ex.log(BRAHMA_LOG_ERROR "Invalid external dependency format for '%s' in library '%s'. Unknown dependency type. Add a prefix.\n", dep, lib->name);
+                    failed = true;
+                    continue;
+                }
+
                 // avoid duplicates
                 bool found = false;
-                for (size_t i = 0; i < externalDeps.count; i++)
+                for (size_t i = 0; i < addTo->count; i++)
                 {
-                    if (strcmp(dep, *brahma_index_string_paged_list(&externalDeps, i)) == 0)
+                    if (strcmp(toAdd, *brahma_index_string_paged_list(addTo, i)) == 0)
                     {
                         found = true;
                         break;
@@ -1814,7 +1915,7 @@ bool brahma_execute(Brahma_Args ex)
 
                 if (!found)
                 {
-                    brahma_append_string_to_paged_list(&externalDeps, dep);
+                    brahma_append_string_to_paged_list(addTo, toAdd);
                 }
             }
         }
@@ -1943,6 +2044,7 @@ bool brahma_execute(Brahma_Args ex)
 
                 brahma_append_string_to_array_list(&linkArgs, brahma_sprintf("/Fo%s/", ex.intermediateOutputDir));
 
+                brahma_append_string_to_array_list(&linkArgs, brahma_sprintf("/LIBPATH:%s", staticLinkLibDir));
                 for (size_t i = 0; i < externalDeps.count; i++)
                 {
                     const char* dep = *brahma_index_string_paged_list(&externalDeps, i);
@@ -1954,27 +2056,21 @@ bool brahma_execute(Brahma_Args ex)
                 brahma_append_string_to_array_list(&linkArgs, "-o");
                 brahma_append_string_to_array_list(&linkArgs, output);
 
+                brahma_append_string_to_array_list(&linkArgs, brahma_sprintf("-L%s", staticLinkLibDir));
                 for (size_t i = 0; i < externalDeps.count; i++)
                 {
                     const char* dep = *brahma_index_string_paged_list(&externalDeps, i);
+                    const char* arg = brahma_sprintf("-l%s", dep);
+                    brahma_append_string_to_array_list(&linkArgs, arg);
+                }
 
-                    const char frameworkPrefix[] = "framework:";
-                    size_t frameworkPrefixLen = strlen(frameworkPrefix);
-                    // check for apple frameworks
-                    if (true &&
-                        (ex.platform == BRAHMA_PLATFORM_OSX || ex.platform == BRAHMA_PLATFORM_IOS) &&
-                        strlen(dep) > frameworkPrefixLen &&
-                        !strncmp(dep, frameworkPrefix, frameworkPrefixLen) &&
-                        true)
+                if (ex.platform == BRAHMA_PLATFORM_OSX || ex.platform == BRAHMA_PLATFORM_IOS)
+                {
+                    for (size_t i = 0; i < externalFrameworks.count; i++)
                     {
-                        const char* frameworkName = dep + frameworkPrefixLen;
+                        const char* framework = *brahma_index_string_paged_list(&externalFrameworks, i);
                         brahma_append_string_to_array_list(&linkArgs, "-framework");
-                        brahma_append_string_to_array_list(&linkArgs, frameworkName);
-                    }
-                    else
-                    {
-                        const char* arg = brahma_sprintf("-l%s", dep);
-                        brahma_append_string_to_array_list(&linkArgs, arg);
+                        brahma_append_string_to_array_list(&linkArgs, framework);
                     }
                 }
             }
@@ -2014,9 +2110,6 @@ bool brahma_execute(Brahma_Args ex)
     // copy all the "files to copy" as requested
     if (!failed)
     {
-        size_t fileCopyBufferSize = 16384;
-        char* fileCopyBuffer = (char*) brahma_push_memory(fileCopyBufferSize, 1);
-
         for (size_t libIdx = 0; libIdx < libDefs.count; libIdx++)
         {
             Brahma_Library* lib = &(libDefs.data[libIdx]);
@@ -2026,60 +2119,7 @@ bool brahma_execute(Brahma_Args ex)
                 char* srcPath = brahma_sprintf("%s/%s", lib->owningDir, fileToCopy->key);
                 char* dstPath = brahma_sprintf("%s/%s", ex.outputDir, fileToCopy->value);
 
-                FILE* srcFile = fopen(srcPath, "rb");
-                if (!srcFile)
-                {
-                    ex.log(BRAHMA_LOG_ERROR "Failed to open source file for copying dependency '%s' to '%s'.\n", srcPath, dstPath);
-                    failed = true;
-                    continue;
-                }
-
-                // first find the last slash in dstPath, add a null terminator there,
-                // and pass to the function that create the directory tree
-                bool failedToCreateDir = false;
-                {
-                    char* lastFwdSlash = strrchr(dstPath, '/');
-                    char* lastBackSlash = strrchr(dstPath, '\\');
-                    char* lastSlash = (lastFwdSlash > lastBackSlash) ? lastFwdSlash : lastBackSlash;
-                    char lastSlashChar = *lastSlash;
-                    *lastSlash = '\0';
-                    if (!brahma_ensure_dir(dstPath))
-                        failedToCreateDir = true;
-                    *lastSlash = lastSlashChar;
-                }
-
-                if (failedToCreateDir)
-                {
-                    ex.log(BRAHMA_LOG_ERROR "Failed to create directory for copying dependency '%s' to '%s'.\n", srcPath, dstPath);
-                    fclose(srcFile);
-                    failed = true;
-                    continue;
-                }
-
-                FILE* dstFile = fopen(dstPath, "wb");
-                if (!dstFile)
-                {
-                    ex.log(BRAHMA_LOG_ERROR "Failed to open destination file for copying dependency '%s' to '%s'.\n", srcPath, dstPath);
-                    fclose(srcFile);
-                    failed = true;
-                    continue;
-                }
-
-                bool failedToCopy = false;
-                size_t bytesRead = 0;
-                while ((bytesRead = fread(fileCopyBuffer, 1, fileCopyBufferSize, srcFile)) > 0)
-                {
-                    if (fwrite(fileCopyBuffer, 1, bytesRead, dstFile) != bytesRead)
-                    {
-                        failedToCopy = true;
-                        break;
-                    }
-                }
-
-                fclose(srcFile);
-                fclose(dstFile);
-
-                if (failedToCopy)
+                if (!brahma_copy_file(srcPath, dstPath))
                 {
                     ex.log(BRAHMA_LOG_ERROR "Failed to write to destination file for copying dependency '%s' to '%s'.\n", srcPath, dstPath);
                     failed = true;
@@ -2798,6 +2838,36 @@ bool brahma_ensure_dir(char* path)
             path[i] = originalChar;
         }
     }
+
+    return success;
+}
+
+bool brahma_copy_file(const char* srcPath, const char* dstPath)
+{
+    FILE* srcFile = fopen(srcPath, "rb");
+    if (!srcFile) return false;
+
+    FILE* dstFile = fopen(dstPath, "wb");
+    if (!dstFile)
+    {
+        fclose(srcFile);
+        return false;
+    }
+
+    bool success = true;
+    char buffer[8192]; // 8 KiB buffer for copying
+    size_t bytesRead;
+    while ((bytesRead = fread(buffer, 1, sizeof(buffer), srcFile)) > 0)
+    {
+        if (fwrite(buffer, 1, bytesRead, dstFile) != bytesRead)
+        {
+            success = false;
+            break;
+        }
+    }
+
+    fclose(srcFile);
+    fclose(dstFile);
 
     return success;
 }
