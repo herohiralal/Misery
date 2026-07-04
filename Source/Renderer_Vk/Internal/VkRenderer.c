@@ -535,7 +535,8 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
     vkEnumerateDeviceExtensionProperties(selectedDevice, nil, &avlblDevExtsCount, avlblDevExts.data);
     avlblDevExts.count = (isize) avlblDevExtsCount;
 
-    b8 memBudgetExtFound = false,
+    b8 dedicatedAllocExtFound = false,
+       memBudgetExtFound = false,
        memPrioExtFound = false,
        #if MSR_WINDOWS
            extMemWin32ExtFound = false,
@@ -546,6 +547,13 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
     for (isize i = 0; i < avlblDevExts.count; i++)
     {
         VkExtensionProperties* ext = &avlblDevExts.data[i];
+
+        if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME)))
+        {
+            dedicatedAllocExtFound = true;
+            COL_AppendToList(&enabledDeviceExtensions, ext->extensionName);
+            continue;
+        }
 
         if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME)))
         {
@@ -680,6 +688,7 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
         .instance                  = output->instance,
         .flags                     = 0
                                     | VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT
+                                    | (dedicatedAllocExtFound ? VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT : 0)
                                     | (memBudgetExtFound ? VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT : 0)
                                     | (memPrioExtFound ? VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT : 0)
                                     #if MSR_WINDOWS
