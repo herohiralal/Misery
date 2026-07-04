@@ -696,23 +696,25 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
 
     REN_VK_SET_OBJ_DEBUG_NAME(output, output->presQueue, "%.presQueue", FMT(output->appName));
 
+    VmaAllocatorCreateFlags vmaFlags = 0
+                                | VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT
+                                | (dedicatedAllocExtFound && getMemReq2ExtFound ? VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT : 0)
+                                | (bindMem2ExtFound ? VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT : 0)
+                                | (memBudgetExtFound ? VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT : 0)
+                                | (memPrioExtFound ? VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT : 0)
+                                #if MSR_WINDOWS
+                                | (extMemWin32ExtFound ? VMA_ALLOCATOR_CREATE_KHR_EXTERNAL_MEMORY_WIN32_BIT : 0)
+                                #endif
+                                | (maintenance4ExtFound ? VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE4_BIT : 0)
+                                | (maintenance5ExtFound ? VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE5_BIT : 0)
+                                | 0;
+
     REN_VK_CHECKED_CALL(vmaCreateAllocator(&(VmaAllocatorCreateInfo)
     {
         .physicalDevice            = output->physicalDevice,
         .device                    = output->device,
         .instance                  = output->instance,
-        .flags                     = 0
-                                    | VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT
-                                    | (dedicatedAllocExtFound && getMemReq2ExtFound ? VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT : 0)
-                                    | (bindMem2ExtFound ? VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT : 0)
-                                    | (memBudgetExtFound ? VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT : 0)
-                                    | (memPrioExtFound ? VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT : 0)
-                                    #if MSR_WINDOWS
-                                        | (extMemWin32ExtFound ? VMA_ALLOCATOR_CREATE_KHR_EXTERNAL_MEMORY_WIN32_BIT : 0)
-                                    #endif
-                                    | (maintenance4ExtFound ? VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE4_BIT : 0)
-                                    | (maintenance5ExtFound ? VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE5_BIT : 0)
-                                    | 0,
+        .flags                     = vmaFlags,
         .pVulkanFunctions          = &(VmaVulkanFunctions)
         {
             .vkGetInstanceProcAddr = vkGetInstanceProcAddr,
