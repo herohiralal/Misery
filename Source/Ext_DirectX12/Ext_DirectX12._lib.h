@@ -8,10 +8,10 @@ BRAHMA_IMPLEMENT_LIBRARY(Ext_DirectX12)
 
     if (package->platform == BRAHMA_PLATFORM_WINDOWS)
     {
-        brahma_append_string_to_paged_list(&library->externalDependencies, "dxguid.lib");
-        brahma_append_string_to_paged_list(&library->externalDependencies, "d3d12.lib");
-        brahma_append_string_to_paged_list(&library->externalDependencies, "dxgi.lib");
-        brahma_append_string_to_paged_list(&library->externalDependencies, "d3dcompiler.lib");
+        brahma_append_string_to_paged_list(&library->externalDependencies, "global:dxguid.lib");
+        brahma_append_string_to_paged_list(&library->externalDependencies, "global:d3d12.lib");
+        brahma_append_string_to_paged_list(&library->externalDependencies, "global:dxgi.lib");
+        brahma_append_string_to_paged_list(&library->externalDependencies, "global:d3dcompiler.lib");
     }
 
     char* arch =
@@ -27,7 +27,7 @@ BRAHMA_IMPLEMENT_LIBRARY(Ext_DirectX12)
     }
 
     // d3d12 agility sdk files
-    if (package->platform == BRAHMA_PLATFORM_WINDOWS)
+    if (package->outputType != BRAHMA_PACKAGE_OUTPUT_TYPE_STATIC_LIBRARY && package->platform == BRAHMA_PLATFORM_WINDOWS)
     {
         Brahma_String_KVP d3d12core      = {brahma_sprintf("Dependencies/AgilitySDK/windows-%s/D3D12Core.dll",      arch), "D3D12/D3D12Core.dll"};
         Brahma_String_KVP d3d12sdkLayers = {brahma_sprintf("Dependencies/AgilitySDK/windows-%s/d3d12SDKLayers.dll", arch), "D3D12/d3d12SDKLayers.dll"};

@@ -418,6 +418,11 @@ typedef struct
     Brahma_Architecture architecture;
 
     /**
+     * Whether or not debug info is (to be) included for this package.
+     */
+    bool includeDebugInfo;
+
+    /**
      * The type of the package.
      */
     Brahma_Package_Output_Type outputType;
@@ -594,7 +599,7 @@ typedef struct
 
     void (*log)(const char* fmt, ...);
 
-    void (*createPackages)(Brahma_Platform platform, Brahma_Architecture architecture, Brahma_Package_Array_List* packages);
+    void (*createPackages)(Brahma_Platform platform, Brahma_Architecture architecture, bool includeDebugInfo, Brahma_Package_Array_List* packages);
     void (*createLibraries)(Brahma_Library_Array_List* libraries, const Brahma_Package* package);
 
     char* intermediateOutputDir;
@@ -885,7 +890,7 @@ bool brahma_execute(Brahma_Args ex)
 
             cCompilerPath = brahma_sprintf("%s\\cl.exe", vsBinaries);
             cxxCompilerPath = cCompilerPath;
-            staticLinkerPath = brahma_sprintf("%s\\link.exe", vsBinaries);
+            staticLinkerPath = brahma_sprintf("%s\\lib.exe", vsBinaries);
         }
 
         #ifdef _WIN32
@@ -1033,7 +1038,7 @@ bool brahma_execute(Brahma_Args ex)
     {
         Brahma_Package_Array_List pkgDefs = { NULL, 0, 0 };
         brahma_reserve_package_array_list_capacity(&pkgDefs, ex.pkgCount);
-        ex.createPackages(ex.platform, ex.architecture, &pkgDefs);
+        ex.createPackages(ex.platform, ex.architecture, !!(ex.flags && BRAHMA_ARGS_FLAG_DEBUG), &pkgDefs);
 
         if (pkgDefs.count == 0)
         {
@@ -2004,7 +2009,6 @@ bool brahma_execute(Brahma_Args ex)
             {
                 brahma_append_string_to_array_list(&linkArgs, "/Brepro");
                 brahma_append_string_to_array_list(&linkArgs, "/nologo");
-                brahma_append_string_to_array_list(&linkArgs, "lib");
                 brahma_append_string_to_array_list(&linkArgs, brahma_sprintf("/OUT:%s", output));
             }
             else if (ex.platform == BRAHMA_PLATFORM_OSX || ex.platform == BRAHMA_PLATFORM_IOS)
@@ -2048,7 +2052,6 @@ bool brahma_execute(Brahma_Args ex)
 
                 brahma_append_string_to_array_list(&linkArgs, brahma_sprintf("/Fo%s/", ex.intermediateOutputDir));
 
-                brahma_append_string_to_array_list(&linkArgs, brahma_sprintf("/LIBPATH:%s", staticLinkLibDir));
                 for (size_t i = 0; i < externalDeps.count; i++)
                 {
                     const char* dep = *brahma_index_string_paged_list(&externalDeps, i);
@@ -2099,11 +2102,17 @@ bool brahma_execute(Brahma_Args ex)
                 }
             }
 
-            if (ex.platform == BRAHMA_PLATFORM_WINDOWS && windowsManifestPath)
+            if (ex.platform == BRAHMA_PLATFORM_WINDOWS)
             {
                 brahma_append_string_to_array_list(&linkArgs, "/link");
-                brahma_append_string_to_array_list(&linkArgs, "/MANIFEST:embed");
-                brahma_append_string_to_array_list(&linkArgs, brahma_sprintf("/MANIFESTINPUT:%s", windowsManifestPath));
+                brahma_append_string_to_array_list(&linkArgs, brahma_sprintf("/LIBPATH:%s", staticLinkLibDir));
+                brahma_append_string_to_array_list(&linkArgs, "/LTCG");
+
+                if (windowsManifestPath)
+                {
+                    brahma_append_string_to_array_list(&linkArgs, "/MANIFEST:embed");
+                    brahma_append_string_to_array_list(&linkArgs, brahma_sprintf("/MANIFESTINPUT:%s", windowsManifestPath));
+                }
             }
         }
 
@@ -3279,7 +3288,7 @@ int brahma_wait_for_process(Brahma_Process proc, char** outStdOut)
 
 size_t brahma_get_package_count(void);
 size_t brahma_get_library_count(void);
-void brahma_create_all_packages(Brahma_Platform platform, Brahma_Architecture architecture, Brahma_Package_Array_List* packages);
+void brahma_create_all_packages(Brahma_Platform platform, Brahma_Architecture architecture, bool includeDebugInfo, Brahma_Package_Array_List* packages);
 void brahma_create_all_libraries(Brahma_Library_Array_List* libraries, const Brahma_Package* package);
 
 void brahma_exec_log(const char* fmt, ...)
@@ -3485,7 +3494,7 @@ extern "C" {
 #endif
 
 #define BRAHMA_BEGIN_LISTING_PACKAGES() \
-    void brahma_create_all_packages(Brahma_Platform platform, Brahma_Architecture architecture, Brahma_Package_Array_List* packages) { \
+    void brahma_create_all_packages(Brahma_Platform platform, Brahma_Architecture architecture, bool includeDebugInfo, Brahma_Package_Array_List* packages) { \
         Brahma_Package currentPackage; \
         (void) currentPackage;
 
@@ -3512,6 +3521,7 @@ extern "C" {
     currentPackage.owningFile = owningFile_; \
     currentPackage.platform = platform; \
     currentPackage.architecture = architecture; \
+    currentPackage.includeDebugInfo = includeDebugInfo; \
     brahma_implement_package_##packageName(&currentPackage); \
     brahma_append_package_to_array_list(packages, currentPackage);
 

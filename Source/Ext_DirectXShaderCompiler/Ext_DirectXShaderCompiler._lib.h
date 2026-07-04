@@ -17,8 +17,9 @@ BRAHMA_IMPLEMENT_LIBRARY(Ext_DirectXShaderCompiler)
         return;
     }
 
-    // dxc files
-    if (package->platform == BRAHMA_PLATFORM_WINDOWS)
+    // dxc files; UNLESS STATIC LIBRARY OUTPUT IS EXPECTED
+    if (package->outputType == BRAHMA_PACKAGE_OUTPUT_TYPE_STATIC_LIBRARY) { }
+    else if (package->platform == BRAHMA_PLATFORM_WINDOWS)
     {
         Brahma_String_KVP dxcExec = {brahma_sprintf("Dependencies/DXC/windows-%s/dxc.exe",        arch), "DXC/dxc.exe"};
         Brahma_String_KVP dxComp  = {brahma_sprintf("Dependencies/DXC/windows-%s/dxcompiler.dll", arch), "DXC/dxcompiler.dll"};

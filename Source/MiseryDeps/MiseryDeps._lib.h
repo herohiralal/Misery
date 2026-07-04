@@ -62,9 +62,10 @@ BRAHMA_IMPLEMENT_LIBRARY(MiseryDeps)
         const char* extension = ".a";
         if (package->platform == BRAHMA_PLATFORM_WINDOWS) extension = ".lib";
 
-        char* prebuiltDep = brahma_sprintf("relpath:Dependencies/%s-%s-rel/%sMiseryDependencies%s",
+        char* prebuiltDep = brahma_sprintf("relpath:Dependencies/%s-%s-%s/%sMiseryDependencies%s",
             BRAHMA_PLATFORM_NAMES[package->platform],
             BRAHMA_ARCHITECTURE_NAMES[package->architecture],
+            (package->includeDebugInfo ? "dbg" : "rel"),
             libPrefix,
             extension);
 
