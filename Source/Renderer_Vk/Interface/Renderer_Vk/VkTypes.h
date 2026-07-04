@@ -31,6 +31,10 @@ REN_EXTEND_OBJECT(Vk, Instance,
     VkQueue          gfxQueue;
     VkQueue          presQueue;
 
+    b8 meshShadersSupported;
+    b8 taskShadersSupported;
+    b8 descriptorBufferSupported;
+
     VkDebugUtilsMessengerEXT debugMessenger;
     utf8str                  appName;
 

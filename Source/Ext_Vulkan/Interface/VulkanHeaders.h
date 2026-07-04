@@ -25,6 +25,11 @@ MSR_SUPPRESS_WARN
     #endif
     #include "ExtDeps/vulkan/vulkan.h"
 
+    // don't wanna enable vulkan beta so here's the workaround
+    #ifndef VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME
+        #define VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME "VK_KHR_portability_subset"
+    #endif
+
     #if MSR_APPLE
         #include <QuartzCore/QuartzCore.h>
     #endif

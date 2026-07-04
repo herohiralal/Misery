@@ -1,4 +1,5 @@
 #include "VkPrivate.h"
+#include "VulkanLoader.h"
 
 #if REN_VK
 
@@ -116,15 +117,15 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
 
     List_(cstring) enabledExtensions = COL_NewList(cstring, 16, MEM_temp);
 
-    u32 availableExtensionCount = 0;
-    vkEnumerateInstanceExtensionProperties(nil, &availableExtensionCount, nil);
-    Slice_(VkExtensionProperties) availableExtensions = COL_NewSlice(VkExtensionProperties, availableExtensionCount, true, MEM_temp);
-    vkEnumerateInstanceExtensionProperties(nil, &availableExtensionCount, availableExtensions.data);
-    availableExtensions.count = (isize) availableExtensionCount;
+    u32 avlblInstExtsCount = 0;
+    vkEnumerateInstanceExtensionProperties(nil, &avlblInstExtsCount, nil);
+    Slice_(VkExtensionProperties) avlblInstExts = COL_NewSlice(VkExtensionProperties, avlblInstExtsCount, true, MEM_temp);
+    vkEnumerateInstanceExtensionProperties(nil, &avlblInstExtsCount, avlblInstExts.data);
+    avlblInstExts.count = (isize) avlblInstExtsCount;
 
-    for (isize i = 0; i < availableExtensions.count; i++)
+    for (isize i = 0; i < avlblInstExts.count; i++)
     {
-        VkExtensionProperties* ext = &availableExtensions.data[i];
+        VkExtensionProperties* ext = &avlblInstExts.data[i];
 
         if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_KHR_SURFACE_EXTENSION_NAME)))
         {
@@ -406,6 +407,11 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
         if (selectedDevice == VK_NULL_HANDLE || score > selectedDeviceScore)
         {
             selectedDevice = devices.data[i];
+
+            output->meshShadersSupported = !!meshFeatures.meshShader;
+            output->taskShadersSupported = !!meshFeatures.taskShader;
+            output->descriptorBufferSupported = !!descriptorBufferFeatures.descriptorBuffer;
+
             selectedDeviceScore = score;
         }
     }
@@ -517,22 +523,93 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
         #error "unimplemented"
     #endif
 
-    const char* enabledDeviceExtensions[] =
-    {
+    List_(cstring) enabledDeviceExtensions = COL_NewList(cstring, 8, MEM_temp);
+    COL_AppendAllToList(&enabledDeviceExtensions, SLICE(cstring,
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_KHR_SPIRV_1_4_EXTENSION_NAME,
-        VK_EXT_MESH_SHADER_EXTENSION_NAME,
-    };
+    ));
 
-    u32 enabledDeviceExtensionCount = sizeof(enabledDeviceExtensions) / sizeof(char*);
+    u32 avlblDevExtsCount = 0;
+    vkEnumerateDeviceExtensionProperties(selectedDevice, nil, &avlblDevExtsCount, nil);
+    Slice_(VkExtensionProperties) avlblDevExts = COL_NewSlice(VkExtensionProperties, avlblDevExtsCount, true, MEM_temp);
+    vkEnumerateDeviceExtensionProperties(selectedDevice, nil, &avlblDevExtsCount, avlblDevExts.data);
+    avlblDevExts.count = (isize) avlblDevExtsCount;
+
+    b8 memBudgetExtFound = false,
+       memPrioExtFound = false,
+       #if MSR_WINDOWS
+           extMemWin32ExtFound = false,
+       #endif
+       maintenance4ExtFound = false,
+       maintenance5ExtFound = false;
+
+    for (isize i = 0; i < avlblDevExts.count; i++)
+    {
+        VkExtensionProperties* ext = &avlblDevExts.data[i];
+
+        if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME)))
+        {
+            memBudgetExtFound = true;
+            COL_AppendToList(&enabledDeviceExtensions, ext->extensionName);
+            continue;
+        }
+
+        if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME)))
+        {
+            memPrioExtFound = true;
+            COL_AppendToList(&enabledDeviceExtensions, ext->extensionName);
+            continue;
+        }
+
+        #if MSR_WINDOWS
+        if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME)))
+        {
+            extMemWin32ExtFound = true;
+            COL_AppendToList(&enabledDeviceExtensions, ext->extensionName);
+            continue;
+        }
+        #endif
+
+        if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_KHR_MAINTENANCE_4_EXTENSION_NAME)))
+        {
+            maintenance4ExtFound = true;
+            COL_AppendToList(&enabledDeviceExtensions, ext->extensionName);
+            continue;
+        }
+
+        if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_KHR_MAINTENANCE_5_EXTENSION_NAME)))
+        {
+            maintenance5ExtFound = true;
+            COL_AppendToList(&enabledDeviceExtensions, ext->extensionName);
+            continue;
+        }
+
+        if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME)))
+        {
+            COL_AppendToList(&enabledDeviceExtensions, ext->extensionName);
+            continue;
+        }
+
+        if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_EXT_MESH_SHADER_EXTENSION_NAME)))
+        {
+            COL_AppendToList(&enabledDeviceExtensions, ext->extensionName);
+            continue;
+        }
+
+        if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME)))
+        {
+            COL_AppendToList(&enabledDeviceExtensions, ext->extensionName);
+            continue;
+        }
+    }
 
     REN_VK_CHECKED_CALL(vkCreateDevice(selectedDevice, &(VkDeviceCreateInfo)
     {
         .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .queueCreateInfoCount    = (u32) qcis.count,
         .pQueueCreateInfos       = qcis.data,
-        .enabledExtensionCount   = enabledDeviceExtensionCount,
-        .ppEnabledExtensionNames = enabledDeviceExtensions,
+        .enabledExtensionCount   = (u32) enabledDeviceExtensions.count,
+        .ppEnabledExtensionNames = enabledDeviceExtensions.data,
         .pEnabledFeatures        = &(VkPhysicalDeviceFeatures)
         {
             .samplerAnisotropy   = VK_TRUE,
@@ -551,13 +628,13 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
                         .sType   = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT,
                         .pNext   = nil,
 
-                        .meshShader                        = VK_TRUE,
-                        .taskShader                        = VK_TRUE,
+                        .meshShader                        = output->meshShadersSupported ? VK_TRUE : VK_FALSE,
+                        .taskShader                        = output->taskShadersSupported ? VK_TRUE : VK_FALSE,
                     },
 
                     .shaderDrawParameters                  = VK_TRUE,
                 },
-                .descriptorIndexing                        = VK_TRUE,
+                .descriptorIndexing                        = output->descriptorBufferSupported ? VK_TRUE : VK_FALSE,
                 .shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
                 .descriptorBindingVariableDescriptorCount  = VK_TRUE,
                 .runtimeDescriptorArray                    = VK_TRUE,
@@ -601,7 +678,16 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
         .physicalDevice            = output->physicalDevice,
         .device                    = output->device,
         .instance                  = output->instance,
-        .flags                     = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
+        .flags                     = 0
+                                    | VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT
+                                    | (memBudgetExtFound ? VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT : 0)
+                                    | (memPrioExtFound ? VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT : 0)
+                                    #if MSR_WINDOWS
+                                        | (extMemWin32ExtFound ? VMA_ALLOCATOR_CREATE_KHR_EXTERNAL_MEMORY_WIN32_BIT : 0)
+                                    #endif
+                                    | (maintenance4ExtFound ? VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE4_BIT : 0)
+                                    | (maintenance5ExtFound ? VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE5_BIT : 0)
+                                    | 0,
         .pVulkanFunctions          = &(VmaVulkanFunctions)
         {
             .vkGetInstanceProcAddr = vkGetInstanceProcAddr,
