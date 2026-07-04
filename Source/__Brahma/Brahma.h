@@ -959,7 +959,7 @@ bool brahma_execute(Brahma_Args ex)
             toolchainPath = "/usr/bin";
             cCompilerPath = "gcc";
             cxxCompilerPath = "g++";
-            staticLinkerPath = "ld";
+            staticLinkerPath = "ar";
         }
         #else
         {
