@@ -1,5 +1,4 @@
 #include "VkPrivate.h"
-#include "VulkanLoader.h"
 
 #if REN_VK
 
@@ -536,6 +535,8 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
     avlblDevExts.count = (isize) avlblDevExtsCount;
 
     b8 dedicatedAllocExtFound = false,
+       getMemReq2ExtFound = false,
+       bindMem2ExtFound = false,
        memBudgetExtFound = false,
        memPrioExtFound = false,
        #if MSR_WINDOWS
@@ -551,6 +552,20 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
         if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME)))
         {
             dedicatedAllocExtFound = true;
+            COL_AppendToList(&enabledDeviceExtensions, ext->extensionName);
+            continue;
+        }
+
+        if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME)))
+        {
+            getMemReq2ExtFound = true;
+            COL_AppendToList(&enabledDeviceExtensions, ext->extensionName);
+            continue;
+        }
+
+        if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME)))
+        {
+            bindMem2ExtFound = true;
             COL_AppendToList(&enabledDeviceExtensions, ext->extensionName);
             continue;
         }
@@ -688,7 +703,8 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
         .instance                  = output->instance,
         .flags                     = 0
                                     | VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT
-                                    | (dedicatedAllocExtFound ? VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT : 0)
+                                    | (dedicatedAllocExtFound && getMemReq2ExtFound ? VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT : 0)
+                                    | (bindMem2ExtFound ? VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT : 0)
                                     | (memBudgetExtFound ? VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT : 0)
                                     | (memPrioExtFound ? VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT : 0)
                                     #if MSR_WINDOWS
