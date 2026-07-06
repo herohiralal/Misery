@@ -58,6 +58,10 @@ MSR_SUPPRESS_WARN
     #include <dlfcn.h>
 #endif
 
+#if MSR_LINUX
+    #include <sys/inotify.h>
+#endif
+
 #if MSR_APPLE
     extern char** environ;
 
@@ -67,6 +71,11 @@ MSR_SUPPRESS_WARN
     #include <signal.h>
     #include <dispatch/dispatch.h>
     #include <os/log.h>
+    #include <sys/event.h>
+    #include <sys/time.h>
+    #ifndef O_EVTONLY
+        #define O_EVTONLY O_RDONLY
+    #endif
 #endif
 
 #include <AppKitHeaders.h>

@@ -333,6 +333,125 @@ static utf8str NormalisePath(utf8str path, b8 isDir, MEM_Allocator allocator)
     #endif
 }
 
+FIL_Path FIL_Normalise(utf8str path, MEM_Allocator allocator)
+{
+    return (FIL_Path) {.path = NormalisePath(path, false, allocator)};
+}
+
+utf8str FIL_Name(FIL_Path path)
+{
+    if (!path.path.data || !path.path.count)
+        return (utf8str) {0};
+
+    utf8str nameWithExtension = FIL_NameWithExtension(path);
+    if (!nameWithExtension.data || !nameWithExtension.count)
+        return (utf8str) {0};
+
+    isize lastDotIdx = STR_FindLast(nameWithExtension, UTF8STR("."), false);
+    if (lastDotIdx == -1)
+        return nameWithExtension; // no extension, so name is the whole thing
+
+    return STR_SubString(nameWithExtension, 0, lastDotIdx);
+}
+
+utf8str FIL_Extension(FIL_Path path)
+{
+    if (!path.path.data || !path.path.count)
+        return (utf8str) {0};
+
+    isize lastDotIdx = STR_FindLast(path.path, UTF8STR("."), false);
+    if (lastDotIdx == -1)
+        return (utf8str) {0}; // no extension
+
+    isize ldiP1 = lastDotIdx + 1;
+    return STR_SubString(path.path, ldiP1, path.path.count - ldiP1);
+}
+
+utf8str FIL_NameWithExtension(FIL_Path path)
+{
+    if (!path.path.data || !path.path.count)
+        return (utf8str) {0};
+
+    isize lastSlashIdx = STR_FindLast(path.path, UTF8STR("/"), false);
+
+    // if no slash (lastSlashIdx = -1), name starts at 0, so conveniently
+    // nameStartIdx will be lastSlashIdx + 1 in both cases
+
+    isize nameStartIdx = lastSlashIdx + 1;
+    return STR_SubString(path.path, nameStartIdx, path.path.count - nameStartIdx);
+}
+
+TIM_Value FIL_LastModified(FIL_Path path)
+{
+    if (!path.path.data || !path.path.count)
+        return (TIM_Value) {0};
+
+    cstring str = STR_CloneToCStr(path.path, MEM_temp);
+
+    #if MSR_WINDOWS
+    {
+        WIN32_FILE_ATTRIBUTE_DATA fileAttrData;
+        if (!GetFileAttributesExA(str, GetFileExInfoStandard, &fileAttrData)) { return (TIM_Value) {0}; }
+
+        // convert FILETIME to nanoseconds since unix epoch
+        u64 fileTime = ((u64) fileAttrData.ftLastWriteTime.dwHighDateTime << 32) | fileAttrData.ftLastWriteTime.dwLowDateTime;
+        return (TIM_Value){.ns = (i64) (fileTime * 100)}; // FILETIME is in 100-nanosecond intervals
+    }
+    #elif MSR_UNIX
+    {
+        struct stat statBuf;
+        if (stat(str, &statBuf) != 0) { return (TIM_Value) {0}; }
+
+        #ifdef __APPLE__
+            #define st_mtim st_mtimespec
+        #endif
+
+        // convert seconds to nanoseconds and add the nanosecond part
+        return (TIM_Value){.ns = (i64) statBuf.st_mtime * 1000000000 + statBuf.st_mtim.tv_nsec};
+
+        #ifdef __APPLE__
+            #undef st_mtim
+        #endif
+    }
+    #endif
+}
+
+b8 FIL_Exists(FIL_Path path)
+{
+    if (!path.path.data || !path.path.count)
+        return false;
+
+    cstring str = STR_CloneToCStr(path.path, MEM_temp);
+
+    #if MSR_WINDOWS
+    {
+        DWORD fileAttrs = GetFileAttributesA(str);
+        if (fileAttrs == INVALID_FILE_ATTRIBUTES) { return false; }
+        return (fileAttrs & FILE_ATTRIBUTE_DIRECTORY) == 0;
+    }
+    #elif MSR_UNIX
+    {
+        struct stat statBuf;
+        if (stat(str, &statBuf) != 0) { return false; }
+        return S_ISREG(statBuf.st_mode);
+    }
+    #endif
+}
+
+b8 FIL_Delete(FIL_Path path)
+{
+    if (!path.path.data || !path.path.count)
+        return false;
+
+    cstring str = STR_CloneToCStr(path.path, MEM_temp);
+
+    #if MSR_WINDOWS
+        return DeleteFileA(str) != 0;
+    #elif MSR_UNIX
+        return unlink(str) == 0;
+    #endif
+}
+
 typedef struct
 {
     MEM_Allocator allocator;
@@ -645,123 +764,4 @@ b8 DIR_Delete(DIR_Path path)
 
     MEM_DestroyArenaAllocator(&arena);
     return !payload.failedAtSomething;
-}
-
-FIL_Path FIL_Normalise(utf8str path, MEM_Allocator allocator)
-{
-    return (FIL_Path) {.path = NormalisePath(path, false, allocator)};
-}
-
-utf8str FIL_Name(FIL_Path path)
-{
-    if (!path.path.data || !path.path.count)
-        return (utf8str) {0};
-
-    utf8str nameWithExtension = FIL_NameWithExtension(path);
-    if (!nameWithExtension.data || !nameWithExtension.count)
-        return (utf8str) {0};
-
-    isize lastDotIdx = STR_FindLast(nameWithExtension, UTF8STR("."), false);
-    if (lastDotIdx == -1)
-        return nameWithExtension; // no extension, so name is the whole thing
-
-    return STR_SubString(nameWithExtension, 0, lastDotIdx);
-}
-
-utf8str FIL_Extension(FIL_Path path)
-{
-    if (!path.path.data || !path.path.count)
-        return (utf8str) {0};
-
-    isize lastDotIdx = STR_FindLast(path.path, UTF8STR("."), false);
-    if (lastDotIdx == -1)
-        return (utf8str) {0}; // no extension
-
-    isize ldiP1 = lastDotIdx + 1;
-    return STR_SubString(path.path, ldiP1, path.path.count - ldiP1);
-}
-
-utf8str FIL_NameWithExtension(FIL_Path path)
-{
-    if (!path.path.data || !path.path.count)
-        return (utf8str) {0};
-
-    isize lastSlashIdx = STR_FindLast(path.path, UTF8STR("/"), false);
-
-    // if no slash (lastSlashIdx = -1), name starts at 0, so conveniently
-    // nameStartIdx will be lastSlashIdx + 1 in both cases
-
-    isize nameStartIdx = lastSlashIdx + 1;
-    return STR_SubString(path.path, nameStartIdx, path.path.count - nameStartIdx);
-}
-
-TIM_Value FIL_LastModified(FIL_Path path)
-{
-    if (!path.path.data || !path.path.count)
-        return (TIM_Value) {0};
-
-    cstring str = STR_CloneToCStr(path.path, MEM_temp);
-
-    #if MSR_WINDOWS
-    {
-        WIN32_FILE_ATTRIBUTE_DATA fileAttrData;
-        if (!GetFileAttributesExA(str, GetFileExInfoStandard, &fileAttrData)) { return (TIM_Value) {0}; }
-
-        // convert FILETIME to nanoseconds since unix epoch
-        u64 fileTime = ((u64) fileAttrData.ftLastWriteTime.dwHighDateTime << 32) | fileAttrData.ftLastWriteTime.dwLowDateTime;
-        return (TIM_Value){.ns = (i64) (fileTime * 100)}; // FILETIME is in 100-nanosecond intervals
-    }
-    #elif MSR_UNIX
-    {
-        struct stat statBuf;
-        if (stat(str, &statBuf) != 0) { return (TIM_Value) {0}; }
-
-        #ifdef __APPLE__
-            #define st_mtim st_mtimespec
-        #endif
-
-        // convert seconds to nanoseconds and add the nanosecond part
-        return (TIM_Value){.ns = (i64) statBuf.st_mtime * 1000000000 + statBuf.st_mtim.tv_nsec};
-
-        #ifdef __APPLE__
-            #undef st_mtim
-        #endif
-    }
-    #endif
-}
-
-b8 FIL_Exists(FIL_Path path)
-{
-    if (!path.path.data || !path.path.count)
-        return false;
-
-    cstring str = STR_CloneToCStr(path.path, MEM_temp);
-
-    #if MSR_WINDOWS
-    {
-        DWORD fileAttrs = GetFileAttributesA(str);
-        if (fileAttrs == INVALID_FILE_ATTRIBUTES) { return false; }
-        return (fileAttrs & FILE_ATTRIBUTE_DIRECTORY) == 0;
-    }
-    #elif MSR_UNIX
-    {
-        struct stat statBuf;
-        if (stat(str, &statBuf) != 0) { return false; }
-        return S_ISREG(statBuf.st_mode);
-    }
-    #endif
-}
-
-b8 FIL_Delete(FIL_Path path)
-{
-    if (!path.path.data || !path.path.count)
-        return false;
-
-    cstring str = STR_CloneToCStr(path.path, MEM_temp);
-
-    #if MSR_WINDOWS
-        return DeleteFileA(str) != 0;
-    #elif MSR_UNIX
-        return unlink(str) == 0;
-    #endif
 }
