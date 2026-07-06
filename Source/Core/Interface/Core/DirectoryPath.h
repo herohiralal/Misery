@@ -2,18 +2,9 @@
 #include <__init.h>
 #include "Strings.h"
 #include "Time.h"
+#include "FilePath.h"
 
 EXTERN_C_BEGIN
-
-/**
- * Represents a file path.
- * The path is always absolute, normalised (e.g. no "." or ".." components, no redundant separators), and uses
- * forward slashes as separators.
- */
-typedef struct
-{
-    utf8str path;
-} FIL_Path;
 
 /**
  * Represents a directory path.
@@ -66,7 +57,29 @@ DIR_Path DIR_Normalise(utf8str, MEM_Allocator);
  * Returns the parent directory of the given directory path.
  * The returned path will be a slice of the original path, so no new allocation is performed.
  */
-DIR_Path DIR_Parent(DIR_Path);
+DIR_Path DIR_DirPathParent(DIR_Path);
+
+/**
+ * Returns the parent directory of the given file path.
+ * The returned path will be a slice of the original path, so no new allocation is performed.
+ */
+DIR_Path DIR_FilPathParent(FIL_Path);
+
+#ifdef __cplusplus
+    EXTERN_C_END
+    static DIR_Path DIR_ParentInternal(DIR_Path p) { return DIR_DirPathParent(p); }
+    static DIR_Path DIR_ParentInternal(FIL_Path p) { return DIR_FilPathParent(p); }
+    EXTERN_C_BEGIN
+#else
+    #define DIR_ParentInternal(p) \
+        _Generic((p), DIR_Path: DIR_DirPathParent, FIL_Path: DIR_FilPathParent)(p)
+#endif
+
+/**
+ * Returns the parent directory of the given path, which can be either a directory or a file.
+ * The returned path will be a slice of the original path, so no new allocation is performed.
+ */
+#define DIR_Parent(p) DIR_ParentInternal(p)
 
 /**
  * Returns a new DIR_Path representing a subdirectory with the given name inside the parent directory.
@@ -101,56 +114,5 @@ b8 DIR_Ensure(DIR_Path);
  * Deletes the given directory path from the file system, along with all of its contents if it is not empty.
  */
 b8 DIR_Delete(DIR_Path);
-
-/**
- * Normalises the given path and returns it as a FIL_Path.
- * The newly created path will be allocated using the provided allocator.
- */
-FIL_Path FIL_Normalise(utf8str, MEM_Allocator);
-
-/**
- * Returns the parent directory of the given file path.
- * The returned path will be a slice of the original path, so no new allocation is performed.
- */
-DIR_Path FIL_Parent(FIL_Path);
-
-/**
- * Returns the name of the file without the extension.
- * For example, for the path "/foo/bar/baz.txt", this function would return "baz".
- * The returned name will be a slice of the original path, so no new allocation is performed.
- */
-utf8str FIL_Name(FIL_Path);
-
-/**
- * Returns the extension of the file, without the dot.
- * For example, for the path "/foo/bar/baz.txt", this function would return "txt".
- * If the file has no extension, an empty string is returned.
- * The returned extension will be a slice of the original path, so no new allocation is performed.
- */
-utf8str FIL_Extension(FIL_Path);
-
-/**
- * Returns the name of the file with the extension.
- * For example, for the path "/foo/bar/baz.txt", this function would return "baz.txt".
- * The returned name will be a slice of the original path, so no new allocation is performed.
- */
-utf8str FIL_NameWithExtension(FIL_Path);
-
-/**
- * Returns the last modified time of the file at the given path.
- * If the file does not exist, a zero-value is returned.
- * (What are the chances that a file was last modified _exactly_ at the Unix Epoch?)
- */
-TIM_Value FIL_LastModified(FIL_Path);
-
-/**
- * Checks if the given file path exists in the file system.
- */
-b8 FIL_Exists(FIL_Path);
-
-/**
- * Deletes the file at the given path from the file system.
- */
-b8 FIL_Delete(FIL_Path);
 
 EXTERN_C_END

@@ -1,6 +1,7 @@
 #pragma once
 #include <__init.h>
-#include "FileSystem.h"
+#include "FilePath.h"
+#include "DirectoryPath.h"
 
 EXTERN_C_BEGIN
 

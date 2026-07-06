@@ -374,7 +374,7 @@ DIR_Path DIR_Normalise(utf8str path, MEM_Allocator allocator)
     return (DIR_Path) {.path = NormalisePath(path, true, allocator)};
 }
 
-DIR_Path DIR_Parent(DIR_Path path)
+DIR_Path DIR_DirPathParent(DIR_Path path)
 {
     if (!path.path.data || !path.path.count)
         return (DIR_Path) {0};
@@ -384,6 +384,19 @@ DIR_Path DIR_Parent(DIR_Path path)
         s = STR_SubString(path.path, 0, path.path.count - 1); // skip trailing slash
 
     isize lastSlashIdx = STR_FindLast(s, UTF8STR("/"), false);
+    if (lastSlashIdx == -1)
+        return (DIR_Path) {.path = UTF8STR("/")};
+
+    utf8str parentPath = STR_SubString(path.path, 0, lastSlashIdx + 1); // include the slash
+    return (DIR_Path) {.path = parentPath};
+}
+
+DIR_Path DIR_FilPathParent(FIL_Path path)
+{
+    if (!path.path.data || !path.path.count)
+        return (DIR_Path) {0};
+
+    isize lastSlashIdx = STR_FindLast(path.path, UTF8STR("/"), false);
     if (lastSlashIdx == -1)
         return (DIR_Path) {.path = UTF8STR("/")};
 
@@ -637,19 +650,6 @@ b8 DIR_Delete(DIR_Path path)
 FIL_Path FIL_Normalise(utf8str path, MEM_Allocator allocator)
 {
     return (FIL_Path) {.path = NormalisePath(path, false, allocator)};
-}
-
-DIR_Path FIL_Parent(FIL_Path path)
-{
-    if (!path.path.data || !path.path.count)
-        return (DIR_Path) {0};
-
-    isize lastSlashIdx = STR_FindLast(path.path, UTF8STR("/"), false);
-    if (lastSlashIdx == -1)
-        return (DIR_Path) {.path = UTF8STR("/")};
-
-    utf8str parentPath = STR_SubString(path.path, 0, lastSlashIdx + 1); // include the slash
-    return (DIR_Path) {.path = parentPath};
 }
 
 utf8str FIL_Name(FIL_Path path)
