@@ -115,4 +115,58 @@ b8 DIR_Ensure(DIR_Path);
  */
 b8 DIR_Delete(DIR_Path);
 
+/**
+ * Opaque handle for a directory watcher.
+ */
+typedef struct
+{
+    rawptr internal;
+} DIR_Watcher;
+
+/**
+ * The type of a directory watcher event.
+ * Rename-like changes are intentionally represented as a removal and addition pair.
+ */
+typedef u8 DIR_WatchEvtTy;
+enum DIR_WatchEvtTys
+{
+    DIR_WatchEvtTy_Added,
+    DIR_WatchEvtTy_Removed,
+    DIR_WatchEvtTy_Modified,
+};
+
+/**
+ * An event produced by DIR_PollWatcher.
+ */
+typedef struct
+{
+    DIR_WatchEvtTy ty;
+    DIR_ChildPath  path;
+} DIR_WatchEvt;
+
+/**
+ * Creates a polling-based watcher for the specified directory.
+ * Returns nil on failure.
+ */
+DIR_Watcher DIR_CreateWatcher(DIR_Path path, MEM_Allocator allocator);
+
+/**
+ * Destroys a watcher and releases all associated resources.
+ */
+void DIR_DestroyWatcher(DIR_Watcher watcher);
+
+/**
+ * Polls the watcher for any events that have occurred since the last poll.
+ * Returns true if an event was available, false otherwise.
+ * Use as:
+```
+DIR_WatchEvt evt;
+while (DIR_IterateWatchEvts(watcher, &evt))
+{
+    // handle evt
+}
+```
+ */
+b8 DIR_IterateWatchEvts(DIR_Watcher watcher, DIR_WatchEvt* outEvt);
+
 EXTERN_C_END
