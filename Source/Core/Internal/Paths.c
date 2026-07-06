@@ -978,7 +978,8 @@ static void DIR_Internal_HandleWatchAction(DIR_Internal_Watcher* w, DWORD action
                 isDir = (attrs != INVALID_FILE_ATTRIBUTES) && ((attrs & FILE_ATTRIBUTE_DIRECTORY) != 0);
             }
 
-            DIR_Internal_PushWatchEvt(w, DIR_WatchEvtTy_Modified, name, isDir);
+            // skipping dir modifications
+            if (!isDir) { DIR_Internal_PushWatchEvt(w, DIR_WatchEvtTy_Modified, name, false); }
             break;
         }
 
@@ -1068,10 +1069,10 @@ static void DIR_Internal_RefillWatchEvts(DIR_Internal_Watcher* w)
 
             b8 isDir = (ev->mask & IN_ISDIR) != 0;
 
-            // renames are treated as removal + addition (IN_MOVED_FROM arrives before IN_MOVED_TO)
-            if      (ev->mask & (IN_CREATE | IN_MOVED_TO  )) { DIR_Internal_PushWatchEvt(w, DIR_WatchEvtTy_Added,    name, isDir); }
-            else if (ev->mask & (IN_DELETE | IN_MOVED_FROM)) { DIR_Internal_PushWatchEvt(w, DIR_WatchEvtTy_Removed,  name, isDir); }
-            else if (ev->mask & (IN_MODIFY | IN_ATTRIB    )) { DIR_Internal_PushWatchEvt(w, DIR_WatchEvtTy_Modified, name, isDir); }
+            // renames are treated as removal + addition (IN_MOVED_FROM arrives before IN_MOVED_TO);
+            if      (ev->mask & (IN_CREATE | IN_MOVED_TO  ))           { DIR_Internal_PushWatchEvt(w, DIR_WatchEvtTy_Added,    name, isDir); }
+            else if (ev->mask & (IN_DELETE | IN_MOVED_FROM))           { DIR_Internal_PushWatchEvt(w, DIR_WatchEvtTy_Removed,  name, isDir); }
+            else if (ev->mask & (IN_MODIFY | IN_ATTRIB    ) && !isDir) { DIR_Internal_PushWatchEvt(w, DIR_WatchEvtTy_Modified, name, false ); }
         }
     }
 }
