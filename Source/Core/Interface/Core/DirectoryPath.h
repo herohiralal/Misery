@@ -144,6 +144,8 @@ typedef struct
     DIR_ChildPath  path;
 } DIR_WatchEvt;
 
+COL_DECLARE_FOR(DIR_WatchEvt);
+
 /**
  * Creates a polling-based watcher for the specified directory.
  * Returns nil on failure.
