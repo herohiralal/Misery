@@ -1,10 +1,10 @@
 #include <__init.h>
 
-template <bool condition>
+template <b8 condition>
 struct REN_TNoValueOnFailure { };
 
 template <>
-struct REN_TNoValueOnFailure<true> { static constexpr const bool VALUE = true; };
+struct REN_TNoValueOnFailure<true> { static constexpr const b8 VALUE = true; };
 
 #define REN_OBJ_SIZE_CHECK_NAME(gfxApi, name) \
     ______________________________________________________##gfxApi##IF_YOU_SEE_THIS_LINE_IN_YOUR_COMPILER_ERROR_THEN_SET_THE_PADDING_OF_TYPE_____REN_##name##_____TO_

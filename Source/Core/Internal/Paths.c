@@ -645,7 +645,7 @@ void DIR_Iterate(DIR_Path path, DIR_IteratorProc visitor, rawptr userData, b8 re
                 }
                 #endif
 
-                bool isDirectory = false;
+                b8 isDirectory = false;
 
                 #if MSR_WINDOWS
                     isDirectory = (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
@@ -670,8 +670,8 @@ void DIR_Iterate(DIR_Path path, DIR_IteratorProc visitor, rawptr userData, b8 re
 
                 DIR_ChildPath childPath = {.ty = isDirectory ? DIR_PathTy_Directory : DIR_PathTy_File, .path.fil.path = foundPath2};
 
-                bool exploreCurrentDirectory = recursive;
-                bool iterateFurther = visitor(childPath, userData, &exploreCurrentDirectory);
+                b8 exploreCurrentDirectory = recursive;
+                b8 iterateFurther = visitor(childPath, userData, &exploreCurrentDirectory);
 
                 // handle recursion
                 if (iterateFurther && isDirectory && exploreCurrentDirectory)
