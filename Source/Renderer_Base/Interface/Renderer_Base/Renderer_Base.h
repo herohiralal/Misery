@@ -46,7 +46,7 @@ typedef struct
  * multiple renderers, it's more common to have just one. The renderer is used as the primary
  * entry point for creating other renderer objects.
  */
-REN_DECLARE_OBJECT(Instance, 128);
+REN_DECLARE_OBJECT(Instance, 176);
 
 /**
  * A command buffer for recording rendering commands.
@@ -101,17 +101,17 @@ typedef struct
 REN_DECLARE_OBJECT(SwapChain, 656);
 
 /**
- * Configuration structure for shader program creation.
+ * Configuration structure for GPU program creation.
  */
 typedef struct
 {
-    Slice_(SHD_ByteCode) shaders;
+    Slice_(SHD_ByteCode) stages;
     utf8str objectName;
 } REN_ProgramCfg;
 
 /**
- * Represents a shader program.
- * It represents a "pipeline" of shaders that can be used together, and the resources they
+ * Represents a GPU program.
+ * It represents a "pipeline" of stages that can be used together, and the resources they
  * require.
  */
 REN_DECLARE_OBJECT(Program, 1);

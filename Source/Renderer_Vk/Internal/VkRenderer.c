@@ -3,11 +3,13 @@
 #if REN_VK
 
 // returns number of unique queues
-static Slice_(VkDeviceQueueCreateInfo) REN_SelectVkQueueFamilies(VkPhysicalDevice physDev, VkSurfaceKHR surfaceToPresent, u32* gfxQueue, u32* presQueue)
+static Slice_(VkDeviceQueueCreateInfo) REN_SelectVkQueueFamilies(VkPhysicalDevice physDev, VkSurfaceKHR surfaceToPresent,
+    u32* gfxQueue, u32* presQueue, u32* dedicatedTransferQueue, u32* asyncComputeQueue)
 {
-    MSR_ASSERT(gfxQueue && presQueue && "gfxQueue and presQueue must not be null");
+    MSR_ASSERT(gfxQueue && presQueue && dedicatedTransferQueue && asyncComputeQueue &&
+        "gfxQueue, presQueue, dedicatedTransferQueue & asyncComputeQueue must not be null");
 
-    *gfxQueue = U32_MAX; *presQueue = U32_MAX;
+    *gfxQueue = U32_MAX; *presQueue = U32_MAX; *dedicatedTransferQueue = U32_MAX; *asyncComputeQueue = U32_MAX;
 
     // get all queue families
     Slice_(VkQueueFamilyProperties) queueFamilies;
@@ -19,57 +21,118 @@ static Slice_(VkDeviceQueueCreateInfo) REN_SelectVkQueueFamilies(VkPhysicalDevic
         queueFamilies.count = (isize) queueFamilyCount;
     }
 
-    b8 foundComputeSupport = false;
     for (isize i = 0; i < queueFamilies.count; i++)
     {
-        VkQueueFlags flags = queueFamilies.data[i].queueFlags;
+        VkQueueFamilyProperties* properties = &queueFamilies.data[i];
 
-        if (flags & VK_QUEUE_GRAPHICS_BIT)
+        VkQueueFlags flags = properties->queueFlags;
+
+        // graphics queue must support compute and transfer both
+        if ((!!properties->queueCount) &&
+            (flags & VK_QUEUE_GRAPHICS_BIT) && (flags & VK_QUEUE_COMPUTE_BIT) && (flags & VK_QUEUE_TRANSFER_BIT) &&
+            i != *dedicatedTransferQueue && i != *asyncComputeQueue)
         {
-            b8 currentQueueSupportsCompute = !!(flags & VK_QUEUE_COMPUTE_BIT);
-            if (*gfxQueue == U32_MAX || (!foundComputeSupport && currentQueueSupportsCompute))
+            if (*gfxQueue == U32_MAX)
             {
                 *gfxQueue = (u32) i;
-                foundComputeSupport = currentQueueSupportsCompute;
+                properties->queueCount--;
             }
         }
 
-        VkBool32 supportsPresent = VK_FALSE;
-        vkGetPhysicalDeviceSurfaceSupportKHR(physDev, (u32) i, surfaceToPresent, &supportsPresent);
-        if (supportsPresent && *presQueue == U32_MAX)
-            *presQueue = (u32) i;
+        if ((!!properties->queueCount) || ((u32) i) == *gfxQueue) // ok for gfx queue to be used for present, if supported
+        {
+            VkBool32 supportsPresent = VK_FALSE;
+            vkGetPhysicalDeviceSurfaceSupportKHR(physDev, (u32) i, surfaceToPresent, &supportsPresent);
+            if (supportsPresent && *presQueue == U32_MAX)
+                *presQueue = (u32) i;
+        }
 
-        if (*gfxQueue != U32_MAX && *presQueue != U32_MAX)
+        if ((!!properties->queueCount) &&
+            (flags & VK_QUEUE_TRANSFER_BIT) && !(flags & VK_QUEUE_GRAPHICS_BIT) && !(flags & VK_QUEUE_COMPUTE_BIT) &&
+            i != *gfxQueue && i != *asyncComputeQueue)
+        {
+            if (*dedicatedTransferQueue == U32_MAX)
+            {
+                *dedicatedTransferQueue = (u32) i;
+                properties->queueCount--;
+            }
+        }
+
+        if ((!!properties->queueCount) &&
+            (flags & VK_QUEUE_COMPUTE_BIT) && !(flags & VK_QUEUE_GRAPHICS_BIT) &&
+            i != *gfxQueue && i != *dedicatedTransferQueue)
+        {
+            if (*asyncComputeQueue == U32_MAX)
+            {
+                *asyncComputeQueue = (u32) i;
+                properties->queueCount--;
+            }
+        }
+
+        if (*gfxQueue != U32_MAX && *presQueue != U32_MAX && *dedicatedTransferQueue != U32_MAX && *asyncComputeQueue != U32_MAX)
             break;
     }
 
-    MSR_ASSERT(*gfxQueue != U32_MAX && *presQueue != U32_MAX && "Failed to find required queue families on physical device");
+    {
+        VkQueueFamilyProperties* gfxQueueProps = &queueFamilies.data[*gfxQueue];
+        if (*dedicatedTransferQueue == U32_MAX && !!gfxQueueProps->queueCount)
+        {
+            *dedicatedTransferQueue = *gfxQueue;
+            gfxQueueProps->queueCount--;
+        }
+
+        if (*asyncComputeQueue == U32_MAX && !!gfxQueueProps->queueCount)
+        {
+            *asyncComputeQueue = *gfxQueue;
+            gfxQueueProps->queueCount--;
+        }
+    }
+
+    MSR_ASSERT(*gfxQueue != U32_MAX && *presQueue != U32_MAX && "Failed to find required gfx/pres queue families on physical device");
+    MSR_ASSERT(*dedicatedTransferQueue != U32_MAX && "Failed to find dedicated transfer queue family on physical device");
+    MSR_ASSERT(*asyncComputeQueue != U32_MAX && "Failed to find async compute queue family on physical device");
 
     // create queue create infos
-    u32 queueCount = (*gfxQueue == *presQueue) ? 1 : 2;
-    Slice_(VkDeviceQueueCreateInfo) queueCreateInfos = COL_NewSlice(VkDeviceQueueCreateInfo, queueCount, true, MEM_temp);
+    List_(VkDeviceQueueCreateInfo) queueCreateInfos = COL_NewList(VkDeviceQueueCreateInfo, 8, MEM_temp);
 
     float queuePriority = 1.0f;
-    queueCreateInfos.data[0] = (VkDeviceQueueCreateInfo)
+
+    COL_AppendToList(&queueCreateInfos, ((VkDeviceQueueCreateInfo)
     {
         .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
         .queueFamilyIndex = *gfxQueue,
         .queueCount = 1,
         .pQueuePriorities = &queuePriority,
-    };
+    }));
 
-    if (queueCount == 2)
+    if (*gfxQueue != *presQueue)
     {
-        queueCreateInfos.data[1] = (VkDeviceQueueCreateInfo)
+        COL_AppendToList(&queueCreateInfos, ((VkDeviceQueueCreateInfo)
         {
             .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
             .queueFamilyIndex = *presQueue,
             .queueCount = 1,
             .pQueuePriorities = &queuePriority,
-        };
+        }));
     }
 
-    return queueCreateInfos;
+    COL_AppendToList(&queueCreateInfos, ((VkDeviceQueueCreateInfo)
+    {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        .queueFamilyIndex = *dedicatedTransferQueue,
+        .queueCount = 1,
+        .pQueuePriorities = &queuePriority,
+    }));
+
+    COL_AppendToList(&queueCreateInfos, ((VkDeviceQueueCreateInfo)
+    {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        .queueFamilyIndex = *asyncComputeQueue,
+        .queueCount = 1,
+        .pQueuePriorities = &queuePriority,
+    }));
+
+    return queueCreateInfos.slice;
 }
 
 static const VkFormat k_MZNT_Internal_PreferredVkColourAttchFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
@@ -506,7 +569,11 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
         #error "unimplemented"
     #endif
 
-    Slice_(VkDeviceQueueCreateInfo) qcis = REN_SelectVkQueueFamilies(selectedDevice, tempSurfaceForQueueSelect, &(output->gfxQueueFamilyIndex), &(output->presQueueFamilyIndex));
+    Slice_(VkDeviceQueueCreateInfo) qcis = REN_SelectVkQueueFamilies(selectedDevice, tempSurfaceForQueueSelect,
+        &(output->gfxQueueFamilyIndex),
+        &(output->presQueueFamilyIndex),
+        &(output->dedicatedTransferQueueFamilyIndex),
+        &(output->asyncComputeQueueFamilyIndex));
 
     vkDestroySurfaceKHR(output->instance, tempSurfaceForQueueSelect, nil);
     #if MSR_WINDOWS
@@ -695,6 +762,24 @@ void REN_VkCreate(REN_Instance* outBaseInstance, REN_InstanceCfg cfg)
     }, &output->presQueue);
 
     REN_VK_SET_OBJ_DEBUG_NAME(output, output->presQueue, "%.presQueue", FMT(output->appName));
+
+    vkGetDeviceQueue2(output->device, &(VkDeviceQueueInfo2)
+    {
+        .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2,
+        .queueFamilyIndex = output->dedicatedTransferQueueFamilyIndex,
+        .queueIndex       = 0,
+    }, &output->dedicatedTransferQueue);
+
+    REN_VK_SET_OBJ_DEBUG_NAME(output, output->dedicatedTransferQueue, "%.transferQueue", FMT(output->appName));
+
+    vkGetDeviceQueue2(output->device, &(VkDeviceQueueInfo2)
+    {
+        .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2,
+        .queueFamilyIndex = output->asyncComputeQueueFamilyIndex,
+        .queueIndex       = 0,
+    }, &output->asyncComputeQueue);
+
+    REN_VK_SET_OBJ_DEBUG_NAME(output, output->asyncComputeQueue, "%.computeQueue", FMT(output->appName));
 
     VmaAllocatorCreateFlags vmaFlags = 0
                                 | VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT

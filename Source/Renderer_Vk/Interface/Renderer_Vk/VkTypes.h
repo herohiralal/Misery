@@ -26,10 +26,18 @@ REN_EXTEND_OBJECT(Vk, Instance,
     VkInstance       instance;
     VkPhysicalDevice physicalDevice;
     VkDevice         device;
-    u32              gfxQueueFamilyIndex;
-    u32              presQueueFamilyIndex;
-    VkQueue          gfxQueue;
-    VkQueue          presQueue;
+
+    u32     gfxQueueFamilyIndex;
+    VkQueue gfxQueue;
+
+    u32     presQueueFamilyIndex;
+    VkQueue presQueue;
+
+    u32     dedicatedTransferQueueFamilyIndex;
+    VkQueue dedicatedTransferQueue;
+
+    u32     asyncComputeQueueFamilyIndex;
+    VkQueue asyncComputeQueue;
 
     b8 meshShadersSupported;
     b8 taskShadersSupported;
