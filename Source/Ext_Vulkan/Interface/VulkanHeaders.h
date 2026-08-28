@@ -2,13 +2,13 @@
 #include <__init.h>
 #include <ExtDeps_Platform.h>
 
-#ifndef REN_VK
+#ifndef GPU_VK
     // TODO: add MoltenVK framework linking to support iOS
-    #define REN_VK (MSR_WINDOWS || MSR_LINUX || MSR_ANDROID || MSR_OSX)
+    #define GPU_VK (MSR_WINDOWS || MSR_LINUX || MSR_ANDROID || MSR_OSX)
 #endif
 
 MSR_SUPPRESS_WARN
-#if REN_VK
+#if GPU_VK
     #if MSR_WINDOWS
         #define VK_USE_PLATFORM_WIN32_KHR
     #elif MSR_ANDROID

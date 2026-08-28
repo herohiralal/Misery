@@ -1,6 +1,6 @@
 #include <VulkanHeaders.h>
 
-#if REN_VK && !MSR_IOS && MSR_BUILD_DEPS
+#if GPU_VK && !MSR_IOS && MSR_BUILD_DEPS
     #define VOLK_IMPLEMENTATION 1
     #include <VulkanLoader.h>
     #undef VOLK_IMPLEMENTATION

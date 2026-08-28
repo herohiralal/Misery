@@ -1,12 +1,12 @@
 #pragma once
 #include <__init.h>
 
-#ifndef REN_MTL
-    #define REN_MTL (MSR_APPLE)
+#ifndef GPU_MTL
+    #define GPU_MTL (MSR_APPLE)
 #endif
 
 MSR_SUPPRESS_WARN
-#if REN_MTL
+#if GPU_MTL
     #include <Metal/Metal.h>
     #include <MetalKit/MetalKit.h>
 

@@ -2,12 +2,12 @@
 #include <__init.h>
 #include <ExtDeps_Platform.h>
 
-#ifndef REN_DX12
-    #define REN_DX12 (MSR_WINDOWS || MSR_XSERIES)
+#ifndef GPU_DX12
+    #define GPU_DX12 (MSR_WINDOWS || MSR_XSERIES)
 #endif
 
 MSR_SUPPRESS_WARN
-#if REN_DX12
+#if GPU_DX12
     #ifndef __cplusplus
         #define CINTERFACE
         #define COBJMACROS

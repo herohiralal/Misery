@@ -1,11 +1,11 @@
 #include <Core/Core.h>
 #include <Platform/Platform.h>
-#include <Renderer/Renderer.h>
+#include <GPU/GPU.h>
 
 static struct
 {
     b8 die;
-    REN_SwapChain swapChain;
+    GPU_SwapChain swapChain;
 } G_RenderData;
 
 static struct
@@ -25,10 +25,10 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
 
     TIM_Value prevTime = TIM_GetCurrentMonotonicTime();
 
-    REN_Instance ren = {0};
-    REN_Create(&ren, (REN_InstanceCfg)
+    GPU_Instance ren = {0};
+    GPU_Create(&ren, (GPU_InstanceCfg)
     {
-        .type = REN_GfxAPIType_Vk,
+        .type = GPU_GfxAPIType_Vk,
         .appHandle = app,
         .appName = UTF8STR("Misery"),
     });
@@ -46,7 +46,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
         .acceptDropFiles = true,
     });
 
-    REN_CreateSwapChainFromWindow(&G_RenderData.swapChain, &ren, wnd.handle, (REN_SwapChainCfg)
+    GPU_CreateSwapChainFromWindow(&G_RenderData.swapChain, &ren, wnd.handle, (GPU_SwapChainCfg)
     {
         .width = startWidth, .height = startHeight,
         .vSync = true,
@@ -111,7 +111,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
                 isize resizeIt = 0; INP_WindowResizeData resizeData;
                 while (INP_IterateResizeEvts(&resizeIt, &resizeData))
                 {
-                    REN_ReconfigureSwapChain(&G_RenderData.swapChain, (REN_SwapChainCfg)
+                    GPU_ReconfigureSwapChain(&G_RenderData.swapChain, (GPU_SwapChainCfg)
                     {
                         .width = resizeData.sizeX,
                         .height = resizeData.sizeY,
@@ -120,7 +120,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
                     });
                 }
 
-                REN_IterateSwapChain(&G_RenderData.swapChain);
+                GPU_IterateSwapChain(&G_RenderData.swapChain);
             }
             SYN_SignalEvent(&G_ThreadSync.renThrWake);
         }
@@ -128,10 +128,10 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
         utf8str rhi;
         switch (ren.base.type)
         {
-            case REN_GfxAPIType_Vk:   rhi = UTF8STR("VK");   break;
-            case REN_GfxAPIType_Dx12: rhi = UTF8STR("DX12"); break;
-            case REN_GfxAPIType_Mtl:  rhi = UTF8STR("MTL");  break;
-            case REN_GfxAPIType_Null: rhi = UTF8STR("NULL"); break;
+            case GPU_GfxAPIType_Vk:   rhi = UTF8STR("VK");   break;
+            case GPU_GfxAPIType_Dx12: rhi = UTF8STR("DX12"); break;
+            case GPU_GfxAPIType_Mtl:  rhi = UTF8STR("MTL");  break;
+            case GPU_GfxAPIType_Null: rhi = UTF8STR("NULL"); break;
             default:                  rhi = UTF8STR("UKWN"); break;
         }
         WND_Rename(&wnd, FMT_TPrintf("Misery | % | cpu %ms", FMT(rhi), FMT_F32(dt * 1000, 2, 2)));
@@ -141,9 +141,9 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
     SYN_WaitEvent(&G_ThreadSync.renThrDone);
     THR_Join(renderThread);
 
-    REN_DestroySwapChain(&G_RenderData.swapChain);
+    GPU_DestroySwapChain(&G_RenderData.swapChain);
     WND_Destroy(&wnd);
-    REN_Destroy(&ren);
+    GPU_Destroy(&ren);
 
     SYN_DestroyEvent(&G_ThreadSync.renThrDone);
     SYN_DestroyEvent(&G_ThreadSync.renThrWake);
@@ -164,10 +164,10 @@ void RenderThread(rawptr data)
         if (G_RenderData.die)
             break;
 
-        REN_CmdBuffer* cmdBuf = REN_GetSwapChainCommandBuffer(&G_RenderData.swapChain, nil);
+        GPU_CmdBuffer* cmdBuf = GPU_GetSwapChainCommandBuffer(&G_RenderData.swapChain, nil);
         if (cmdBuf)
         {
-            REN_PresentSwapChain(&G_RenderData.swapChain);
+            GPU_PresentSwapChain(&G_RenderData.swapChain);
         }
 
         SYN_SignalEvent(&G_ThreadSync.renThrDone);
