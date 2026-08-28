@@ -8,9 +8,9 @@ namespace GPU_ShaderCompiler
     {
         Internals() = default;
 
-        Internals(PRC_Library library)
+        Internals(PRC_Library inLib)
             : init(true)
-            , library(library)
+            , library(inLib)
         {
             createInstance = (DxcCreateInstanceProc) PRC_GetLibraryFunction(
                 library, UTF8STR("DxcCreateInstance"));
