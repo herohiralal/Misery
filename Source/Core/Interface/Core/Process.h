@@ -88,4 +88,27 @@ b8 PRC_Wait(PRC_Handle* process, i32* outExitCode OPT_ARG);
  */
 b8 PRC_Kill(PRC_Handle* process);
 
+/**
+ * An opaque handle to a dynamically loaded library.
+ */
+typedef struct { rawptr handle; } PRC_Library;
+
+/**
+ * Loads a dynamic library from the given path.
+ * Returns a zero-value handle on failure or if the path is empty.
+ */
+PRC_Library PRC_LoadLibrary(FIL_Path path);
+
+/**
+ * Retrieves a function pointer from a loaded dynamic library by name.
+ * Returns nil if the library handle is nil, or if the string is empty.
+ * Returns nil if the symbol is not found.
+ */
+rawptr PRC_GetLibraryFunction(PRC_Library lib, utf8str name);
+
+/**
+ * Unloads a dynamic library and frees associated resources.
+ */
+void PRC_UnloadLibrary(PRC_Library lib);
+
 EXTERN_C_END

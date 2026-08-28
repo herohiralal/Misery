@@ -754,3 +754,73 @@ b8 PRC_Kill(PRC_Handle* process)
     *process = PRC_ToHandle(p);
     return success;
 }
+
+PRC_Library PRC_LoadLibrary(FIL_Path path)
+{
+    if (!FIL_Exists(path))
+        return (PRC_Library) {0};
+
+    cstring pathCStr = STR_CloneToCStr(path.path, MEM_temp);
+
+    rawptr handle = nil;
+    #if MSR_WINDOWS
+    {
+        handle = (rawptr) LoadLibraryA(pathCStr);
+    }
+    #elif MSR_UNIX
+    {
+        handle = dlopen(pathCStr, RTLD_NOW | RTLD_LOCAL);
+    }
+    #else
+    {
+        #error "unsupported platform"
+    }
+    #endif
+
+    return (PRC_Library) {.handle = handle};
+}
+
+rawptr PRC_GetLibraryFunction(PRC_Library lib, utf8str name)
+{
+    if (!name.data || !name.count || !lib.handle)
+        return nil;
+
+    cstring nameCStr = STR_CloneToCStr(name, MEM_temp);
+
+    rawptr funcPtr = nil;
+    #if MSR_WINDOWS
+    {
+        funcPtr = (rawptr) GetProcAddress((HMODULE) lib.handle, nameCStr);
+    }
+    #elif MSR_UNIX
+    {
+        funcPtr = dlsym(lib.handle, nameCStr);
+    }
+    #else
+    {
+        #error "unsupported platform"
+    }
+    #endif
+
+    return funcPtr;
+}
+
+void PRC_UnloadLibrary(PRC_Library lib)
+{
+    if (!lib.handle)
+        return;
+
+    #if MSR_WINDOWS
+    {
+        FreeLibrary((HMODULE) lib.handle);
+    }
+    #elif MSR_UNIX
+    {
+        dlclose(lib.handle);
+    }
+    #else
+    {
+        #error "unsupported platform"
+    }
+    #endif
+}
