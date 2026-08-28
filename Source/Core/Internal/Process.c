@@ -1,6 +1,39 @@
 #include "CorePrivate.h"
 #include "StreamPrivate.h"
 
+FIL_Path PRC_GetCurrentExecutablePath(MEM_Allocator allocator)
+{
+    #if MSR_WINDOWS
+    {
+        char buffer[MAX_PATH];
+
+        DWORD length = GetModuleFileNameA(nil, buffer, MAX_PATH);
+        if (length == 0 || length == MAX_PATH)
+            return (FIL_Path) {0};
+
+        utf8str pathStr = {.data = (u8*) buffer, .count = (isize) length};
+        return (FIL_Path) {.path = STR_Clone(pathStr, allocator)};
+    }
+    #elif MSR_LINUX
+    {
+        char buffer[PATH_MAX];
+
+        ssize_t length = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
+        if (length < 0)
+            return (FIL_Path) {0};
+
+        utf8str pathStr = {.data = (u8*) buffer, .count = (isize) length};
+        return (FIL_Path) {.path = STR_Clone(pathStr, allocator)};
+    }
+    #elif MSR_OSX || MSR_IOS
+    {
+        // _NSGetExecutablePath()
+    }
+    #else
+        #error "unimplemented"
+    #endif
+}
+
 MSR_NORETURN
 void PRC_Exit(i32 exitCode OPT_ARG)
 {

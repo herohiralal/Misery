@@ -5,6 +5,12 @@
 EXTERN_C_BEGIN
 
 /**
+ * Retrieves the path of the currently running executable.
+ * The returned path is allocated using the provided allocator.
+ */
+FIL_Path PRC_GetCurrentExecutablePath(MEM_Allocator);
+
+/**
  * Exits the current process immediately with the specified exit code.
  */
 MSR_NORETURN void PRC_Exit(i32 exitCode OPT_ARG);
