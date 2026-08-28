@@ -2,6 +2,7 @@
 #include <Core/Core.h>
 #include <Platform/Platform.h>
 #include <GPU_Base/GPU_Base.h>
+#include <GPU_ShaderCompiler/GPU_ShaderCompiler.h>
 
 EXTERN_C_BEGIN
 
@@ -74,17 +75,5 @@ GPU_CmdBuffer* GPU_GetSwapChainCommandBuffer(GPU_SwapChain* swapChain, u8* outIm
  * submit the current image for presenting.
  */
 void GPU_PresentSwapChain(GPU_SwapChain* swapChain);
-
-/**
- * THREAD_SAFE
- * Create a program stage from the given configuration.
- */
-b8 GPU_CreateProgramStage(GPU_ProgramStage* stage, GPU_ProgramStageCfg cfg);
-
-/**
- * THREAD_SAFE
- * Destroy the given program stage, freeing up associated resources.
- */
-void GPU_DestroyProgramStage(GPU_ProgramStage* stage);
 
 EXTERN_C_END
