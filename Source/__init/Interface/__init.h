@@ -462,6 +462,64 @@ typedef const char*         cstring;
     #error "Unknown architecture. Cannot define usize and isize."
 #endif
 
+#ifdef __cplusplus
+template<typename T>
+static constexpr T INTEGER_MAX_() { static_assert(false, "INTEGER_MAX is not defined for this type"); return T { }; }
+
+template<typename T>
+static constexpr T INTEGER_MIN_() { static_assert(false, "INTEGER_MIN is not defined for this type"); return T { }; }
+
+template<> static constexpr u8  INTEGER_MAX_<u8 >() { return U8_MAX;  }
+template<> static constexpr i8  INTEGER_MAX_<i8 >() { return I8_MAX;  }
+template<> static constexpr u16 INTEGER_MAX_<u16>() { return U16_MAX; }
+template<> static constexpr i16 INTEGER_MAX_<i16>() { return I16_MAX; }
+template<> static constexpr u32 INTEGER_MAX_<u32>() { return U32_MAX; }
+template<> static constexpr i32 INTEGER_MAX_<i32>() { return I32_MAX; }
+template<> static constexpr u64 INTEGER_MAX_<u64>() { return U64_MAX; }
+template<> static constexpr i64 INTEGER_MAX_<i64>() { return I64_MAX; }
+
+template<> static constexpr u8  INTEGER_MIN_<u8 >() { return U8_MIN;  }
+template<> static constexpr i8  INTEGER_MIN_<i8 >() { return I8_MIN;  }
+template<> static constexpr u16 INTEGER_MIN_<u16>() { return U16_MIN; }
+template<> static constexpr i16 INTEGER_MIN_<i16>() { return I16_MIN; }
+template<> static constexpr u32 INTEGER_MIN_<u32>() { return U32_MIN; }
+template<> static constexpr i32 INTEGER_MIN_<i32>() { return I32_MIN; }
+template<> static constexpr u64 INTEGER_MIN_<u64>() { return U64_MIN; }
+template<> static constexpr i64 INTEGER_MIN_<i64>() { return I64_MIN; }
+
+#define INTEGER_MAX(type) (INTEGER_MAX_<type>())
+#define INTEGER_MIN(type) (INTEGER_MIN_<type>())
+
+#else
+
+#define INTEGER_MAX(type) ( \
+    _Generic((type) 0, \
+        u8:  U8_MAX,  \
+        i8:  I8_MAX,  \
+        u16: U16_MAX, \
+        i16: I16_MAX, \
+        u32: U32_MAX, \
+        i32: I32_MAX, \
+        u64: U64_MAX, \
+        i64: I64_MAX  \
+    ) \
+)
+
+#define INTEGER_MIN(type) ( \
+    _Generic((type) 0, \
+        u8:  U8_MIN,  \
+        i8:  I8_MIN,  \
+        u16: U16_MIN, \
+        i16: I16_MIN, \
+        u32: U32_MIN, \
+        i32: I32_MIN, \
+        u64: U64_MIN, \
+        i64: I64_MIN  \
+    ) \
+)
+
+#endif
+
 static_assert(sizeof(b8)  == 1, " b8 must be 1 byte ");
 static_assert(sizeof(b32) == 4, "b32 must be 4 bytes");
 static_assert(sizeof(u8)  == 1, " u8 must be 1 byte ");
