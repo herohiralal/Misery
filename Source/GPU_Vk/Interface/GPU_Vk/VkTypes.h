@@ -96,5 +96,26 @@ GPU_EXTEND_OBJECT(Vk, SwapChain,
     } buffers;
 );
 
+GPU_EXTEND_OBJECT(Vk, Buffer,
+    const GPU_VkInstance* renderer;
+    usize                 size, align;
+    GPU_MemType           memType;
+    GPU_BufferUsage       usages;
+    VkBuffer              actual;
+    VmaAllocation         allocation;
+    void*                 mappedPtr;
+);
+
+GPU_EXTEND_OBJECT(Vk, Texture,
+    const GPU_VkInstance* renderer;
+    u16                   width, height;
+    GPU_MemType           memType;
+    GPU_TextureUsage      usages;
+    GPU_TextureFormat     format;
+    VkImage               actual;
+    VmaAllocation         allocation;
+    VkImageView           view;
+);
+
 EXTERN_C_END
 #endif

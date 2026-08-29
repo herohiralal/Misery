@@ -1,7 +1,6 @@
 #include "GPU_Vk/VkFns.h"
 #include "VkPrivate.h"
 
-MSR_SUPPRESS_WARN
 #if GPU_VK
 
 static void GPU_CreateVkSwapChain(GPU_VkSwapChain* swapChain, GPU_SwapChainCfg cfg)
@@ -644,4 +643,3 @@ void GPU_VkPresentSwapChain(GPU_SwapChain* baseSwapChain)
 }
 
 #endif
-MSR_UNSUPPRESS_WARN

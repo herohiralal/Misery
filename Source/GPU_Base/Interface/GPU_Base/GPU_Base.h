@@ -53,24 +53,6 @@ GPU_DECLARE_OBJECT(Instance, 176);
 GPU_DECLARE_OBJECT(CmdBuffer, 40);
 
 /**
- * Defines the available texture formats.
- */
-typedef u8 GPU_TextureFormat;
-enum GPU_TextureFormats
-{
-    GPU_TexFmt_Unknown,
-    GPU_TexFmt_D32_Float,
-    GPU_TexFmt_B8G8R8A8_UNorm,
-    GPU_TexFmt_R8G8B8A8_UNorm,
-    GPU_TexFmt_R16G16B16A16_UNorm,
-};
-
-/**
- * Represents a texture resource that can be used on the GPU.
- */
-GPU_DECLARE_OBJECT(Texture, 1);
-
-/**
  * Configuration structure for swap-chain creation.
  */
 typedef struct
@@ -96,6 +78,135 @@ typedef struct
  * synchronization between rendering and presentation.
  */
 GPU_DECLARE_OBJECT(SwapChain, 656);
+
+/**
+ * Defines the available memory types for GPU resources.
+ */
+typedef u8 GPU_MemType;
+enum GPU_MemTypes
+{
+    GPU_MemType_Default,  // device-local when available (UMA/ReBAR), host-writable (write-combined)
+    GPU_MemType_GPU,      // device-local                           , not host-visible at all
+    GPU_MemType_Readback, // device-local                           , host-readable (cached)
+};
+
+/**
+ * Defines the available usages for a buffer resource.
+ */
+typedef u8 GPU_BufferUsage;
+enum GPU_BufferUsages
+{
+    // read-only buffer in shaders, typically used for material properties, camera data, etc.
+    // VK -> uniform buffer, DX12 -> constant buffer
+    GPU_BufUsg_BasicRead = 1 << 0,
+
+    // read-write buffer in shaders, typically used for a compute shader's state
+    // VK -> storage buffer, DX12 -> UAV buffer
+    GPU_BufUsg_BasicReadWrite = 1 << 1,
+
+    // special buffer used for indirect draw/dispatch calls, typically used for GPU-driven rendering
+    // VK -> indirect buffer, DX12 -> indirect buffer
+    GPU_BufUsg_IndirectDrawArgs = 1 << 2,
+
+    // read-only buffer in shaders for a mesh's vertex data
+    // DX12/VK -> vertex buffer
+    GPU_BufUsg_Vertices = 1 << 3,
+
+    // read-only buffer in shaders for a mesh's index data
+    // DX12/VK -> index buffer
+    GPU_BufUsg_Indices = 1 << 4,
+
+    // buffer that can be used as a source for a transfer operation, typically used for CPU-side uploads to GPU resources
+    // VK -> transfer src, DX12 -> copy src
+    GPU_BufUsg_CopySrc = 1 << 5,
+
+    // buffer that can be used as a destination for a transfer operation
+    // VK -> transfer dst, DX12 -> copy dst
+    GPU_BufUsg_CopyDst = 1 << 6,
+
+    GPU_BufUsg_MAX, // invalid sentinel value for bounds checking
+};
+
+static_assert(GPU_BufUsg_MAX < INTEGER_MAX(GPU_BufferUsage), "GPU_BufferUsage must be able to fit all GPU_BufferUsages");
+
+/**
+ * Configuration structure for buffer creation.
+ */
+typedef struct
+{
+    GPU_MemType     memType;
+    GPU_BufferUsage usages;
+    usize           size, align;
+    utf8str         objectName;
+} GPU_BufferCfg;
+
+/**
+ * Represents a buffer resource that can be used on the GPU.
+ */
+GPU_DECLARE_OBJECT(Buffer, 64);
+
+typedef u8 GPU_TextureUsage;
+enum GPU_TextureUsages
+{
+    // read-only texture in shaders, typically used for different texture maps
+    // VK -> sampled image, DX12 -> SRV texture
+    GPU_TexUsg_BasicRead = 1 << 0,
+
+    // read-write texture in shaders, typically used for a compute shader's state
+    // VK -> storage image, DX12 -> UAV texture
+    GPU_TexUsg_BasicReadWrite = 1 << 1,
+
+    // texture that can be rendered to, typically used for a swap-chain or offscreen render target
+    // VK -> color attachment, DX12 -> RTV texture
+    GPU_TexUsg_DrawOutput = 1 << 2,
+
+    // texture that can be presented to the screen, typically used for a swap-chain
+    // VK -> presentable image, DX12 -> swap-chain texture
+    GPU_TexUsg_Present = 1 << 3,
+
+    // texture that can be used as a depth-stencil attachment, typically used for a depth buffer
+    // VK -> depth-stencil, DX12 -> DSV texture
+    GPU_TexUsg_DepthStencil = 1 << 4,
+
+    // texture that can be used as a source for a transfer operation, typically used for CPU-side uploads to GPU resources
+    // VK -> transfer src, DX12 -> copy src
+    GPU_TexUsg_CopySrc = 1 << 5,
+
+    // texture that can be used as a destination for a transfer operation
+    // VK -> transfer dst, DX12 -> copy dst
+    GPU_TexUsg_CopyDst = 1 << 6,
+
+    GPU_TexUsg_MAX, // invalid sentinel value for bounds checking
+};
+
+static_assert(GPU_TexUsg_MAX < INTEGER_MAX(GPU_TextureUsage), "GPU_TextureUsage must be able to fit all GPU_TextureUsages");
+
+/**
+ * Defines the available texture formats.
+ */
+typedef u8 GPU_TextureFormat;
+enum GPU_TextureFormats
+{
+    GPU_TexFmt_Unknown,
+    GPU_TexFmt_D32_Float,
+    GPU_TexFmt_B8G8R8A8_UNorm,
+    GPU_TexFmt_R8G8B8A8_UNorm,
+    GPU_TexFmt_R16G16B16A16_UNorm,
+};
+
+/**
+ * Represents a texture resource that can be used on the GPU.
+ */
+GPU_DECLARE_OBJECT(Texture, 64);
+
+typedef struct
+{
+    u16               width, height;
+    GPU_MemType       memType;
+    GPU_TextureUsage  usages;
+    GPU_TextureFormat format;
+    utf8str           objectName;
+} GPU_TextureCfg;
 
 /**
  * Defines the types of program stages that are supported by this library.

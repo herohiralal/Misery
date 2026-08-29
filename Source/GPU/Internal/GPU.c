@@ -89,4 +89,22 @@ void GPU_PresentSwapChain(GPU_SwapChain* swapChain)
     );
 }
 
+void GPU_CreateBuffer(GPU_Buffer* outBuffer, GPU_Instance* renderer, GPU_BufferCfg cfg)
+{
+    RHI_FN_SWITCH_VOID(
+        renderer ? renderer->base.type : GPU_GfxAPIType_Null,
+        CreateBuffer,
+        outBuffer, renderer, cfg
+    );
+}
+
+void GPU_DestroyBuffer(GPU_Buffer* buffer)
+{
+    RHI_FN_SWITCH_VOID(
+        buffer ? buffer->base.type : GPU_GfxAPIType_Null,
+        DestroyBuffer,
+        buffer
+    );
+}
+
 #include "DynamicDispatchSwitchboard/Disable.h"

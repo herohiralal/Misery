@@ -76,4 +76,16 @@ GPU_CmdBuffer* GPU_GetSwapChainCommandBuffer(GPU_SwapChain* swapChain, u8* outIm
  */
 void GPU_PresentSwapChain(GPU_SwapChain* swapChain);
 
+/**
+ * THREAD_SAFE
+ * Create a buffer resource with the given configuration.
+ */
+void GPU_CreateBuffer(GPU_Buffer* outBuffer, GPU_Instance* renderer, GPU_BufferCfg cfg);
+
+/**
+ * THREAD_SAFE
+ * Destroy the given buffer resource, freeing up associated resources.
+ */
+void GPU_DestroyBuffer(GPU_Buffer* buffer);
+
 EXTERN_C_END

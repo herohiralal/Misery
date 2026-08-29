@@ -7,7 +7,7 @@ template <>
 struct GPU_TNoValueOnFailure<true> { static constexpr const b8 VALUE = true; };
 
 #define GPU_OBJ_SIZE_CHECK_NAME(gfxApi, name) \
-    ______________________________________________________##gfxApi##IF_YOU_SEE_THIS_LINE_IN_YOUR_COMPILER_ERROR_THEN_SET_THE_PADDING_OF_TYPE_____GPU_##name##_____TO_
+    ________________________##gfxApi##______##IF_YOU_SEE_THIS_LINE_IN_YOUR_COMPILER_ERROR_THEN_SET_THE_PADDING_OF_TYPE_____GPU_##name##_____TO_
 
 #define GPU_OBJ_SIZE_CHECK(gfxApi, name) \
     static_assert( \
