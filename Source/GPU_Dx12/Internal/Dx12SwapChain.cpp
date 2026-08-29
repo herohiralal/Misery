@@ -54,7 +54,7 @@ static void GPU_CreateDx12SwapChain(GPU_Dx12SwapChain* swapChain, GPU_SwapChainC
     else
     {
         // swapchain & its properties
-        swapChain->swapChainFormat = DXGI_FORMAT_B8G8R8A8_UNORM; // this is the most widely supported swapchain format, even though we render to a different format internally
+        swapChain->swapChainFormat = DXGI_FORMAT_B8G8R8A8_UNORM; // most widely supported
 
         DXGI_SWAP_CHAIN_DESC1 swapChainDesc =
         {
@@ -111,7 +111,7 @@ static void GPU_CreateDx12SwapChain(GPU_Dx12SwapChain* swapChain, GPU_SwapChainC
             GPU_DX12_CHECKED_CALL(swapChain->actual->GetBuffer((u32) i, IID_PPV_ARGS(&backBuffer)));
 
             swapChain->renderer->device->CreateRenderTargetView(backBuffer, nil, rtvHandle);
-            rtvHandle.ptr += swapChain->swapchainRtvDescriptorSize;
+            rtvHandle.ptr += swapChain->renderer->descriptorStrides.rtv;
 
             swapChain->buffers.swapchainRTs[i] = backBuffer;
 
@@ -154,8 +154,6 @@ void GPU_Dx12CreateSwapChainFromWindow(GPU_SwapChain* outBaseSwapChain, GPU_Inst
             .Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
         };
         GPU_DX12_CHECKED_CALL(renderer->device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&(output->swapchainRtvHeap))));
-
-        output->swapchainRtvDescriptorSize = renderer->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     }
 
     // fence evt
@@ -357,7 +355,7 @@ void GPU_Dx12PresentSwapChain(GPU_SwapChain* baseSwapChain)
     // TODO: REMOVEEEE - bind swapchain to output
     {
         D3D12_CPU_DESCRIPTOR_HANDLE rtv = swapChain->swapchainRtvHeap->GetCPUDescriptorHandleForHeapStart();
-        rtv.ptr += swapChain->curFrame * swapChain->swapchainRtvDescriptorSize;
+        rtv.ptr += swapChain->curFrame * swapChain->renderer->descriptorStrides.rtv;
 
         cmdBuffer->cmdList->OMSetRenderTargets(1, &rtv, FALSE, nil);
 

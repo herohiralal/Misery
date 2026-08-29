@@ -133,6 +133,14 @@ void GPU_Dx12Create(GPU_Instance* outBaseInstance, GPU_InstanceCfg cfg)
         };
         GPU_DX12_CHECKED_CALL(D3D12MA::CreateAllocator(&allocDesc, &(output->d3d12maAllocator)));
     }
+
+    // heap sizes
+    {
+        output->descriptorStrides.cbvSrvUav = (u32) output->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        output->descriptorStrides.sampler   = (u32) output->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+        output->descriptorStrides.rtv       = (u32) output->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+        output->descriptorStrides.dsv       = (u32) output->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+    }
 }
 
 void GPU_Dx12WaitTillIdle(GPU_Instance* baseRenderer)

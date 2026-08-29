@@ -27,6 +27,11 @@ GPU_EXTEND_OBJECT(Dx12, Instance,
 
     DxAllocator d3d12maAllocator;
 
+    struct
+    {
+        u32 cbvSrvUav, sampler, rtv, dsv;
+    } descriptorStrides;
+
     utf8str appName;
 
     struct
@@ -55,15 +60,14 @@ GPU_EXTEND_OBJECT(Dx12, SwapChain,
     b8 vSync;
 
     // syncing
-    b8          allowCmdBuff;
-    u32         curFrame;
+    b8           allowCmdBuff;
+    u32          curFrame;
     ID3D12Fence* fence;
-    u64         nextFenceValue;
-    HANDLE      fenceEvt;
+    u64          nextFenceValue;
+    HANDLE       fenceEvt;
 
-    // image views
+    // resources
     ID3D12DescriptorHeap* swapchainRtvHeap;
-    u32                   swapchainRtvDescriptorSize;
 
     struct
     {
@@ -71,6 +75,31 @@ GPU_EXTEND_OBJECT(Dx12, SwapChain,
         u64               frameFenceValues[GPU_FRAMES_IN_FLIGHT];
         ID3D12ResourcePtr swapchainRTs[GPU_FRAMES_IN_FLIGHT];
     } buffers;
+);
+
+GPU_EXTEND_OBJECT(Dx12, Buffer,
+    const GPU_Dx12Instance* renderer;
+    usize                   size, align;
+    GPU_MemType             memType;
+    GPU_BufferUsage         usages;
+    ID3D12Resource*         actual;
+    void*                   mappedPtr;
+);
+
+GPU_EXTEND_OBJECT(Dx12, Texture,
+    const GPU_Dx12Instance* renderer;
+    u16                     width, height;
+    GPU_MemType             memType;
+    GPU_TextureUsage        usages;
+    GPU_TextureFormat       format;
+    ID3D12Resource*         actual;
+
+    struct
+    {
+        b8 valid;
+        D3D12_CPU_DESCRIPTOR_HANDLE cpu;
+        D3D12_GPU_DESCRIPTOR_HANDLE gpu;
+    } asRT;
 );
 
 EXTERN_C_END
