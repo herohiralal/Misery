@@ -78,8 +78,7 @@ GPU_EXTEND_OBJECT(Vk, SwapChain,
     u32 acquiredSwpchImgIdx;
     u64 frameIdx, nextSignalValue;
     VkSemaphore timelineSem;
-    List_(VkImage) imgs;
-    List_(VkImageView) imgViews;
+    List_(GPU_Texture) textures;
     List_(VkSemaphore) renderCompleteSems;
 
     struct
@@ -90,8 +89,7 @@ GPU_EXTEND_OBJECT(Vk, SwapChain,
 
     struct
     {
-        VkImage imgs[4];
-        VkImageView imgViews[4];
+        GPU_Texture textures[4];
         VkSemaphore renderCompleteSems[4];
     } buffers;
 );

@@ -99,7 +99,7 @@ void GPU_VkDestroyBuffer(GPU_Buffer* baseBuffer)
         return;
 
     MSR_ASSERT(buffer->actual && "buffer->actual must not be null");
-    MSR_ASSERT(buffer->allocation && "buffer->allocation must not be null");
+    MSR_ASSERT(buffer->allocation && "buffer->allocation must not be null; are you trying to destroy a swap-chain buffer?");
 
     vmaDestroyBuffer(buffer->renderer->vmaAllocator, buffer->actual, buffer->allocation);
 

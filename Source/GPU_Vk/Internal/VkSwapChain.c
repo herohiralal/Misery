@@ -141,46 +141,46 @@ static void GPU_DestroyVkSwapChain(GPU_VkSwapChain* swapChain)
 
 static void GPU_CreateVkSwapChainImagesAndViews(GPU_VkSwapChain* swapChain, GPU_SwapChainCfg cfg)
 {
-    // get swapchain images
+    // get swapchain images & their views
     {
         u32 imgCount = 0;
         GPU_VK_CHECKED_CALL(vkGetSwapchainImagesKHR(swapChain->renderer->device, swapChain->actual, &imgCount, nil));
-        swapChain->imgs = (List_(VkImage))
+        Slice_(VkImage) imgsTemp = COL_NewSlice(VkImage, imgCount, true, MEM_temp);
+        GPU_VK_CHECKED_CALL(vkGetSwapchainImagesKHR(swapChain->renderer->device, swapChain->actual, &imgCount, imgsTemp.data));
+
+        swapChain->textures = (List_(GPU_Texture))
         {
-            .data      = &(swapChain->buffers.imgs[0]),
-            .count     = (isize) imgCount,
-            .capacity  = sizeof(swapChain->buffers.imgs) / sizeof(swapChain->buffers.imgs[0]),
+            .data      = &(swapChain->buffers.textures[0]),
+            .count     = imgsTemp.count,
+            .capacity  = sizeof(swapChain->buffers.textures) / sizeof(swapChain->buffers.textures[0]),
             .allocator = (MEM_Allocator) {0},
         };
-        MSR_ASSERT(swapChain->imgs.count <= swapChain->imgs.capacity &&
+
+        MSR_ASSERT(swapChain->textures.count <= swapChain->textures.capacity &&
             "Swap-chain image count cannot be greater than the pre-allocated fixed-size buffer");
 
-        GPU_VK_CHECKED_CALL(vkGetSwapchainImagesKHR(swapChain->renderer->device, swapChain->actual, &imgCount, swapChain->imgs.data));
-
-        for (isize i = 0; i < swapChain->imgs.count; i++)
+        for (isize i = 0; i < imgsTemp.count; i++)
         {
-            GPU_VK_SET_OBJ_DEBUG_NAME(swapChain->renderer, swapChain->imgs.data[i], "%.swpch_%.img_%",
+            GPU_Texture* baseTex = &(swapChain->textures.data[i]);
+            baseTex->base.type = GPU_GfxAPIType_Vk;
+
+            GPU_VkTexture* tex = GPU_ToVkTexture(baseTex);
+            tex->renderer = swapChain->renderer;
+            tex->width = swapChain->surfaceSize.width;
+            tex->height = swapChain->surfaceSize.height;
+            tex->memType = GPU_MemType_GPU;
+            tex->usages = GPU_TexUsg_DrawOutput | GPU_TexUsg_Present;
+            tex->format = GPU_MakeVkTextureFormat(swapChain->surfaceFmt.format);
+            tex->actual = imgsTemp.data[i];
+            tex->allocation = VK_NULL_HANDLE;
+
+            GPU_VK_SET_OBJ_DEBUG_NAME(swapChain->renderer, imgsTemp.data[i], "%.swpch_%.img_%",
                 FMT(swapChain->renderer->appName), FMT(cfg.objectName), FMT(i));
-        }
-    }
 
-    {
-        swapChain->imgViews = (List_(VkImageView))
-        {
-            .data      = &(swapChain->buffers.imgViews[0]),
-            .count     = swapChain->imgs.count,
-            .capacity  = sizeof(swapChain->buffers.imgViews) / sizeof(swapChain->buffers.imgViews[0]),
-            .allocator = (MEM_Allocator) {0},
-        };
-        MSR_ASSERT(swapChain->imgViews.count <= swapChain->imgViews.capacity &&
-            "Swap-chain image view count cannot be greater than the pre-allocated fixed-size buffer");
-
-        for (isize i = 0; i < swapChain->imgs.count; i++)
-        {
             GPU_VK_CHECKED_CALL(vkCreateImageView(swapChain->renderer->device, &(VkImageViewCreateInfo)
             {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                .image = swapChain->imgs.data[i],
+                .image = imgsTemp.data[i],
                 .viewType = VK_IMAGE_VIEW_TYPE_2D,
                 .format = swapChain->surfaceFmt.format,
                 .components = {
@@ -196,9 +196,9 @@ static void GPU_CreateVkSwapChainImagesAndViews(GPU_VkSwapChain* swapChain, GPU_
                     .baseArrayLayer = 0,
                     .layerCount = VK_REMAINING_ARRAY_LAYERS,
                 },
-            }, nil, &(swapChain->imgViews.data[i])));
+            }, nil, &(tex->view)));
 
-            GPU_VK_SET_OBJ_DEBUG_NAME(swapChain->renderer, swapChain->imgViews.data[i], "%.swpch_%.imgview_%",
+            GPU_VK_SET_OBJ_DEBUG_NAME(swapChain->renderer, tex->view, "%.swpch_%.imgview_%",
                 FMT(swapChain->renderer->appName), FMT(cfg.objectName), FMT(i));
         }
     }
@@ -207,14 +207,14 @@ static void GPU_CreateVkSwapChainImagesAndViews(GPU_VkSwapChain* swapChain, GPU_
         swapChain->renderCompleteSems = (List_(VkSemaphore))
         {
             .data      = &(swapChain->buffers.renderCompleteSems[0]),
-            .count     = swapChain->imgs.count,
+            .count     = swapChain->textures.count,
             .capacity  = sizeof(swapChain->buffers.renderCompleteSems) / sizeof(swapChain->buffers.renderCompleteSems[0]),
             .allocator = (MEM_Allocator) {0},
         };
         MSR_ASSERT(swapChain->renderCompleteSems.count <= swapChain->renderCompleteSems.capacity &&
             "Swap-chain render complete semaphore count cannot be greater than the pre-allocated fixed-size buffer");
 
-        for (isize i = 0; i < swapChain->imgs.count; i++)
+        for (isize i = 0; i < swapChain->textures.count; i++)
         {
             GPU_VK_CHECKED_CALL(vkCreateSemaphore(swapChain->renderer->device, &(VkSemaphoreCreateInfo)
             {
@@ -236,18 +236,17 @@ static void GPU_DestroyVkSwapChainImagesAndViews(GPU_VkSwapChain* swapChain)
     }
     COL_ClearList(&(swapChain->renderCompleteSems));
 
-    for (isize i = 0; i < swapChain->imgViews.count; i++)
+    for (isize i = 0; i < swapChain->textures.count; i++)
     {
-        vkDestroyImageView(swapChain->renderer->device, swapChain->imgViews.data[i], nil);
-        swapChain->imgViews.data[i] = VK_NULL_HANDLE;
-    }
-    COL_ClearList(&(swapChain->imgViews));
+        GPU_VkTexture* tex = GPU_ToVkTexture(&(swapChain->textures.data[i]));
+        MSR_ASSERT(tex && "tex must not be null");
 
-    for (isize i = 0; i < swapChain->imgs.count; i++)
-    {
-        swapChain->imgs.data[i] = VK_NULL_HANDLE;
+        vkDestroyImageView(swapChain->renderer->device, tex->view, nil);
+        tex->view = VK_NULL_HANDLE;
+
+        tex->actual = VK_NULL_HANDLE;
     }
-    COL_ClearList(&(swapChain->imgs));
+    COL_ClearList(&(swapChain->textures));
 }
 
 void GPU_VkCreateSwapChainFromWindow(GPU_SwapChain* outBaseSwapChain, GPU_Instance* baseRenderer, WND_Handle windowHandle, GPU_SwapChainCfg cfg)
@@ -519,7 +518,7 @@ void GPU_VkPresentSwapChain(GPU_SwapChain* baseSwapChain)
                 .dstAccessMask       = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
                 .oldLayout           = VK_IMAGE_LAYOUT_UNDEFINED,
                 .newLayout           = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                .image               = swapChain->imgs.data[swapChain->acquiredSwpchImgIdx],
+                .image               = GPU_ToVkTexture(&(swapChain->textures.data[swapChain->acquiredSwpchImgIdx]))->actual,
                 .subresourceRange    =
                 {
                     .aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -543,7 +542,7 @@ void GPU_VkPresentSwapChain(GPU_SwapChain* baseSwapChain)
             .pColorAttachments = &(VkRenderingAttachmentInfo)
             {
                 .sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                .imageView   = swapChain->imgViews.data[swapChain->acquiredSwpchImgIdx],
+                .imageView   = GPU_ToVkTexture(&(swapChain->textures.data[swapChain->acquiredSwpchImgIdx]))->view,
                 .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                 .loadOp      = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .storeOp     = VK_ATTACHMENT_STORE_OP_STORE,
@@ -572,7 +571,7 @@ void GPU_VkPresentSwapChain(GPU_SwapChain* baseSwapChain)
                 .dstAccessMask       = VK_ACCESS_2_NONE,
                 .oldLayout           = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                 .newLayout           = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                .image               = swapChain->imgs.data[swapChain->acquiredSwpchImgIdx],
+                .image               = GPU_ToVkTexture(&(swapChain->textures.data[swapChain->acquiredSwpchImgIdx]))->actual,
                 .subresourceRange    =
                 {
                     .aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
