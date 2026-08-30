@@ -124,6 +124,7 @@ static void GPU_CreateDx12SwapChain(GPU_Dx12SwapChain* swapChain, GPU_SwapChainC
             MSR_ASSERT(tex && "tex must not be null");
             *tex = GPU_Dx12Texture
             {
+                .base     = {.type = GPU_GfxAPIType_Dx12},
                 .renderer = swapChain->renderer,
                 .width    = (u16) swapChain->swapChainWidth,
                 .height   = (u16) swapChain->swapChainHeight,
