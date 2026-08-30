@@ -134,12 +134,17 @@ void GPU_Dx12Create(GPU_Instance* outBaseInstance, GPU_InstanceCfg cfg)
         GPU_DX12_CHECKED_CALL(D3D12MA::CreateAllocator(&allocDesc, &(output->d3d12maAllocator)));
     }
 
-    // heap sizes
+    // heaps
     {
-        output->descriptorStrides.cbvSrvUav = (u32) output->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        output->descriptorStrides.sampler   = (u32) output->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
-        output->descriptorStrides.rtv       = (u32) output->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-        output->descriptorStrides.dsv       = (u32) output->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+        auto& heapSizes = cfg.apiSpecific.dx12.globalDescriptorHeapSizes;
+
+        if (!heapSizes.cbvSrvUav) heapSizes.cbvSrvUav = 16384;
+        if (!heapSizes.rtv)       heapSizes.rtv       = 512;
+        if (!heapSizes.dsv)       heapSizes.dsv       = 128;
+
+        output->heaps.cbvSrvUav = GPU_CreateDx12DescriptorHeap(output->device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, heapSizes.cbvSrvUav, MEM_main);
+        output->heaps.rtv       = GPU_CreateDx12DescriptorHeap(output->device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV,         heapSizes.rtv,       MEM_main);
+        output->heaps.dsv       = GPU_CreateDx12DescriptorHeap(output->device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV,         heapSizes.dsv,       MEM_main);
     }
 }
 
@@ -172,6 +177,10 @@ void GPU_Dx12Destroy(GPU_Instance* baseRenderer)
     if (!renderer) return;
 
     GPU_Dx12WaitTillIdle(baseRenderer);
+
+    GPU_DestroyDx12DescriptorHeap(renderer->heaps.dsv);
+    GPU_DestroyDx12DescriptorHeap(renderer->heaps.rtv);
+    GPU_DestroyDx12DescriptorHeap(renderer->heaps.cbvSrvUav);
 
     if (renderer->d3d12maAllocator)
     {

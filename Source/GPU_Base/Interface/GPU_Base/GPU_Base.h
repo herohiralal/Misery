@@ -17,10 +17,11 @@ enum GPU_GfxAPITypes
 };
 
 // declare an rhi-unspecific gpu object (with opaque padding)
-#define GPU_DECLARE_OBJECT(name, extensionPadding) \
+#define GPU_DECLARE_OBJECT(name, extensionPadding, ...) \
     typedef struct GPU_##name##_Base \
     { \
         GPU_GfxAPIType type; \
+        __VA_ARGS__ \
     } GPU_##name##_Base; \
     typedef struct GPU_##name \
     { \
@@ -37,6 +38,27 @@ typedef struct
     GPU_GfxAPIType type;
     APP_Handle appHandle;
     utf8str appName;
+
+    union
+    {
+        struct
+        {
+            usize _padding;
+        } vk;
+
+        struct
+        {
+            struct
+            {
+                u32 cbvSrvUav, rtv, dsv;
+            } globalDescriptorHeapSizes;
+        } dx12;
+
+        struct
+        {
+            usize _padding;
+        } mtl;
+    } apiSpecific;
 } GPU_InstanceCfg;
 
 /**
@@ -77,7 +99,7 @@ typedef struct
  * A swap-chain manages the images that are presented to the screen, and handles
  * synchronization between rendering and presentation.
  */
-GPU_DECLARE_OBJECT(SwapChain, 656);
+GPU_DECLARE_OBJECT(SwapChain, 2048);
 
 /**
  * Defines the available memory types for GPU resources.
@@ -197,7 +219,7 @@ enum GPU_TextureFormats
 /**
  * Represents a texture resource that can be used on the GPU.
  */
-GPU_DECLARE_OBJECT(Texture, 64);
+GPU_DECLARE_OBJECT(Texture, 256);
 
 typedef struct
 {

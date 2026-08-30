@@ -16,5 +16,8 @@ void GPU_Dx12IterateSwapChain(GPU_SwapChain*);
 GPU_CmdBuffer* GPU_Dx12GetSwapChainCommandBuffer(GPU_SwapChain*, u8* outImgIdx);
 void GPU_Dx12PresentSwapChain(GPU_SwapChain*);
 
+void GPU_Dx12CreateBuffer(GPU_Buffer* outBaseBuffer, GPU_Instance* baseRenderer, GPU_BufferCfg cfg);
+void GPU_Dx12DestroyBuffer(GPU_Buffer* baseBuffer);
+
 EXTERN_C_END
 #endif

@@ -26,13 +26,21 @@ static void GPU_Dx12GetSwapChainDimensions(GPU_Dx12SwapChain* swapChain, GPU_Swa
 
 static void GPU_DestroyDx12SwapChainImages(GPU_Dx12SwapChain* swapChain)
 {
-    for (isize i = 0; i < GPU_FRAMES_IN_FLIGHT; i++)
+    for (isize i = GPU_FRAMES_IN_FLIGHT - 1; i >= 0; i--)
     {
-        if (swapChain->buffers.swapchainRTs[i])
+        GPU_Texture* baseTex = &(swapChain->buffers.imgs[i]);
+        GPU_Dx12Texture* tex = GPU_ToDx12Texture(baseTex);
+        MSR_ASSERT(tex && tex->asRtv.valid && "tex must be valid");
+
+        GPU_DestroyDx12DescriptorData(&(tex->asRtv.data));
+
+        if (tex->actual)
         {
-            swapChain->buffers.swapchainRTs[i]->Release();
-            swapChain->buffers.swapchainRTs[i] = nil;
+            tex->actual->Release();
+            tex->actual = nil;
         }
+
+        *tex = GPU_Dx12Texture { };
     }
 }
 
@@ -104,16 +112,33 @@ static void GPU_CreateDx12SwapChain(GPU_Dx12SwapChain* swapChain, GPU_SwapChainC
 
     // initialise new render targets
     {
-        D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = swapChain->swapchainRtvHeap->GetCPUDescriptorHandleForHeapStart();
         for (isize i = 0; i < GPU_FRAMES_IN_FLIGHT; i++)
         {
             ID3D12Resource* backBuffer = nil;
             GPU_DX12_CHECKED_CALL(swapChain->actual->GetBuffer((u32) i, IID_PPV_ARGS(&backBuffer)));
 
-            swapChain->renderer->device->CreateRenderTargetView(backBuffer, nil, rtvHandle);
-            rtvHandle.ptr += swapChain->renderer->descriptorStrides.rtv;
+            GPU_Texture* baseTex = &(swapChain->buffers.imgs[i]);
+            baseTex->base.type = GPU_GfxAPIType_Dx12;
 
-            swapChain->buffers.swapchainRTs[i] = backBuffer;
+            GPU_Dx12Texture* tex = GPU_ToDx12Texture(baseTex);
+            MSR_ASSERT(tex && "tex must not be null");
+            *tex = GPU_Dx12Texture
+            {
+                .renderer = swapChain->renderer,
+                .width    = (u16) swapChain->swapChainWidth,
+                .height   = (u16) swapChain->swapChainHeight,
+                .memType  = GPU_MemType_GPU,
+                .usages   = GPU_TexUsg_DrawOutput | GPU_TexUsg_Present,
+                .format   = GPU_MakeDx12TextureFormat(swapChain->swapChainFormat),
+                .actual   = backBuffer,
+                .asRtv    =
+                {
+                    .valid = true,
+                    .data  = GPU_AllocateFromDx12DescriptorHeap(swapChain->renderer->heaps.rtv),
+                },
+            };
+
+            swapChain->renderer->device->CreateRenderTargetView(backBuffer, nil, tex->asRtv.data.cpuHandle);
 
             GPU_DX12_SET_OBJ_DEBUG_NAME(
                 swapChain->renderer,
@@ -144,17 +169,6 @@ void GPU_Dx12CreateSwapChainFromWindow(GPU_SwapChain* outBaseSwapChain, GPU_Inst
 
     output->renderer = renderer;
     output->window = windowHandle;
-
-    // swapchain rtv heap
-    {
-        D3D12_DESCRIPTOR_HEAP_DESC heapDesc =
-        {
-            .Type           = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-            .NumDescriptors = GPU_FRAMES_IN_FLIGHT,
-            .Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
-        };
-        GPU_DX12_CHECKED_CALL(renderer->device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&(output->swapchainRtvHeap))));
-    }
 
     // fence evt
     {
@@ -252,12 +266,6 @@ void GPU_Dx12DestroySwapChain(GPU_SwapChain* baseSwapChain)
         swapChain->fenceEvt = nil;
     }
 
-    if (swapChain->swapchainRtvHeap)
-    {
-        swapChain->swapchainRtvHeap->Release();
-        swapChain->swapchainRtvHeap = nil;
-    }
-
     if (swapChain->actual)
     {
         swapChain->actual->Release();
@@ -328,6 +336,9 @@ void GPU_Dx12PresentSwapChain(GPU_SwapChain* baseSwapChain)
     // TODO: REMOVEEEE - command buffer reset
     GPU_DX12_CHECKED_CALL(cmdBuffer->cmdList->Reset(cmdBuffer->cmdAllocator, nil));
 
+    GPU_Dx12Texture* curImg = GPU_ToDx12Texture(&(swapChain->buffers.imgs[swapChain->curFrame]));
+    MSR_ASSERT(curImg && curImg->actual && "curImg must be valid");
+
     // TODO: REMOVEEEE - swapchain: common -> rt
     {
         D3D12_TEXTURE_BARRIER textureBarrier =
@@ -338,7 +349,7 @@ void GPU_Dx12PresentSwapChain(GPU_SwapChain* baseSwapChain)
             .AccessAfter = D3D12_BARRIER_ACCESS_RENDER_TARGET,
             .LayoutBefore = D3D12_BARRIER_LAYOUT_COMMON,
             .LayoutAfter = D3D12_BARRIER_LAYOUT_RENDER_TARGET,
-            .pResource = swapChain->buffers.swapchainRTs[swapChain->curFrame],
+            .pResource = curImg->actual,
             .Subresources = CD3DX12_BARRIER_SUBRESOURCE_RANGE(U32_MAX),
         };
 
@@ -354,13 +365,10 @@ void GPU_Dx12PresentSwapChain(GPU_SwapChain* baseSwapChain)
 
     // TODO: REMOVEEEE - bind swapchain to output
     {
-        D3D12_CPU_DESCRIPTOR_HANDLE rtv = swapChain->swapchainRtvHeap->GetCPUDescriptorHandleForHeapStart();
-        rtv.ptr += swapChain->curFrame * swapChain->renderer->descriptorStrides.rtv;
-
-        cmdBuffer->cmdList->OMSetRenderTargets(1, &rtv, FALSE, nil);
+        cmdBuffer->cmdList->OMSetRenderTargets(1, &(curImg->asRtv.data.cpuHandle), FALSE, nil);
 
         float clearColor[4] = {1.0f, 0.0f, 1.0f, 1.0f};
-        cmdBuffer->cmdList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
+        cmdBuffer->cmdList->ClearRenderTargetView(curImg->asRtv.data.cpuHandle, clearColor, 0, nullptr);
     }
 
     // TODO: REMOVEEEE - swapchain: rt -> present
@@ -373,7 +381,7 @@ void GPU_Dx12PresentSwapChain(GPU_SwapChain* baseSwapChain)
             .AccessAfter = D3D12_BARRIER_ACCESS_NO_ACCESS,
             .LayoutBefore = D3D12_BARRIER_LAYOUT_RENDER_TARGET,
             .LayoutAfter = D3D12_BARRIER_LAYOUT_PRESENT,
-            .pResource = swapChain->buffers.swapchainRTs[swapChain->curFrame],
+            .pResource = curImg->actual,
             .Subresources = CD3DX12_BARRIER_SUBRESOURCE_RANGE(U32_MAX),
         };
 

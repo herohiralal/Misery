@@ -21,5 +21,10 @@ void GPU_SetDx12ObjDebugName(const GPU_Dx12Instance* renderer, ID3D12Object* obj
 DXGI_FORMAT GPU_BreakDx12TextureFormat(GPU_TextureFormat);
 GPU_TextureFormat GPU_MakeDx12TextureFormat(DXGI_FORMAT);
 
+GPU_Dx12DescriptorHeap* GPU_CreateDx12DescriptorHeap(ID3D12Device2* device, D3D12_DESCRIPTOR_HEAP_TYPE heapType, u32 capacity, MEM_Allocator allocator);
+void GPU_DestroyDx12DescriptorHeap(GPU_Dx12DescriptorHeap* heap);
+GPU_Dx12DescriptorData GPU_AllocateFromDx12DescriptorHeap(GPU_Dx12DescriptorHeap* heap);
+void GPU_DestroyDx12DescriptorData(GPU_Dx12DescriptorData* data);
+
 EXTERN_C_END
 #endif

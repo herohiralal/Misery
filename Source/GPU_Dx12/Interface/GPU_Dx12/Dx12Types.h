@@ -14,6 +14,36 @@ typedef class D3D12MA::Allocator* DxAllocator;
 typedef struct DxAllocator* DxAllocator;
 #endif
 
+// doing this to simplify the whole descriptor api
+// this heap can be used to allocate descriptors from
+//
+// note that this is only for shader non-visible heaps
+// in case of cbv/srv/uav
+//
+// because of how bindless works, we'll need a staging
+// heap for shader-visible descriptors, but that will be
+// handled separately, and not under this object
+typedef struct
+{
+    SYN_Mutex                  mutex;
+    MEM_Allocator              allocator;
+    ID3D12DescriptorHeap*      actual;
+    D3D12_DESCRIPTOR_HEAP_TYPE type;
+    u32                        capacity;
+    u32                        count;
+    u32                        stride;
+    List_(u32)                 holes;
+} GPU_Dx12DescriptorHeap;
+
+// this is the data returned when allocating a descriptor
+// from the heap
+typedef struct
+{
+    GPU_Dx12DescriptorHeap*     owningHeap;
+    u32                         index;
+    D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
+} GPU_Dx12DescriptorData;
+
 GPU_EXTEND_OBJECT(Dx12, Instance,
     APP_Handle appHandle;
 
@@ -29,8 +59,10 @@ GPU_EXTEND_OBJECT(Dx12, Instance,
 
     struct
     {
-        u32 cbvSrvUav, sampler, rtv, dsv;
-    } descriptorStrides;
+        GPU_Dx12DescriptorHeap* cbvSrvUav;
+        GPU_Dx12DescriptorHeap* rtv;
+        GPU_Dx12DescriptorHeap* dsv;
+    } heaps;
 
     utf8str appName;
 
@@ -66,14 +98,11 @@ GPU_EXTEND_OBJECT(Dx12, SwapChain,
     u64          nextFenceValue;
     HANDLE       fenceEvt;
 
-    // resources
-    ID3D12DescriptorHeap* swapchainRtvHeap;
-
     struct
     {
         GPU_CmdBuffer     cmdBuffers[GPU_FRAMES_IN_FLIGHT];
         u64               frameFenceValues[GPU_FRAMES_IN_FLIGHT];
-        ID3D12ResourcePtr swapchainRTs[GPU_FRAMES_IN_FLIGHT];
+        GPU_Texture       imgs[GPU_FRAMES_IN_FLIGHT];
     } buffers;
 );
 
@@ -97,9 +126,20 @@ GPU_EXTEND_OBJECT(Dx12, Texture,
     struct
     {
         b8 valid;
-        D3D12_CPU_DESCRIPTOR_HANDLE cpu;
-        D3D12_GPU_DESCRIPTOR_HANDLE gpu;
-    } asRT;
+        GPU_Dx12DescriptorData data;
+    } asSrvUav;
+
+    struct
+    {
+        b8 valid;
+        GPU_Dx12DescriptorData data;
+    } asRtv;
+
+    struct
+    {
+        b8 valid;
+        GPU_Dx12DescriptorData data;
+    } asDsv;
 );
 
 EXTERN_C_END
