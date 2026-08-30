@@ -10,6 +10,12 @@ EXTERN_C_BEGIN
 typedef struct THR_Handle { usize handle; } THR_Handle;
 
 /**
+ * An opaque identifier for a thread.
+ * Do not compare directly, use `THR_Eq` instead.
+ */
+typedef struct THR_Id { usize id; } THR_Id;
+
+/**
  * Checks if the handle to a thread is valid.
  */
 b8 THR_IsValid(THR_Handle handle);
@@ -18,6 +24,16 @@ b8 THR_IsValid(THR_Handle handle);
  * Gets a handle to the current thread.
  */
 THR_Handle THR_GetCurrent(void);
+
+/**
+ * Gets the identifier of a thread.
+ */
+THR_Id THR_GetId(THR_Handle handle);
+
+/**
+ * Checks if two thread identifiers are equal.
+ */
+b8 THR_Eq(THR_Id a, THR_Id b);
 
 /**
  * Gets the name of a thread.

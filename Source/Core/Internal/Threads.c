@@ -35,6 +35,24 @@ THR_Handle THR_GetCurrent(void)
     #endif
 }
 
+THR_Id THR_GetId(THR_Handle handle)
+{
+    #if MSR_WINDOWS
+        return (THR_Id) { .id = (usize) GetThreadId((HANDLE) handle.handle) };
+    #elif MSR_UNIX
+        return (THR_Id) { .id = (usize) pthread_self() };
+    #endif
+}
+
+b8 THR_Eq(THR_Id a, THR_Id b)
+{
+    #if MSR_WINDOWS
+        return a.id == b.id;
+    #elif MSR_UNIX
+        return pthread_equal((pthread_t) a.id, (pthread_t) b.id);
+    #endif
+}
+
 utf8str THR_GetName(THR_Handle handle, MEM_Allocator allocator)
 {
     #if MSR_WINDOWS
