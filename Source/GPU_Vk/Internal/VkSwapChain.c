@@ -169,7 +169,7 @@ static void GPU_CreateVkSwapChainImagesAndViews(GPU_VkSwapChain* swapChain, GPU_
             tex->width = swapChain->surfaceSize.width;
             tex->height = swapChain->surfaceSize.height;
             tex->memType = GPU_MemType_GPU;
-            tex->usages = GPU_TexUsg_DrawOutput | GPU_TexUsg_Present;
+            tex->usages = GPU_TexUsg_DrawTarget | GPU_TexUsg_Present;
             tex->format = GPU_MakeVkTextureFormat(swapChain->surfaceFmt.format);
             tex->actual = imgsTemp.data[i];
             tex->allocation = VK_NULL_HANDLE;
@@ -352,6 +352,7 @@ void GPU_VkCreateSwapChainFromWindow(GPU_SwapChain* outBaseSwapChain, GPU_Instan
     GPU_CreateVkSwapChainImagesAndViews(output, cfg);
 
     output->frameIdx = 0;
+    output->curFrame = 0;
     output->nextSignalValue = GPU_FRAMES_IN_FLIGHT + 1;
 
     {
@@ -443,6 +444,7 @@ void GPU_VkIterateSwapChain(GPU_SwapChain* baseSwapChain)
 
     // update swapchain indexing
     swapChain->frameIdx++;
+    swapChain->curFrame = (u8) (swapChain->frameIdx % GPU_FRAMES_IN_FLIGHT);
     swapChain->nextSignalValue++;
 
     // wait on the timeline semaphore
@@ -460,7 +462,7 @@ void GPU_VkIterateSwapChain(GPU_SwapChain* baseSwapChain)
         swapChain->renderer->device,
         swapChain->actual,
         U64_MAX, // timeout
-        swapChain->perFrameInFlight[swapChain->frameIdx % GPU_FRAMES_IN_FLIGHT].imgAcquiredSem,
+        swapChain->perFrameInFlight[swapChain->curFrame].imgAcquiredSem,
         VK_NULL_HANDLE, // fence
         &(swapChain->acquiredSwpchImgIdx)
     ));
@@ -477,12 +479,11 @@ GPU_CmdBuffer* GPU_VkGetSwapChainCommandBuffer(GPU_SwapChain* baseSwapChain, u8*
     GPU_VkSwapChain* swapChain = GPU_ToVkSwapChain(baseSwapChain);
     if (!swapChain->allowCmdBuff) return nil;
 
-    u64 frameInFlightIdx = swapChain->frameIdx % GPU_FRAMES_IN_FLIGHT;
-    GPU_CmdBuffer* baseCmdBuf = &(swapChain->perFrameInFlight[frameInFlightIdx].cmdBuffer);
+    GPU_CmdBuffer* baseCmdBuf = &(swapChain->perFrameInFlight[swapChain->curFrame].cmdBuffer);
     GPU_VkCmdBuffer* cmdBuf = GPU_ToVkCmdBuffer(baseCmdBuf);
     GPU_VK_CHECKED_CALL(vkResetCommandPool(swapChain->renderer->device, cmdBuf->cmdPool, 0));
 
-    *outImgIdx = (u8) frameInFlightIdx;
+    *outImgIdx = swapChain->curFrame;
     return baseCmdBuf;
 }
 
@@ -493,8 +494,7 @@ void GPU_VkPresentSwapChain(GPU_SwapChain* baseSwapChain)
 
     if (!swapChain->allowCmdBuff) return;
 
-    u64 frameInFlightIdx = swapChain->frameIdx % GPU_FRAMES_IN_FLIGHT;
-    GPU_VkCmdBuffer* cmdBuf = GPU_ToVkCmdBuffer(&(swapChain->perFrameInFlight[frameInFlightIdx].cmdBuffer));
+    GPU_VkCmdBuffer* cmdBuf = GPU_ToVkCmdBuffer(&(swapChain->perFrameInFlight[swapChain->curFrame].cmdBuffer));
 
     // TODO: REMOVEEEE - command buffer begin
     GPU_VK_CHECKED_CALL(vkBeginCommandBuffer(cmdBuf->cmdBuffer, &(VkCommandBufferBeginInfo)
@@ -598,7 +598,7 @@ void GPU_VkPresentSwapChain(GPU_SwapChain* baseSwapChain)
         {
             { // wait to acquire the image
                 .sType     = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-                .semaphore = swapChain->perFrameInFlight[frameInFlightIdx].imgAcquiredSem,
+                .semaphore = swapChain->perFrameInFlight[swapChain->curFrame].imgAcquiredSem,
                 .stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
             },
         },

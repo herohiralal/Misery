@@ -129,7 +129,7 @@ static void GPU_CreateDx12SwapChain(GPU_Dx12SwapChain* swapChain, GPU_SwapChainC
                 .width    = (u16) swapChain->swapChainWidth,
                 .height   = (u16) swapChain->swapChainHeight,
                 .memType  = GPU_MemType_GPU,
-                .usages   = GPU_TexUsg_DrawOutput | GPU_TexUsg_Present,
+                .usages   = GPU_TexUsg_DrawTarget | GPU_TexUsg_Present,
                 .format   = GPU_MakeDx12TextureFormat(swapChain->swapChainFormat),
                 .actual   = backBuffer,
                 .asRtv    =
