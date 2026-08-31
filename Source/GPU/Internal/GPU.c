@@ -107,4 +107,22 @@ void GPU_DeleteBuffer(GPU_Buffer* buffer)
     );
 }
 
+void GPU_CmdBuffBegin(GPU_CmdBuffer* cb)
+{
+    RHI_FN_SWITCH_VOID(
+        cb ? cb->base.type : GPU_GfxAPIType_Null,
+        CmdBuffBegin,
+        cb
+    );
+}
+
+void GPU_CmdBuffEnd(GPU_CmdBuffer* cb)
+{
+    RHI_FN_SWITCH_VOID(
+        cb ? cb->base.type : GPU_GfxAPIType_Null,
+        CmdBuffEnd,
+        cb
+    );
+}
+
 #include "DynamicDispatchSwitchboard/Disable.h"

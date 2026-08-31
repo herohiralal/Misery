@@ -22,5 +22,8 @@ void GPU_Dx12DeleteBuffer(GPU_Buffer* baseBuffer);
 void GPU_Dx12NewTexture(GPU_Texture* outBaseTexture, GPU_Instance* baseRenderer, GPU_TextureCfg cfg);
 void GPU_Dx12DeleteTexture(GPU_Texture* baseTexture);
 
+void GPU_Dx12CmdBuffBegin(GPU_CmdBuffer*);
+void GPU_Dx12CmdBuffEnd(GPU_CmdBuffer*);
+
 EXTERN_C_END
 #endif

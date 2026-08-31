@@ -6,6 +6,8 @@
 
 EXTERN_C_BEGIN
 
+// Entry point =================================================================================================================
+
 /**
  * MAIN_THREAD
  * Creates a renderer instance based on the provided configuration.
@@ -26,6 +28,8 @@ void GPU_Destroy(GPU_Instance* renderer);
  * Warning! - it won't necessarily account for work that gets submitted after this on other threads.
  */
 void GPU_WaitTillIdle(GPU_Instance* renderer);
+
+// Swap-chain ==================================================================================================================
 
 /**
  * MAIN_THREAD
@@ -76,6 +80,8 @@ GPU_CmdBuffer* GPU_GetSwapChainCommandBuffer(GPU_SwapChain* swapChain, u8* outIm
  */
 void GPU_PresentSwapChain(GPU_SwapChain* swapChain);
 
+// Buffers =====================================================================================================================
+
 /**
  * THREAD_SAFE
  * Create a buffer resource with the given configuration.
@@ -88,6 +94,8 @@ void GPU_NewBuffer(GPU_Buffer* outBuffer, GPU_Instance* renderer, GPU_BufferCfg 
  */
 void GPU_DeleteBuffer(GPU_Buffer* buffer);
 
+// Textures ====================================================================================================================
+
 /**
  * THREAD_SAFE
  * Create a texture resource with the given configuration.
@@ -99,5 +107,25 @@ void GPU_NewTexture(GPU_Texture* outTexture, GPU_Instance* renderer, GPU_Texture
  * Destroy the given texture resource, freeing up associated resources.
  */
 void GPU_DeleteTexture(GPU_Texture* texture);
+
+// Command-buffers =============================================================================================================
+
+/**
+ * OWNED_THREAD
+ * Set the command buffer to "recording" state, so that commands can be recorded into it.
+ * This is typically called at the start of a frame, before any commands are recorded.
+ *
+ * The thread ownership semantics work like this - the thread that acquired the command buffer
+ * is the only one that can queue commands into it, and the only one that can submit it for
+ * execution.
+ */
+void GPU_CmdBuffBegin(GPU_CmdBuffer* cb);
+
+/**
+ * OWNED_THREAD
+ * Set the command buffer to "executable" state, so that it can be submitted for execution.
+ * This is typically called at the end of a frame, after all commands have been recorded.
+ */
+void GPU_CmdBuffEnd(GPU_CmdBuffer* cb);
 
 EXTERN_C_END

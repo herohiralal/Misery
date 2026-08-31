@@ -483,6 +483,12 @@ GPU_CmdBuffer* GPU_VkGetSwapChainCommandBuffer(GPU_SwapChain* baseSwapChain, u8*
     GPU_VkCmdBuffer* cmdBuf = GPU_ToVkCmdBuffer(baseCmdBuf);
     GPU_VK_CHECKED_CALL(vkResetCommandPool(swapChain->renderer->device, cmdBuf->cmdPool, 0));
 
+    GPU_VK_CHECKED_CALL(vkBeginCommandBuffer(cmdBuf->cmdBuffer, &(VkCommandBufferBeginInfo)
+    {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    }));
+
     *outImgIdx = swapChain->curFrame;
     return baseCmdBuf;
 }
@@ -495,13 +501,6 @@ void GPU_VkPresentSwapChain(GPU_SwapChain* baseSwapChain)
     if (!swapChain->allowCmdBuff) return;
 
     GPU_VkCmdBuffer* cmdBuf = GPU_ToVkCmdBuffer(&(swapChain->perFrameInFlight[swapChain->curFrame].cmdBuffer));
-
-    // TODO: REMOVEEEE - command buffer begin
-    GPU_VK_CHECKED_CALL(vkBeginCommandBuffer(cmdBuf->cmdBuffer, &(VkCommandBufferBeginInfo)
-    {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-    }));
 
     // TODO: REMOVEEEE - swapchain: undefined -> rt
     vkCmdPipelineBarrier2(cmdBuf->cmdBuffer, &(VkDependencyInfo)
