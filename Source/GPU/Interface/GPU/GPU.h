@@ -132,6 +132,6 @@ void GPU_CmdBuffEnd(GPU_CmdBuffer* cb);
  * OWNED_THREAD
  * Insert a barrier into the command buffer, to synchronize access to resources across different stages.
  */
-void GPU_CmdBuffBarrier(GPU_BarrierCfg cfg);
+void GPU_CmdBuffBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg);
 
 EXTERN_C_END

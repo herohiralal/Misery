@@ -45,4 +45,68 @@ GPU_TextureFormat GPU_MakeVkTextureFormat(VkFormat fmt)
     return GPU_TexFmt_Unknown;
 }
 
+VkImageLayout GPU_BreakVkTextureLayout(GPU_TextureLayout layout)
+{
+    switch ((enum GPU_TextureLayouts) layout)
+    {
+        case GPU_TexLyt_Unknown:            return VK_IMAGE_LAYOUT_UNDEFINED;
+        case GPU_TexLyt_Generic:            return VK_IMAGE_LAYOUT_GENERAL;
+        case GPU_TexLyt_BasicRead:          return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        case GPU_TexLyt_BasicReadWrite:     return VK_IMAGE_LAYOUT_GENERAL;
+        case GPU_TexLyt_DrawTarget:         return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        case GPU_TexLyt_Present:            return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        case GPU_TexLyt_DepthStencilRead:   return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+        case GPU_TexLyt_DepthStencilWrite:  return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        case GPU_TexLyt_CopySrc:            return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        case GPU_TexLyt_CopyDst:            return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        case GPU_TexLyt_ShadingRateSrc:     return VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR;
+        case GPU_TexLyt_MAX:                MSR_ASSERT(false && "Invalid GPU_TextureLayout value"); break;
+    }
+
+    return VK_IMAGE_LAYOUT_UNDEFINED;
+}
+
+VkPipelineStageFlags2 GPU_BreakVkBarrierStage(GPU_BarrierStage stages)
+{
+    if (stages == GPU_BarStg_None)
+        return VK_PIPELINE_STAGE_2_NONE;
+
+    VkPipelineStageFlags2 stage = 0;
+    if (stages & GPU_BarStg_IndexInput)     stage |= VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT;
+    if (stages & GPU_BarStg_VertexPgmStg)   stage |= VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT | VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
+    if (stages & GPU_BarStg_FragmentPgmStg) stage |= VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+    if (stages & GPU_BarStg_DepthStencil)   stage |= VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+    if (stages & GPU_BarStg_DrawTarget)     stage |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    if (stages & GPU_BarStg_ComputePgmStg)  stage |= VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+    if (stages & GPU_BarStg_Copy)           stage |= VK_PIPELINE_STAGE_2_COPY_BIT | VK_PIPELINE_STAGE_2_BLIT_BIT;
+    if (stages & GPU_BarStg_Clear)          stage |= VK_PIPELINE_STAGE_2_CLEAR_BIT;
+    if (stages & GPU_BarStg_Resolve)        stage |= VK_PIPELINE_STAGE_2_RESOLVE_BIT;
+    if (stages & GPU_BarStg_IndirectDraw)   stage |= VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+
+    return stage;
+}
+
+VkAccessFlags2 GPU_BreakVkBarrierAccess(GPU_BarrierAccess accesses)
+{
+    if (accesses == GPU_BarAcc_None)
+        return VK_ACCESS_2_NONE;
+
+    VkAccessFlags2 access = 0;
+    if (accesses & GPU_BarAcs_Common)            access |= VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
+    if (accesses & GPU_BarAcs_VertexBuffer)      access |= VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT;
+    if (accesses & GPU_BarAcs_IndexBuffer)       access |= VK_ACCESS_2_INDEX_READ_BIT;
+    if (accesses & GPU_BarAcs_BasicBufferRead)   access |= VK_ACCESS_2_UNIFORM_READ_BIT;
+    if (accesses & GPU_BarAcs_BasicTextureRead)  access |= VK_ACCESS_2_SHADER_SAMPLED_READ_BIT;
+    if (accesses & GPU_BarAcs_BasicReadWrite)    access |= VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+    if (accesses & GPU_BarAcs_DrawTarget)        access |= VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+    if (accesses & GPU_BarAcs_DepthStencilRead)  access |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+    if (accesses & GPU_BarAcs_DepthStencilWrite) access |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    if (accesses & GPU_BarAcs_CopySrc)           access |= VK_ACCESS_2_TRANSFER_READ_BIT;
+    if (accesses & GPU_BarAcs_CopyDst)           access |= VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    if (accesses & GPU_BarAcs_ShadingRateSrc)    access |= VK_ACCESS_2_FRAGMENT_SHADING_RATE_ATTACHMENT_READ_BIT_KHR;
+    if (accesses & GPU_BarAcs_IndirectDrawArgs)  access |= VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+
+    return access;
+}
+
 #endif

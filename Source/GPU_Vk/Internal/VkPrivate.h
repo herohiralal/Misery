@@ -163,6 +163,9 @@ void GPU_SetVkObjDebugName(const GPU_VkInstance* renderer, void* obj, VkObjectTy
 
 VkFormat GPU_BreakVkTextureFormat(GPU_TextureFormat);
 GPU_TextureFormat GPU_MakeVkTextureFormat(VkFormat);
+VkImageLayout GPU_BreakVkTextureLayout(GPU_TextureLayout);
+VkPipelineStageFlags2 GPU_BreakVkBarrierStage(GPU_BarrierStage);
+VkAccessFlags2 GPU_BreakVkBarrierAccess(GPU_BarrierAccess);
 
 EXTERN_C_END
 #endif

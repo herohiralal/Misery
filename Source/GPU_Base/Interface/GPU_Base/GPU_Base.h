@@ -276,7 +276,7 @@ enum GPU_TextureLayouts
 
     // depth-stencil layout (read-only)
     // VK -> VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
-    // DX12 -> D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_READ_ONLY
+    // DX12 -> D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_READ
     GPU_TexLyt_DepthStencilRead,
 
     // depth-stencil layout (write-only)
@@ -356,7 +356,7 @@ enum GPU_BarrierStages
     GPU_BarStg_VertexPgmStg = 1 << 2,
 
     // fragment stage execution
-    // VK -> VK_PIPELINE_STAGE_2_FRAGMENT_SHADER
+    // VK -> VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT
     // DX12 -> D3D12_BARRIER_SYNC_PIXEL_SHADING
     GPU_BarStg_FragmentPgmStg = 1 << 3,
 
@@ -455,7 +455,7 @@ enum GPU_BarrierAccesses
     // reading a basic read-only buffer
     // VK -> VK_ACCESS_2_UNIFORM_READ_BIT
     // DX12 -> D3D12_BARRIER_ACCESS_CONSTANT_BUFFER
-    GPU_BarAcs_BasicReadBuffer = 1 << 3,
+    GPU_BarAcs_BasicBufferRead = 1 << 3,
 
     // reading a basic read-only texture
     // VK -> VK_ACCESS_2_SHADER_SAMPLED_READ_BIT
@@ -499,7 +499,7 @@ enum GPU_BarrierAccesses
 
     // reading the indirect draw/dispatch arguments
     // VK -> VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT
-    // DX12 -> D3D12_BARRIER_ACCESS_INDIRECT_COMMAND_ARGS
+    // DX12 -> D3D12_BARRIER_ACCESS_INDIRECT_ARGUMENT
     GPU_BarAcs_IndirectDrawArgs = 1 << 12,
 
     GPU_BarAcc_MAX,
@@ -551,8 +551,10 @@ typedef struct
     GPU_SyncScopeCfg  src, dst;
     GPU_Texture*      texture;
     GPU_TextureLayout srcLayout, dstLayout;
+    #if 0 // uncomment when we need to support subresource barriers
     u8                baseMipLvl, mipLvlCount;
     u16               baseArrayLayer, arrayLayerCount;
+    #endif
 } GPU_TextureBarrierCfg;
 
 COL_DECLARE_FOR(GPU_TextureBarrierCfg);

@@ -24,6 +24,7 @@ void GPU_Dx12DeleteTexture(GPU_Texture*);
 
 void GPU_Dx12CmdBuffBegin(GPU_CmdBuffer*);
 void GPU_Dx12CmdBuffEnd(GPU_CmdBuffer*);
+void GPU_Dx12CmdBuffBarrier(GPU_CmdBuffer*, GPU_BarrierCfg);
 
 EXTERN_C_END
 #endif

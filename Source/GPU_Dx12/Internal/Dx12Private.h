@@ -20,6 +20,9 @@ void GPU_SetDx12ObjDebugName(const GPU_Dx12Instance* renderer, ID3D12Object* obj
 
 DXGI_FORMAT GPU_BreakDx12TextureFormat(GPU_TextureFormat);
 GPU_TextureFormat GPU_MakeDx12TextureFormat(DXGI_FORMAT);
+D3D12_BARRIER_LAYOUT GPU_BreakDx12TextureLayout(GPU_TextureLayout);
+D3D12_BARRIER_SYNC GPU_BreakDx12BarrierStage(GPU_BarrierStage);
+D3D12_BARRIER_ACCESS GPU_BreakDx12BarrierAccess(GPU_BarrierAccess);
 
 GPU_Dx12DescriptorHeap* GPU_CreateDx12DescriptorHeap(ID3D12Device2* device, D3D12_DESCRIPTOR_HEAP_TYPE heapType, u32 capacity, MEM_Allocator allocator);
 void GPU_DestroyDx12DescriptorHeap(GPU_Dx12DescriptorHeap* heap);

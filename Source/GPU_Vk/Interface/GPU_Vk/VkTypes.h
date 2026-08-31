@@ -19,6 +19,9 @@ COL_DECLARE_FOR(VkPresentModeKHR);
 COL_DECLARE_FOR(VkFence);
 COL_DECLARE_FOR(VkSemaphore);
 COL_DECLARE_FOR(VmaAllocation);
+COL_DECLARE_FOR(VkMemoryBarrier2);
+COL_DECLARE_FOR(VkBufferMemoryBarrier2);
+COL_DECLARE_FOR(VkImageMemoryBarrier2);
 
 GPU_EXTEND_OBJECT(Vk, Instance,
     APP_Handle    appHandle;
