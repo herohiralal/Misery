@@ -51,8 +51,8 @@ VkImageLayout GPU_BreakVkTextureLayout(GPU_TextureLayout layout)
     {
         case GPU_TexLyt_Unknown:            return VK_IMAGE_LAYOUT_UNDEFINED;
         case GPU_TexLyt_Generic:            return VK_IMAGE_LAYOUT_GENERAL;
-        case GPU_TexLyt_BasicRead:          return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        case GPU_TexLyt_BasicReadWrite:     return VK_IMAGE_LAYOUT_GENERAL;
+        case GPU_TexLyt_ReadOnly:           return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        case GPU_TexLyt_ReadWrite:          return VK_IMAGE_LAYOUT_GENERAL;
         case GPU_TexLyt_DrawTarget:         return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         case GPU_TexLyt_Present:            return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
         case GPU_TexLyt_DepthStencilRead:   return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
@@ -95,9 +95,10 @@ VkAccessFlags2 GPU_BreakVkBarrierAccess(GPU_BarrierAccess accesses)
     if (accesses & GPU_BarAcs_Common)            access |= VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
     if (accesses & GPU_BarAcs_VertexBuffer)      access |= VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT;
     if (accesses & GPU_BarAcs_IndexBuffer)       access |= VK_ACCESS_2_INDEX_READ_BIT;
-    if (accesses & GPU_BarAcs_BasicBufferRead)   access |= VK_ACCESS_2_UNIFORM_READ_BIT;
-    if (accesses & GPU_BarAcs_BasicTextureRead)  access |= VK_ACCESS_2_SHADER_SAMPLED_READ_BIT;
-    if (accesses & GPU_BarAcs_BasicReadWrite)    access |= VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+    if (accesses & GPU_BarAcs_ReadROBuffer)      access |= VK_ACCESS_2_UNIFORM_READ_BIT;
+    if (accesses & GPU_BarAcs_ReadROTexture)     access |= VK_ACCESS_2_SHADER_SAMPLED_READ_BIT;
+    if (accesses & GPU_BarAcs_ReadRWResource)    access |= VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+    if (accesses & GPU_BarAcs_WriteRWResource)   access |= VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
     if (accesses & GPU_BarAcs_DrawTarget)        access |= VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
     if (accesses & GPU_BarAcs_DepthStencilRead)  access |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
     if (accesses & GPU_BarAcs_DepthStencilWrite) access |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;

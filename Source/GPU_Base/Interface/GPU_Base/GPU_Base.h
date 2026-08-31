@@ -150,11 +150,11 @@ enum GPU_BufferUsages
 {
     // read-only buffer in shaders, typically used for material properties, camera data, etc.
     // VK -> uniform buffer, DX12 -> constant buffer
-    GPU_BufUsg_BasicRead = 1 << 0,
+    GPU_BufUsg_ReadOnly = 1 << 0,
 
     // read-write buffer in shaders, typically used for a compute shader's state
     // VK -> storage buffer, DX12 -> UAV buffer
-    GPU_BufUsg_BasicReadWrite = 1 << 1,
+    GPU_BufUsg_ReadWrite = 1 << 1,
 
     // special buffer used for indirect draw/dispatch calls, typically used for GPU-driven rendering
     // VK -> indirect buffer, DX12 -> indirect buffer
@@ -205,11 +205,11 @@ enum GPU_TextureUsages
 {
     // read-only texture in shaders, typically used for different texture maps
     // VK -> sampled image, DX12 -> SRV texture
-    GPU_TexUsg_BasicRead = 1 << 0,
+    GPU_TexUsg_ReadOnly = 1 << 0,
 
     // read-write texture in shaders, typically used for a compute shader's state
     // VK -> storage image, DX12 -> UAV texture
-    GPU_TexUsg_BasicReadWrite = 1 << 1,
+    GPU_TexUsg_ReadWrite = 1 << 1,
 
     // texture that can be rendered to, typically used for a swap-chain or offscreen render target
     // VK -> color attachment, DX12 -> RTV texture
@@ -257,12 +257,12 @@ enum GPU_TextureLayouts
     // basic read-only layout (read-only)
     // VK -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     // DX12 -> D3D12_BARRIER_LAYOUT_SHADER_RESOURCE
-    GPU_TexLyt_BasicRead,
+    GPU_TexLyt_ReadOnly,
 
     // basic read-write layout (read/write)
     // VK -> VK_IMAGE_LAYOUT_GENERAL
     // DX12 -> D3D12_BARRIER_LAYOUT_UNORDERED_ACCESS
-    GPU_TexLyt_BasicReadWrite,
+    GPU_TexLyt_ReadWrite,
 
     // draw target layout (write-only)
     // VK -> VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
@@ -452,55 +452,60 @@ enum GPU_BarrierAccesses
     // DX12 -> D3D12_BARRIER_ACCESS_INDEX_BUFFER
     GPU_BarAcs_IndexBuffer = 1 << 2,
 
-    // reading a basic read-only buffer
+    // reading a read-only buffer
     // VK -> VK_ACCESS_2_UNIFORM_READ_BIT
     // DX12 -> D3D12_BARRIER_ACCESS_CONSTANT_BUFFER
-    GPU_BarAcs_BasicBufferRead = 1 << 3,
+    GPU_BarAcs_ReadROBuffer = 1 << 3,
 
-    // reading a basic read-only texture
+    // reading a read-only texture
     // VK -> VK_ACCESS_2_SHADER_SAMPLED_READ_BIT
     // DX12 -> D3D12_BARRIER_ACCESS_SHADER_RESOURCE
-    GPU_BarAcs_BasicTextureRead = 1 << 4,
+    GPU_BarAcs_ReadROTexture = 1 << 4,
 
-    // accessing a basic read-write buffer/texture
-    // VK -> VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT
+    // reading a read-write buffer/texture
+    // VK -> VK_ACCESS_2_SHADER_STORAGE_READ_BIT
+    // DX12 -> D3D12_BARRIER_ACCESS_SHADER_RESOURCE | D3D12_BARRIER_ACCESS_UNORDERED_ACCESS
+    GPU_BarAcs_ReadRWResource = 1 << 5,
+
+    // writing a read-write buffer/texture
+    // VK -> VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT
     // DX12 -> D3D12_BARRIER_ACCESS_UNORDERED_ACCESS
-    GPU_BarAcs_BasicReadWrite = 1 << 5,
+    GPU_BarAcs_WriteRWResource = 1 << 6,
 
     // accessing the draw target
     // VK -> VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT
     // DX12 -> D3D12_BARRIER_ACCESS_RENDER_TARGET
-    GPU_BarAcs_DrawTarget = 1 << 6,
+    GPU_BarAcs_DrawTarget = 1 << 7,
 
     // reading the depth-stencil buffer
     // VK -> VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT
     // DX12 -> D3D12_BARRIER_ACCESS_DEPTH_STENCIL_READ
-    GPU_BarAcs_DepthStencilRead = 1 << 7,
+    GPU_BarAcs_DepthStencilRead = 1 << 8,
 
     // writing the depth-stencil buffer
     // VK -> VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
     // DX12 -> D3D12_BARRIER_ACCESS_DEPTH_STENCIL_WRITE
-    GPU_BarAcs_DepthStencilWrite = 1 << 8,
+    GPU_BarAcs_DepthStencilWrite = 1 << 9,
 
     // copy/resolve source access
     // VK -> VK_ACCESS_2_TRANSFER_READ_BIT
     // DX12 -> D3D12_BARRIER_ACCESS_COPY_SOURCE | D3D12_BARRIER_ACCESS_RESOLVE_SOURCE
-    GPU_BarAcs_CopySrc = 1 << 9,
+    GPU_BarAcs_CopySrc = 1 << 10,
 
     // copy/resolve destination access
     // VK -> VK_ACCESS_2_TRANSFER_WRITE_BIT
     // DX12 -> D3D12_BARRIER_ACCESS_COPY_DEST | D3D12_BARRIER_ACCESS_RESOLVE_DEST
-    GPU_BarAcs_CopyDst = 1 << 10,
+    GPU_BarAcs_CopyDst = 1 << 11,
 
     // reading the shading rate image (VRS)
     // VK -> VK_ACCESS_2_FRAGMENT_SHADING_RATE_ATTACHMENT_READ_BIT_KHR
     // DX12 -> D3D12_BARRIER_ACCESS_SHADING_RATE_SOURCE
-    GPU_BarAcs_ShadingRateSrc = 1 << 11,
+    GPU_BarAcs_ShadingRateSrc = 1 << 12,
 
     // reading the indirect draw/dispatch arguments
     // VK -> VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT
     // DX12 -> D3D12_BARRIER_ACCESS_INDIRECT_ARGUMENT
-    GPU_BarAcs_IndirectDrawArgs = 1 << 12,
+    GPU_BarAcs_IndirectDrawArgs = 1 << 13,
 
     GPU_BarAcc_MAX,
 };

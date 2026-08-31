@@ -39,8 +39,8 @@ D3D12_BARRIER_LAYOUT GPU_BreakDx12TextureLayout(GPU_TextureLayout layout)
     {
         case GPU_TexLyt_Unknown:            return D3D12_BARRIER_LAYOUT_UNDEFINED;
         case GPU_TexLyt_Generic:            return D3D12_BARRIER_LAYOUT_COMMON;
-        case GPU_TexLyt_BasicRead:          return D3D12_BARRIER_LAYOUT_SHADER_RESOURCE;
-        case GPU_TexLyt_BasicReadWrite:     return D3D12_BARRIER_LAYOUT_UNORDERED_ACCESS;
+        case GPU_TexLyt_ReadOnly:           return D3D12_BARRIER_LAYOUT_SHADER_RESOURCE;
+        case GPU_TexLyt_ReadWrite:          return D3D12_BARRIER_LAYOUT_UNORDERED_ACCESS;
         case GPU_TexLyt_DrawTarget:         return D3D12_BARRIER_LAYOUT_RENDER_TARGET;
         case GPU_TexLyt_Present:            return D3D12_BARRIER_LAYOUT_PRESENT;
         case GPU_TexLyt_DepthStencilRead:   return D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_READ;
@@ -83,9 +83,10 @@ D3D12_BARRIER_ACCESS GPU_BreakDx12BarrierAccess(GPU_BarrierAccess accesses)
     if (accesses & GPU_BarAcs_Common)            access |= D3D12_BARRIER_ACCESS_COMMON;
     if (accesses & GPU_BarAcs_VertexBuffer)      access |= D3D12_BARRIER_ACCESS_VERTEX_BUFFER;
     if (accesses & GPU_BarAcs_IndexBuffer)       access |= D3D12_BARRIER_ACCESS_INDEX_BUFFER;
-    if (accesses & GPU_BarAcs_BasicBufferRead)   access |= D3D12_BARRIER_ACCESS_CONSTANT_BUFFER;
-    if (accesses & GPU_BarAcs_BasicTextureRead)  access |= D3D12_BARRIER_ACCESS_SHADER_RESOURCE;
-    if (accesses & GPU_BarAcs_BasicReadWrite)    access |= D3D12_BARRIER_ACCESS_UNORDERED_ACCESS;
+    if (accesses & GPU_BarAcs_ReadROBuffer)      access |= D3D12_BARRIER_ACCESS_CONSTANT_BUFFER;
+    if (accesses & GPU_BarAcs_ReadROTexture)     access |= D3D12_BARRIER_ACCESS_SHADER_RESOURCE;
+    if (accesses & GPU_BarAcs_ReadRWResource)    access |= D3D12_BARRIER_ACCESS_SHADER_RESOURCE | D3D12_BARRIER_ACCESS_UNORDERED_ACCESS;
+    if (accesses & GPU_BarAcs_WriteRWResource)   access |= D3D12_BARRIER_ACCESS_UNORDERED_ACCESS;
     if (accesses & GPU_BarAcs_DrawTarget)        access |= D3D12_BARRIER_ACCESS_RENDER_TARGET;
     if (accesses & GPU_BarAcs_DepthStencilRead)  access |= D3D12_BARRIER_ACCESS_DEPTH_STENCIL_READ;
     if (accesses & GPU_BarAcs_DepthStencilWrite) access |= D3D12_BARRIER_ACCESS_DEPTH_STENCIL_WRITE;

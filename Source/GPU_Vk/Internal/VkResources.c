@@ -25,8 +25,8 @@ void GPU_VkNewBuffer(GPU_Buffer* outBaseBuffer, GPU_Instance* baseRenderer, GPU_
     output->usages   = cfg.usages;
 
     VkBufferUsageFlags usageFlags = 0;
-    if (cfg.usages & GPU_BufUsg_BasicRead) usageFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-    if (cfg.usages & GPU_BufUsg_BasicReadWrite) usageFlags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    if (cfg.usages & GPU_BufUsg_ReadOnly) usageFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    if (cfg.usages & GPU_BufUsg_ReadWrite) usageFlags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
     if (cfg.usages & GPU_BufUsg_IndirectDrawArgs) usageFlags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
     if (cfg.usages & GPU_BufUsg_Vertices) usageFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     if (cfg.usages & GPU_BufUsg_Indices) usageFlags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
