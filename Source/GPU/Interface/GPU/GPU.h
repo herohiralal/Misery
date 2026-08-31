@@ -67,18 +67,18 @@ void GPU_IterateSwapChain(GPU_SwapChain* swapChain);
 
 /**
  * RENDER_THREAD
- * Acquire the command buffer for the current swap-chain image.
- * Optionally, also acquire the index of the current image in the frames-in-flight buffer.
- * This index can be used to determine external per-frame-in-flight resource usage.
+ * Begin rendering a given frame of the swap-chain.
+ * Returns the context required to record commands for the current frame, and to present the current image.
  */
-GPU_CmdBuffer* GPU_GetSwapChainCommandBuffer(GPU_SwapChain* swapChain, u8* outImgIdx);
+GPU_SwapChainFrameContext GPU_BeginSwapChainFrame(GPU_SwapChain* swapChain);
 
 /**
  * RENDER_THREAD
- * Wrap up recording commands for the current frame, for the given swap-chain and
- * submit the current image for presenting.
+ * End rendering a given frame of the swap-chain, and present the current image to the screen.
+ * Internally, submits the command buffer for execution, and signals the swap-chain to present the current image.
+ * Note that this requires the command buffer to be in an "executable" state.
  */
-void GPU_PresentSwapChain(GPU_SwapChain* swapChain);
+void GPU_EndSwapChainFrame(GPU_SwapChain* swapChain);
 
 // Buffers =====================================================================================================================
 
@@ -127,5 +127,11 @@ void GPU_CmdBuffBegin(GPU_CmdBuffer* cb);
  * This is typically called at the end of a frame, after all commands have been recorded.
  */
 void GPU_CmdBuffEnd(GPU_CmdBuffer* cb);
+
+/**
+ * OWNED_THREAD
+ * Insert a barrier into the command buffer, to synchronize access to resources across different stages.
+ */
+void GPU_CmdBuffBarrier(GPU_BarrierCfg cfg);
 
 EXTERN_C_END

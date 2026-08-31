@@ -307,35 +307,35 @@ void GPU_Dx12IterateSwapChain(GPU_SwapChain* baseSwapChain)
     swapChain->allowCmdBuff = true;
 }
 
-GPU_CmdBuffer* GPU_Dx12GetSwapChainCommandBuffer(GPU_SwapChain* baseSwapChain, u8* outImgIdx)
+GPU_SwapChainFrameContext GPU_Dx12BeginSwapChainFrame(GPU_SwapChain* baseSwapChain)
 {
-    u8 outImgIdxThrowaway = 0;
-    outImgIdx = outImgIdx ? outImgIdx : &outImgIdxThrowaway;
-    *outImgIdx = U8_MAX;
-
     GPU_Dx12SwapChain* swapChain = GPU_ToDx12SwapChain(baseSwapChain);
     if (!swapChain || !swapChain->allowCmdBuff)
-        return nil;
+        return GPU_SwapChainFrameContext {.valid = false};
 
     GPU_CmdBuffer* baseCmdBuffer = &(swapChain->buffers.cmdBuffers[swapChain->curFrame]);
     GPU_Dx12CmdBuffer* cmdBuffer = GPU_ToDx12CmdBuffer(baseCmdBuffer);
 
     GPU_DX12_CHECKED_CALL(cmdBuffer->cmdAllocator->Reset());
 
-    *outImgIdx = (u8) swapChain->curFrame;
-    return baseCmdBuffer;
+    GPU_DX12_CHECKED_CALL(cmdBuffer->cmdList->Reset(cmdBuffer->cmdAllocator, nil));
+
+    return GPU_SwapChainFrameContext
+    {
+        .valid            = true,
+        .frameInFlightIdx = (u8) swapChain->curFrame,
+        .cmdBuffer        = baseCmdBuffer,
+        .swapChainImg     = &(swapChain->buffers.imgs[swapChain->curFrame]),
+    };
 }
 
-void GPU_Dx12PresentSwapChain(GPU_SwapChain* baseSwapChain)
+void GPU_Dx12EndSwapChainFrame(GPU_SwapChain* baseSwapChain)
 {
     GPU_Dx12SwapChain* swapChain = GPU_ToDx12SwapChain(baseSwapChain);
     if (!swapChain || !(swapChain->renderer) || !swapChain->allowCmdBuff)
         return;
 
     GPU_Dx12CmdBuffer* cmdBuffer = GPU_ToDx12CmdBuffer(&(swapChain->buffers.cmdBuffers[swapChain->curFrame]));
-
-    // TODO: REMOVEEEE - command buffer reset
-    GPU_DX12_CHECKED_CALL(cmdBuffer->cmdList->Reset(cmdBuffer->cmdAllocator, nil));
 
     GPU_Dx12Texture* curImg = GPU_ToDx12Texture(&(swapChain->buffers.imgs[swapChain->curFrame]));
     MSR_ASSERT(curImg && curImg->actual && "curImg must be valid");

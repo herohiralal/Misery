@@ -164,10 +164,10 @@ void RenderThread(rawptr data)
         if (G_RenderData.die)
             break;
 
-        GPU_CmdBuffer* cmdBuf = GPU_GetSwapChainCommandBuffer(&G_RenderData.swapChain, nil);
-        if (cmdBuf)
+        GPU_SwapChainFrameContext frameCtx = GPU_BeginSwapChainFrame(&G_RenderData.swapChain);
+        if (frameCtx.valid)
         {
-            GPU_PresentSwapChain(&G_RenderData.swapChain);
+            GPU_EndSwapChainFrame(&G_RenderData.swapChain);
         }
 
         SYN_SignalEvent(&G_ThreadSync.renThrDone);

@@ -13,14 +13,14 @@ void GPU_Dx12ReconfigureSwapChain(GPU_SwapChain*, GPU_SwapChainCfg);
 void GPU_Dx12DestroySwapChain(GPU_SwapChain*);
 GPU_TextureFormat GPU_Dx12GetSwapChainTextureFormat(GPU_SwapChain*);
 void GPU_Dx12IterateSwapChain(GPU_SwapChain*);
-GPU_CmdBuffer* GPU_Dx12GetSwapChainCommandBuffer(GPU_SwapChain*, u8* outImgIdx);
-void GPU_Dx12PresentSwapChain(GPU_SwapChain*);
+GPU_SwapChainFrameContext GPU_Dx12BeginSwapChainFrame(GPU_SwapChain*);
+void GPU_Dx12EndSwapChainFrame(GPU_SwapChain*);
 
-void GPU_Dx12NewBuffer(GPU_Buffer* outBaseBuffer, GPU_Instance* baseRenderer, GPU_BufferCfg cfg);
-void GPU_Dx12DeleteBuffer(GPU_Buffer* baseBuffer);
+void GPU_Dx12NewBuffer(GPU_Buffer*, GPU_Instance*, GPU_BufferCfg);
+void GPU_Dx12DeleteBuffer(GPU_Buffer*);
 
-void GPU_Dx12NewTexture(GPU_Texture* outBaseTexture, GPU_Instance* baseRenderer, GPU_TextureCfg cfg);
-void GPU_Dx12DeleteTexture(GPU_Texture* baseTexture);
+void GPU_Dx12NewTexture(GPU_Texture*, GPU_Instance*, GPU_TextureCfg);
+void GPU_Dx12DeleteTexture(GPU_Texture*);
 
 void GPU_Dx12CmdBuffBegin(GPU_CmdBuffer*);
 void GPU_Dx12CmdBuffEnd(GPU_CmdBuffer*);

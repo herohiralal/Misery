@@ -70,21 +70,23 @@ void GPU_IterateSwapChain(GPU_SwapChain* swapChain)
     );
 }
 
-GPU_CmdBuffer* GPU_GetSwapChainCommandBuffer(GPU_SwapChain* swapChain, u8* outImgIdx)
+GPU_SwapChainFrameContext GPU_BeginSwapChainFrame(GPU_SwapChain* swapChain)
 {
+    GPU_SwapChainFrameContext invalidCtx = {.valid = false};
+
     RHI_FN_SWITCH_RET(
         swapChain ? swapChain->base.type : GPU_GfxAPIType_Null,
-        nil,
-        GetSwapChainCommandBuffer,
-        swapChain, outImgIdx
+        invalidCtx,
+        BeginSwapChainFrame,
+        swapChain
     );
 }
 
-void GPU_PresentSwapChain(GPU_SwapChain* swapChain)
+void GPU_EndSwapChainFrame(GPU_SwapChain* swapChain)
 {
     RHI_FN_SWITCH_VOID(
         swapChain ? swapChain->base.type : GPU_GfxAPIType_Null,
-        PresentSwapChain,
+        EndSwapChainFrame,
         swapChain
     );
 }

@@ -4,6 +4,13 @@
 
 EXTERN_C_BEGIN
 
+typedef struct GPU_Instance  GPU_Instance;
+typedef struct GPU_CmdBuffer GPU_CmdBuffer;
+typedef struct GPU_SwapChain GPU_SwapChain;
+typedef struct GPU_Buffer    GPU_Buffer;
+typedef struct GPU_Texture   GPU_Texture;
+typedef struct GPU_Program   GPU_Program;
+
 /**
  * Defines the available gfx API types.
  */
@@ -93,6 +100,29 @@ typedef struct
     */
     #define GPU_FRAMES_IN_FLIGHT (2u)
 #endif
+
+/**
+ * A context for a single frame in a swap-chain.
+ */
+typedef struct
+{
+    // whether or not this structure is valid
+    b8 valid;
+
+    // The index of the frame in flight that this context corresponds to.
+    // Guaranteed to be in the range [0, GPU_FRAMES_IN_FLIGHT).
+    u8 frameInFlightIdx;
+
+    // The command buffer to use for recording commands for this frame.
+    // The command buffer will be returned in a "closed" state.
+    GPU_CmdBuffer* cmdBuffer;
+
+    // The texture that corresponds to the swap-chain image for this frame.
+    // The user will be responsible for managing the layout and transitions
+    // of this texture. The lifetime will be tied to the lifetime of the
+    // swap-chain, but reconfiguring the swap-chain will recreate the textures.
+    GPU_Texture* swapChainImg;
+} GPU_SwapChainFrameContext;
 
 /**
  * A swap-chain corresponding to a window that can be rendered to.

@@ -470,17 +470,14 @@ void GPU_VkIterateSwapChain(GPU_SwapChain* baseSwapChain)
     swapChain->allowCmdBuff = true;
 }
 
-GPU_CmdBuffer* GPU_VkGetSwapChainCommandBuffer(GPU_SwapChain* baseSwapChain, u8* outImgIdx)
+GPU_SwapChainFrameContext GPU_VkBeginSwapChainFrame(GPU_SwapChain* baseSwapChain)
 {
-    u8 outImgIdxThrowaway = 0;
-    outImgIdx = outImgIdx ? outImgIdx : &outImgIdxThrowaway;
-    *outImgIdx = U8_MAX;
-
     GPU_VkSwapChain* swapChain = GPU_ToVkSwapChain(baseSwapChain);
-    if (!swapChain->allowCmdBuff) return nil;
+    if (!swapChain->allowCmdBuff) return (GPU_SwapChainFrameContext) {.valid = false};
 
     GPU_CmdBuffer* baseCmdBuf = &(swapChain->perFrameInFlight[swapChain->curFrame].cmdBuffer);
     GPU_VkCmdBuffer* cmdBuf = GPU_ToVkCmdBuffer(baseCmdBuf);
+
     GPU_VK_CHECKED_CALL(vkResetCommandPool(swapChain->renderer->device, cmdBuf->cmdPool, 0));
 
     GPU_VK_CHECKED_CALL(vkBeginCommandBuffer(cmdBuf->cmdBuffer, &(VkCommandBufferBeginInfo)
@@ -489,11 +486,16 @@ GPU_CmdBuffer* GPU_VkGetSwapChainCommandBuffer(GPU_SwapChain* baseSwapChain, u8*
         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
     }));
 
-    *outImgIdx = swapChain->curFrame;
-    return baseCmdBuf;
+    return (GPU_SwapChainFrameContext)
+    {
+        .valid            = true,
+        .frameInFlightIdx = swapChain->curFrame,
+        .cmdBuffer        = baseCmdBuf,
+        .swapChainImg     = &(swapChain->textures.data[swapChain->acquiredSwpchImgIdx]),
+    };
 }
 
-void GPU_VkPresentSwapChain(GPU_SwapChain* baseSwapChain)
+void GPU_VkEndSwapChainFrame(GPU_SwapChain* baseSwapChain)
 {
     GPU_VkSwapChain* swapChain = GPU_ToVkSwapChain(baseSwapChain);
     MSR_ASSERT(swapChain->renderer && "swapChain->renderer must not be null");
