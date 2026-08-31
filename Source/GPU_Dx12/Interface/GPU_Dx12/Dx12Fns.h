@@ -16,8 +16,11 @@ void GPU_Dx12IterateSwapChain(GPU_SwapChain*);
 GPU_CmdBuffer* GPU_Dx12GetSwapChainCommandBuffer(GPU_SwapChain*, u8* outImgIdx);
 void GPU_Dx12PresentSwapChain(GPU_SwapChain*);
 
-void GPU_Dx12CreateBuffer(GPU_Buffer* outBaseBuffer, GPU_Instance* baseRenderer, GPU_BufferCfg cfg);
-void GPU_Dx12DestroyBuffer(GPU_Buffer* baseBuffer);
+void GPU_Dx12NewBuffer(GPU_Buffer* outBaseBuffer, GPU_Instance* baseRenderer, GPU_BufferCfg cfg);
+void GPU_Dx12DeleteBuffer(GPU_Buffer* baseBuffer);
+
+void GPU_Dx12NewTexture(GPU_Texture* outBaseTexture, GPU_Instance* baseRenderer, GPU_TextureCfg cfg);
+void GPU_Dx12DeleteTexture(GPU_Texture* baseTexture);
 
 EXTERN_C_END
 #endif

@@ -3,7 +3,7 @@
 
 #if GPU_VK
 
-void GPU_VkCreateBuffer(GPU_Buffer* outBaseBuffer, GPU_Instance* baseRenderer, GPU_BufferCfg cfg)
+void GPU_VkNewBuffer(GPU_Buffer* outBaseBuffer, GPU_Instance* baseRenderer, GPU_BufferCfg cfg)
 {
     GPU_VkInstance* renderer = GPU_ToVkInstance(baseRenderer);
     if (!renderer)
@@ -92,7 +92,7 @@ void GPU_VkCreateBuffer(GPU_Buffer* outBaseBuffer, GPU_Instance* baseRenderer, G
     output->mappedPtr = cfg.memType == GPU_MemType_GPU ? nil : allocInfo.pMappedData;
 }
 
-void GPU_VkDestroyBuffer(GPU_Buffer* baseBuffer)
+void GPU_VkDeleteBuffer(GPU_Buffer* baseBuffer)
 {
     GPU_VkBuffer* buffer = GPU_ToVkBuffer(baseBuffer);
     if (!buffer->renderer)
@@ -106,6 +106,16 @@ void GPU_VkDestroyBuffer(GPU_Buffer* baseBuffer)
     buffer->actual = VK_NULL_HANDLE;
     buffer->allocation = VK_NULL_HANDLE;
     buffer->mappedPtr = nil;
+}
+
+void GPU_VkNewTexture(GPU_Texture* outBaseTexture, GPU_Instance* baseRenderer, GPU_TextureCfg cfg)
+{
+    MSR_ASSERT(false && "Not implemented yet");
+}
+
+void GPU_VkDeleteTexture(GPU_Texture* baseTexture)
+{
+    MSR_ASSERT(false && "Not implemented yet");
 }
 
 #endif

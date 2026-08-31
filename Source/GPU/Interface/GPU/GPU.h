@@ -80,12 +80,24 @@ void GPU_PresentSwapChain(GPU_SwapChain* swapChain);
  * THREAD_SAFE
  * Create a buffer resource with the given configuration.
  */
-void GPU_CreateBuffer(GPU_Buffer* outBuffer, GPU_Instance* renderer, GPU_BufferCfg cfg);
+void GPU_NewBuffer(GPU_Buffer* outBuffer, GPU_Instance* renderer, GPU_BufferCfg cfg);
 
 /**
  * THREAD_SAFE
  * Destroy the given buffer resource, freeing up associated resources.
  */
-void GPU_DestroyBuffer(GPU_Buffer* buffer);
+void GPU_DeleteBuffer(GPU_Buffer* buffer);
+
+/**
+ * THREAD_SAFE
+ * Create a texture resource with the given configuration.
+ */
+void GPU_NewTexture(GPU_Texture* outTexture, GPU_Instance* renderer, GPU_TextureCfg cfg);
+
+/**
+ * THREAD_SAFE
+ * Destroy the given texture resource, freeing up associated resources.
+ */
+void GPU_DeleteTexture(GPU_Texture* texture);
 
 EXTERN_C_END

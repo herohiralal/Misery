@@ -16,8 +16,11 @@ void GPU_VkIterateSwapChain(GPU_SwapChain*);
 GPU_CmdBuffer* GPU_VkGetSwapChainCommandBuffer(GPU_SwapChain*, u8* outImgIdx);
 void GPU_VkPresentSwapChain(GPU_SwapChain*);
 
-void GPU_VkCreateBuffer(GPU_Buffer*, GPU_Instance*, GPU_BufferCfg);
-void GPU_VkDestroyBuffer(GPU_Buffer*);
+void GPU_VkNewBuffer(GPU_Buffer*, GPU_Instance*, GPU_BufferCfg);
+void GPU_VkDeleteBuffer(GPU_Buffer*);
+
+void GPU_VkNewTexture(GPU_Texture*, GPU_Instance*, GPU_TextureCfg);
+void GPU_VkDeleteTexture(GPU_Texture*);
 
 EXTERN_C_END
 #endif

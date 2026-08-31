@@ -298,6 +298,7 @@ typedef struct
     GPU_MemType       memType;
     GPU_TextureUsage  usages;
     GPU_TextureFormat format;
+    GPU_TextureLayout initialLayout;
     utf8str           objectName;
 } GPU_TextureCfg;
 
