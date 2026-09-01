@@ -727,17 +727,22 @@ typedef struct
  */
 GPU_DECLARE_OBJECT(ProgramStage, 32);
 
+/**
+ * Configuration structure to refer to a program stage for program creation.
+ */
 typedef struct
 {
-    GPU_ProgramStageByteCode byteCode;
+    GPU_ProgramStage* stage;
 } GPU_ProgramStageCfg;
+
+COL_DECLARE_FOR(GPU_ProgramStageCfg);
 
 /**
  * Configuration structure for GPU program creation.
  */
 typedef struct
 {
-    Slice_(GPU_ProgramStage) stages;
+    Slice_(GPU_ProgramStageCfg) stages;
     utf8str objectName;
 } GPU_ProgramCfg;
 

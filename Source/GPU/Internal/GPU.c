@@ -127,12 +127,12 @@ void GPU_DeleteTexture(GPU_Texture* texture)
     );
 }
 
-void GPU_NewProgramStage(GPU_ProgramStage* outStage, GPU_Instance* renderer, GPU_ProgramStageCfg cfg)
+void GPU_NewProgramStage(GPU_ProgramStage* outStage, GPU_Instance* renderer, GPU_ProgramStageByteCode bc)
 {
     RHI_FN_SWITCH_VOID(
         renderer ? renderer->base.type : GPU_GfxAPIType_Null,
         NewProgramStage,
-        outStage, renderer, cfg
+        outStage, renderer, bc
     );
 }
 

@@ -2,7 +2,7 @@
 
 #if GPU_VK
 
-void GPU_VkNewProgramStage(GPU_ProgramStage* outBaseProgramStage, GPU_Instance* baseRenderer, GPU_ProgramStageCfg cfg)
+void GPU_VkNewProgramStage(GPU_ProgramStage* outBaseProgramStage, GPU_Instance* baseRenderer, GPU_ProgramStageByteCode bc)
 {
     GPU_VkInstance* renderer = GPU_ToVkInstance(baseRenderer);
     MSR_ASSERT(renderer && "renderer must not be null");
@@ -13,12 +13,12 @@ void GPU_VkNewProgramStage(GPU_ProgramStage* outBaseProgramStage, GPU_Instance* 
     GPU_VkProgramStage* output = GPU_ToVkProgramStage(outBaseProgramStage);
     MSR_ASSERT(output && "programStage must not be null");
 
-    output->type = cfg.byteCode.stage;
+    output->type = bc.stage;
     vkCreateShaderModule(renderer->device, &(VkShaderModuleCreateInfo)
     {
         .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-        .codeSize = cfg.byteCode.code.count,
-        .pCode    = (u32*) cfg.byteCode.code.data,
+        .codeSize =bc.code.count,
+        .pCode    = (u32*) bc.code.data,
     }, nil, &(output->actual));
 }
 

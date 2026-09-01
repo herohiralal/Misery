@@ -114,7 +114,7 @@ void GPU_DeleteTexture(GPU_Texture* texture);
  * THREAD_SAFE
  * Create a program stage with the given configuration.
  */
-void GPU_NewProgramStage(GPU_ProgramStage* outStage, GPU_Instance* renderer, GPU_ProgramStageCfg cfg);
+void GPU_NewProgramStage(GPU_ProgramStage* outStage, GPU_Instance* renderer, GPU_ProgramStageByteCode bc);
 
 /**
  * THREAD_SAFE
