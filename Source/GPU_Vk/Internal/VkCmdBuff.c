@@ -24,12 +24,82 @@ void GPU_VkCmdsEnd(GPU_CmdBuffer* cb)
 
 void GPU_VkCmdBeginPass(GPU_CmdBuffer* cb, GPU_PassCfg cfg)
 {
-    MSR_ASSERT(false && "Not implemented yet");
+    GPU_VkCmdBuffer* cmdBuffer = GPU_ToVkCmdBuffer(cb);
+    MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
+
+    MSR_ASSERT(cfg.drawTargets.count > 0 && "must provide at least one draw target");
+
+    Slice_(VkRenderingAttachmentInfo) colorAttachments = COL_NewSlice(VkRenderingAttachmentInfo, cfg.drawTargets.count, true, MEM_temp);
+
+    // we'll store the width/height from the first valid draw target texture
+    u16 rpW = 0, rpH = 0;
+    for (isize i = 0; i < cfg.drawTargets.count; i++)
+    {
+        GPU_PassDrawTarget* tgt = &(cfg.drawTargets.data[i]);
+
+        GPU_VkTexture* tex = GPU_ToVkTexture(tgt->target);
+        MSR_ASSERT(tex && "draw target texture must not be null");
+
+        // store width & height
+        if (!rpW || !rpH) { rpW = tex->width; rpH = tex->height; }
+
+        colorAttachments.data[i] = (VkRenderingAttachmentInfo)
+        {
+            .sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .imageView   = tex->view,
+            .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            .loadOp      = GPU_BreakVkLoadOp(tgt->loadOp),
+            .storeOp     = GPU_BreakVkStoreOp(tgt->storeOp),
+            .clearValue  = {.color = {.float32 = {tgt->clearColor[0], tgt->clearColor[1],
+                                                  tgt->clearColor[2], tgt->clearColor[3]}}},
+        };
+    }
+
+    b8 hasDs = (cfg.depthStencilTarget.target != nil);
+    VkRenderingAttachmentInfo depthAttachment = {0};
+    if (hasDs)
+    {
+        GPU_VkTexture* dsTex = GPU_ToVkTexture(cfg.depthStencilTarget.target);
+        MSR_ASSERT(dsTex && "depth-stencil target texture must not be null");
+
+        depthAttachment = (VkRenderingAttachmentInfo)
+        {
+            .sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .imageView   = dsTex->view,
+            .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            .loadOp      = GPU_BreakVkLoadOp(cfg.depthStencilTarget.loadOp),
+            .storeOp     = GPU_BreakVkStoreOp(cfg.depthStencilTarget.storeOp),
+            .clearValue  = {.depthStencil = {.depth = cfg.depthStencilTarget.clearDepth,
+                            .stencil = cfg.depthStencilTarget.clearStencil}},
+        };
+    }
+
+    vkCmdBeginRendering(cmdBuffer->cmdBuffer, &(VkRenderingInfo)
+    {
+        .sType      = VK_STRUCTURE_TYPE_RENDERING_INFO,
+
+        .renderArea =
+        {
+            .offset = {.x = 0, .y = 0},
+            .extent = {.width = rpW, .height = rpH},
+        },
+        .layerCount = 1,
+
+        // colour attachments
+        .colorAttachmentCount = colorAttachments.count,
+        .pColorAttachments    = colorAttachments.data,
+
+        // depth stencil
+        .pDepthAttachment   = hasDs ? &depthAttachment : nil,
+        .pStencilAttachment = hasDs ? &depthAttachment : nil,
+    });
 }
 
 void GPU_VkCmdEndPass(GPU_CmdBuffer* cb)
 {
-    MSR_ASSERT(false && "Not implemented yet");
+    GPU_VkCmdBuffer* cmdBuffer = GPU_ToVkCmdBuffer(cb);
+    MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
+    vkCmdEndRendering(cmdBuffer->cmdBuffer);
 }
 
 void GPU_VkCmdBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg)

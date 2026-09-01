@@ -22,6 +22,7 @@ COL_DECLARE_FOR(VmaAllocation);
 COL_DECLARE_FOR(VkMemoryBarrier2);
 COL_DECLARE_FOR(VkBufferMemoryBarrier2);
 COL_DECLARE_FOR(VkImageMemoryBarrier2);
+COL_DECLARE_FOR(VkRenderingAttachmentInfo);
 
 GPU_EXTEND_OBJECT(Vk, Instance,
     APP_Handle    appHandle;

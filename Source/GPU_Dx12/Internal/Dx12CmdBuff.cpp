@@ -22,6 +22,59 @@ void GPU_Dx12CmdBeginPass(GPU_CmdBuffer* cb, GPU_PassCfg cfg)
 {
     GPU_Dx12CmdBuffer* cmdBuffer = GPU_ToDx12CmdBuffer(cb);
     MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
+
+    MSR_ASSERT(cfg.drawTargets.count > 0 && "must provide at least one draw target");
+
+    Slice_(D3D12_CPU_DESCRIPTOR_HANDLE) rtvHandles = COL_NewSlice(D3D12_CPU_DESCRIPTOR_HANDLE, cfg.drawTargets.count, true, MEM_temp);
+
+    for (isize i = 0; i < cfg.drawTargets.count; i++)
+    {
+        GPU_PassDrawTarget* tgt = &(cfg.drawTargets.data[i]);
+
+        GPU_Dx12Texture* tex = GPU_ToDx12Texture(tgt->target);
+        MSR_ASSERT(tex && "draw target texture must not be null");
+
+        rtvHandles.data[i] = tex->asRtv.data.cpuHandle;
+    }
+
+    b8 hasDs = (cfg.depthStencilTarget.target != nil);
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = { };
+    if (hasDs)
+    {
+        GPU_Dx12Texture* dsTex = GPU_ToDx12Texture(cfg.depthStencilTarget.target);
+        MSR_ASSERT(dsTex && "depth-stencil target texture must not be null");
+
+        dsvHandle = dsTex->asDsv.data.cpuHandle;
+    }
+
+    cmdBuffer->cmdList->OMSetRenderTargets((u32) rtvHandles.count, rtvHandles.data,
+        false, hasDs ? &dsvHandle : nil);
+
+    // clear the ones that need clearing
+    for (isize i = 0; i < cfg.drawTargets.count; i++)
+    {
+        GPU_PassDrawTarget* tgt = &(cfg.drawTargets.data[i]);
+        if (tgt->loadOp != GPU_LoadOp_Clear) continue;
+
+        GPU_Dx12Texture* tex = GPU_ToDx12Texture(tgt->target);
+        MSR_ASSERT(tex && "draw target texture must not be null");
+
+        cmdBuffer->cmdList->ClearRenderTargetView(tex->asRtv.data.cpuHandle,
+            tgt->clearColor, 0, nil);
+    }
+
+    if (hasDs && cfg.depthStencilTarget.loadOp == GPU_LoadOp_Clear)
+    {
+        GPU_Dx12Texture* dsTex = GPU_ToDx12Texture(cfg.depthStencilTarget.target);
+        MSR_ASSERT(dsTex && "depth-stencil target texture must not be null");
+
+        cmdBuffer->cmdList->ClearDepthStencilView(
+            dsTex->asDsv.data.cpuHandle,
+            D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
+            cfg.depthStencilTarget.clearDepth,
+            cfg.depthStencilTarget.clearStencil,
+            0, nil);
+    }
 }
 
 void GPU_Dx12CmdEndPass(GPU_CmdBuffer* cb)

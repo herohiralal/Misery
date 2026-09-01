@@ -575,18 +575,34 @@ typedef struct
     Slice_(GPU_TextureBarrierCfg) textureBarriers;
 } GPU_BarrierCfg;
 
+/**
+ * Defines the available load operations for a render pass.
+ * These are applied at the beginning of a pass.
+ */
 typedef u8 GPU_LoadOp;
 enum GPU_LoadOps
 {
-    GPU_LoadOp_Clear,
+    // default; load the target with its existing contents
     GPU_LoadOp_Load,
+
+    // clear the target to a specified value
+    GPU_LoadOp_Clear,
+
+    // don't care about the target's contents
     GPU_LoadOp_DontCare,
 };
 
+/**
+ * Defines the available store operations for a render pass.
+ * These are applied at the end of a pass.
+ */
 typedef u8 GPU_StoreOp;
 enum GPU_StoreOps
 {
+    // default; store the target's contents to memory at the end of the pass
     GPU_StoreOp_Store,
+
+    // don't care about the target's contents at the end of the pass
     GPU_StoreOp_DontCare,
 };
 
@@ -609,32 +625,54 @@ typedef struct
 
     // how to handle the contents at the end of the pass
     GPU_StoreOp storeOp;
-} GPU_PassTarget;
 
-COL_DECLARE_FOR(GPU_PassTarget);
+    // if loadOp is `GPU_LoadOp_Clear`, this is the color to clear to
+    float clearColor[4];
+} GPU_PassDrawTarget;
+
+COL_DECLARE_FOR(GPU_PassDrawTarget);
+
+typedef struct
+{
+    // the target texture to use for depth-stencil
+    // if this is `nil`, then no depth-stencil target will be used for the pass
+    GPU_Texture* target;
+
+    // set to `true` if the target is supposed to be
+    // in the ideal layout to use for depth-stencil
+    // set to `false` if the target is supposed to be
+    // in a common layout
+    b8 idealLayout;
+
+    // how to handle the contents at the start of the pass
+    GPU_LoadOp loadOp;
+
+    // how to handle the contents at the end of the pass
+    GPU_StoreOp storeOp;
+
+    // if loadOp is `GPU_LoadOp_Clear`, this is the depth value to clear to
+    float clearDepth;
+
+    // if loadOp is `GPU_LoadOp_Clear`, this is the stencil value to clear to
+    u8    clearStencil;
+} GPU_PassDepthStencilTarget;
 
 /**
  * Defines the configuration for a GPU pass.
  * A pass is a collection of rendering commands that are executed together on a specific
  * set of draw targets and depth-stencil targets.
+ *
+ * Note that all the targets (draw/depth-stencil) within a pass must be the same resolution.
  */
 typedef struct
 {
-    // offset at which to draw to the targets, in pixels
-    // x is right from the left side
-    // y is down from the top side
-    struct { u16 x, y; } offset;
-
-    // the size of the area to draw to, in pixels
-    struct { u16 width, height; } extent;
-
     // the draw targets for the pass
     // all the draw targets must have a valid texture
-    Slice_(GPU_PassTarget) drawTargets;
+    Slice_(GPU_PassDrawTarget) drawTargets;
 
     // the depth-stencil target for the pass
     // zero-init if not wanted
-    GPU_PassTarget depthStencilTarget;
+    GPU_PassDepthStencilTarget depthStencilTarget;
 } GPU_PassCfg;
 
 /**

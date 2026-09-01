@@ -110,4 +110,29 @@ VkAccessFlags2 GPU_BreakVkBarrierAccess(GPU_BarrierAccess accesses)
     return access;
 }
 
+VkAttachmentLoadOp GPU_BreakVkLoadOp(GPU_LoadOp op)
+{
+    switch ((enum GPU_LoadOps) op)
+    {
+        case GPU_LoadOp_Clear:     return VK_ATTACHMENT_LOAD_OP_CLEAR;
+        case GPU_LoadOp_Load:      return VK_ATTACHMENT_LOAD_OP_LOAD;
+        case GPU_LoadOp_DontCare:  return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        default:                   MSR_ASSERT(false && "Invalid GPU_LoadOp value"); break;
+    }
+
+    return VK_ATTACHMENT_LOAD_OP_LOAD;
+}
+
+VkAttachmentStoreOp GPU_BreakVkStoreOp(GPU_StoreOp op)
+{
+    switch ((enum GPU_StoreOps) op)
+    {
+        case GPU_StoreOp_Store:     return VK_ATTACHMENT_STORE_OP_STORE;
+        case GPU_StoreOp_DontCare:  return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        default:                    MSR_ASSERT(false && "Invalid GPU_StoreOp value"); break;
+    }
+
+    return VK_ATTACHMENT_STORE_OP_STORE;
+}
+
 #endif
