@@ -22,9 +22,11 @@ void GPU_Dx12DeleteBuffer(GPU_Buffer*);
 void GPU_Dx12NewTexture(GPU_Texture*, GPU_Instance*, GPU_TextureCfg);
 void GPU_Dx12DeleteTexture(GPU_Texture*);
 
-void GPU_Dx12CmdBuffBegin(GPU_CmdBuffer*);
-void GPU_Dx12CmdBuffEnd(GPU_CmdBuffer*);
-void GPU_Dx12CmdBuffBarrier(GPU_CmdBuffer*, GPU_BarrierCfg);
+void GPU_Dx12CmdsBegin(GPU_CmdBuffer*);
+void GPU_Dx12CmdsEnd(GPU_CmdBuffer*);
+void GPU_Dx12CmdBeginPass(GPU_CmdBuffer*, GPU_PassCfg);
+void GPU_Dx12CmdEndPass(GPU_CmdBuffer*);
+void GPU_Dx12CmdBarrier(GPU_CmdBuffer*, GPU_BarrierCfg);
 
 EXTERN_C_END
 #endif

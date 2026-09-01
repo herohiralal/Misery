@@ -167,6 +167,8 @@ void RenderThread(rawptr data)
         GPU_SwapChainFrameContext frameCtx = GPU_BeginSwapChainFrame(&G_RenderData.swapChain);
         if (frameCtx.valid)
         {
+            GPU_CmdsBegin(frameCtx.cmdBuffer);
+            GPU_CmdsEnd(frameCtx.cmdBuffer);
             GPU_EndSwapChainFrame(&G_RenderData.swapChain);
         }
 

@@ -109,29 +109,47 @@ void GPU_DeleteBuffer(GPU_Buffer* buffer)
     );
 }
 
-void GPU_CmdBuffBegin(GPU_CmdBuffer* cb)
+void GPU_CmdsBegin(GPU_CmdBuffer* cb)
 {
     RHI_FN_SWITCH_VOID(
         cb ? cb->base.type : GPU_GfxAPIType_Null,
-        CmdBuffBegin,
+        CmdsBegin,
         cb
     );
 }
 
-void GPU_CmdBuffEnd(GPU_CmdBuffer* cb)
+void GPU_CmdsEnd(GPU_CmdBuffer* cb)
 {
     RHI_FN_SWITCH_VOID(
         cb ? cb->base.type : GPU_GfxAPIType_Null,
-        CmdBuffEnd,
+        CmdsEnd,
         cb
     );
 }
 
-void GPU_CmdBuffBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg)
+void GPU_CmdBeginPass(GPU_CmdBuffer* cb, GPU_PassCfg cfg)
 {
     RHI_FN_SWITCH_VOID(
         cb ? cb->base.type : GPU_GfxAPIType_Null,
-        CmdBuffBarrier,
+        CmdBeginPass,
+        cb, cfg
+    );
+}
+
+void GPU_CmdEndPass(GPU_CmdBuffer* cb)
+{
+    RHI_FN_SWITCH_VOID(
+        cb ? cb->base.type : GPU_GfxAPIType_Null,
+        CmdEndPass,
+        cb
+    );
+}
+
+void GPU_CmdBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg)
+{
+    RHI_FN_SWITCH_VOID(
+        cb ? cb->base.type : GPU_GfxAPIType_Null,
+        CmdBarrier,
         cb, cfg
     );
 }

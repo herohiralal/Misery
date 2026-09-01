@@ -2,16 +2,15 @@
 
 #if GPU_DX12
 
-void GPU_Dx12CmdBuffBegin(GPU_CmdBuffer* cb)
+void GPU_Dx12CmdsBegin(GPU_CmdBuffer* cb)
 {
     GPU_Dx12CmdBuffer* cmdBuffer = GPU_ToDx12CmdBuffer(cb);
     MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
 
     cmdBuffer->cmdList->Reset(cmdBuffer->cmdAllocator, nil);
-
 }
 
-void GPU_Dx12CmdBuffEnd(GPU_CmdBuffer* cb)
+void GPU_Dx12CmdsEnd(GPU_CmdBuffer* cb)
 {
     GPU_Dx12CmdBuffer* cmdBuffer = GPU_ToDx12CmdBuffer(cb);
     MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
@@ -19,7 +18,19 @@ void GPU_Dx12CmdBuffEnd(GPU_CmdBuffer* cb)
     cmdBuffer->cmdList->Close();
 }
 
-void GPU_Dx12CmdBuffBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg)
+void GPU_Dx12CmdBeginPass(GPU_CmdBuffer* cb, GPU_PassCfg cfg)
+{
+    GPU_Dx12CmdBuffer* cmdBuffer = GPU_ToDx12CmdBuffer(cb);
+    MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
+}
+
+void GPU_Dx12CmdEndPass(GPU_CmdBuffer* cb)
+{
+    GPU_Dx12CmdBuffer* cmdBuffer = GPU_ToDx12CmdBuffer(cb);
+    MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
+}
+
+void GPU_Dx12CmdBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg)
 {
     GPU_Dx12CmdBuffer* cmdBuffer = GPU_ToDx12CmdBuffer(cb);
     MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");

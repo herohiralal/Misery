@@ -118,20 +118,36 @@ void GPU_DeleteTexture(GPU_Texture* texture);
  * The thread ownership semantics work like this - the thread that acquired the command buffer
  * is the only one that can queue commands into it, and the only one that can submit it for
  * execution.
+ *
+ * Make sure to also call `GPU_CmdsEnd` to set the command buffer to "executable" state when
+ * done.
  */
-void GPU_CmdBuffBegin(GPU_CmdBuffer* cb);
+void GPU_CmdsBegin(GPU_CmdBuffer* cb);
 
 /**
  * OWNED_THREAD
  * Set the command buffer to "executable" state, so that it can be submitted for execution.
  * This is typically called at the end of a frame, after all commands have been recorded.
  */
-void GPU_CmdBuffEnd(GPU_CmdBuffer* cb);
+void GPU_CmdsEnd(GPU_CmdBuffer* cb);
+
+/**
+ * OWNED_THREAD
+ * Begin a render pass. For more info, see `GPU_PassCfg`.
+ * The render pass will be ended with `GPU_CmdEndPass`.
+ */
+void GPU_CmdBeginPass(GPU_CmdBuffer* cb, GPU_PassCfg cfg);
+
+/**
+ * OWNED_THREAD
+ * End the current render pass.
+ */
+void GPU_CmdEndPass(GPU_CmdBuffer* cb);
 
 /**
  * OWNED_THREAD
  * Insert a barrier into the command buffer, to synchronize access to resources across different stages.
  */
-void GPU_CmdBuffBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg);
+void GPU_CmdBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg);
 
 EXTERN_C_END

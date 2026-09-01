@@ -2,7 +2,7 @@
 
 #if GPU_VK
 
-void GPU_VkCmdBuffBegin(GPU_CmdBuffer* cb)
+void GPU_VkCmdsBegin(GPU_CmdBuffer* cb)
 {
     GPU_VkCmdBuffer* cmdBuffer = GPU_ToVkCmdBuffer(cb);
     MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
@@ -14,7 +14,7 @@ void GPU_VkCmdBuffBegin(GPU_CmdBuffer* cb)
     }));
 }
 
-void GPU_VkCmdBuffEnd(GPU_CmdBuffer* cb)
+void GPU_VkCmdsEnd(GPU_CmdBuffer* cb)
 {
     GPU_VkCmdBuffer* cmdBuffer = GPU_ToVkCmdBuffer(cb);
     MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
@@ -22,7 +22,17 @@ void GPU_VkCmdBuffEnd(GPU_CmdBuffer* cb)
     GPU_VK_CHECKED_CALL(vkEndCommandBuffer(cmdBuffer->cmdBuffer));
 }
 
-void GPU_VkCmdBuffBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg)
+void GPU_VkCmdBeginPass(GPU_CmdBuffer* cb, GPU_PassCfg cfg)
+{
+    MSR_ASSERT(false && "Not implemented yet");
+}
+
+void GPU_VkCmdEndPass(GPU_CmdBuffer* cb)
+{
+    MSR_ASSERT(false && "Not implemented yet");
+}
+
+void GPU_VkCmdBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg)
 {
     GPU_VkCmdBuffer* cmdBuffer = GPU_ToVkCmdBuffer(cb);
     MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");

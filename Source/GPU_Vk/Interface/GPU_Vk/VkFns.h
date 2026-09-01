@@ -22,9 +22,11 @@ void GPU_VkDeleteBuffer(GPU_Buffer*);
 void GPU_VkNewTexture(GPU_Texture*, GPU_Instance*, GPU_TextureCfg);
 void GPU_VkDeleteTexture(GPU_Texture*);
 
-void GPU_VkCmdBuffBegin(GPU_CmdBuffer*);
-void GPU_VkCmdBuffEnd(GPU_CmdBuffer*);
-void GPU_VkCmdBuffBarrier(GPU_CmdBuffer*, GPU_BarrierCfg);
+void GPU_VkCmdsBegin(GPU_CmdBuffer*);
+void GPU_VkCmdsEnd(GPU_CmdBuffer*);
+void GPU_VkCmdBeginPass(GPU_CmdBuffer*, GPU_PassCfg);
+void GPU_VkCmdEndPass(GPU_CmdBuffer*);
+void GPU_VkCmdBarrier(GPU_CmdBuffer*, GPU_BarrierCfg);
 
 EXTERN_C_END
 #endif
