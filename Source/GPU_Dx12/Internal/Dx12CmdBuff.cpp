@@ -76,6 +76,27 @@ void GPU_Dx12CmdBeginPass(GPU_CmdBuffer* cb, GPU_PassCfg cfg)
             cfg.depthStencilTarget.clearStencil,
             0, nil);
     }
+
+    // set viewport & scissor
+    D3D12_VIEWPORT viewport =
+    {
+        .TopLeftX = cfg.viewport.x,
+        .TopLeftY = cfg.viewport.y,
+        .Width    = cfg.viewport.width,
+        .Height   = cfg.viewport.height,
+        .MinDepth = cfg.viewport.minDepth,
+        .MaxDepth = cfg.viewport.maxDepth,
+    };
+    cmdBuffer->cmdList->RSSetViewports(1, &viewport);
+
+    D3D12_RECT scissor =
+    {
+        .left   = (LONG) cfg.scissor.offsetX,
+        .top    = (LONG) cfg.scissor.offsetY,
+        .right  = (LONG) (cfg.scissor.offsetX + cfg.scissor.width),
+        .bottom = (LONG) (cfg.scissor.offsetY + cfg.scissor.height),
+    };
+    cmdBuffer->cmdList->RSSetScissorRects(1, &scissor);
 }
 
 void GPU_Dx12CmdEndPass(GPU_CmdBuffer* cb)

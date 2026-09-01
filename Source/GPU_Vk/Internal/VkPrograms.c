@@ -91,9 +91,9 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
     {
         VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR,
-        VK_DYNAMIC_STATE_DEPTH_BIAS,
-        VK_DYNAMIC_STATE_BLEND_CONSTANTS,
-        VK_DYNAMIC_STATE_STENCIL_REFERENCE,
+        // VK_DYNAMIC_STATE_DEPTH_BIAS,
+        // VK_DYNAMIC_STATE_BLEND_CONSTANTS,
+        // VK_DYNAMIC_STATE_STENCIL_REFERENCE,
         VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY,
         VK_DYNAMIC_STATE_CULL_MODE, // front face will always be clockwise, and we'll use this dynamic state to flip the cull mode
     };

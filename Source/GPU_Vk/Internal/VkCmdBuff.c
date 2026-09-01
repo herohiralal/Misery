@@ -93,6 +93,22 @@ void GPU_VkCmdBeginPass(GPU_CmdBuffer* cb, GPU_PassCfg cfg)
         .pDepthAttachment   = hasDs ? &depthAttachment : nil,
         .pStencilAttachment = hasDs ? &depthAttachment : nil,
     });
+
+    vkCmdSetViewport(cmdBuffer->cmdBuffer, 0, 1, &(VkViewport)
+    {
+        .x        = cfg.viewport.x,
+        .y        = cfg.viewport.y,
+        .width    = cfg.viewport.width,
+        .height   = cfg.viewport.height,
+        .minDepth = cfg.viewport.minDepth,
+        .maxDepth = cfg.viewport.maxDepth,
+    });
+
+    vkCmdSetScissor(cmdBuffer->cmdBuffer, 0, 1, &(VkRect2D)
+    {
+        .offset = {.x = cfg.scissor.offsetX, .y = cfg.scissor.offsetY},
+        .extent = {.width = cfg.scissor.width, .height = cfg.scissor.height},
+    });
 }
 
 void GPU_VkCmdEndPass(GPU_CmdBuffer* cb)

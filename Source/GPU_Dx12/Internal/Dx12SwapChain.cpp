@@ -322,6 +322,8 @@ GPU_SwapChainFrameContext GPU_Dx12BeginSwapChainFrame(GPU_SwapChain* baseSwapCha
         .frameInFlightIdx = (u8) swapChain->curFrame,
         .cmdBuffer        = baseCmdBuffer,
         .swapChainImg     = &(swapChain->buffers.imgs[swapChain->curFrame]),
+        .imageWidth       = (u16) swapChain->swapChainWidth,
+        .imageHeight      = (u16) swapChain->swapChainHeight,
     };
 }
 

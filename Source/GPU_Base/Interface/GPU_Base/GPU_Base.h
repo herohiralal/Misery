@@ -122,6 +122,8 @@ typedef struct
     // of this texture. The lifetime will be tied to the lifetime of the
     // swap-chain, but reconfiguring the swap-chain will recreate the textures.
     GPU_Texture* swapChainImg;
+
+    u16 imageWidth, imageHeight; // the width and height of the swap-chain image in pixels
 } GPU_SwapChainFrameContext;
 
 /**
@@ -681,6 +683,24 @@ typedef struct
     // the depth-stencil target for the pass
     // zero-init if not wanted
     GPU_PassDepthStencilTargetCfg depthStencilTarget;
+
+    // the viewport for the pass
+    // x & y are pixels from the top-left corner of the render target
+    // width & height are the dimensions of the viewport in pixels
+    // minDepth & maxDepth are the depth range for the viewport
+    // both depth values must be in the range [0.0, 1.0]
+    struct
+    {
+        float x, y, width, height, minDepth, maxDepth;
+    } viewport;
+
+    // the scissor rectangle for the pass
+    // x & y are pixels from the top-left corner of the render target
+    // width & height are the dimensions of the scissor rectangle in pixels
+    struct
+    {
+        float offsetX, offsetY, width, height;
+    } scissor;
 } GPU_PassCfg;
 
 /**
@@ -763,6 +783,22 @@ enum GPU_CullModes
 
     // don't cull any faces
     GPU_CullMode_None,
+};
+
+/**
+ * Defines the available primitive topologies for a GPU program.
+ */
+typedef u8 GPU_PrimitiveTopology;
+enum GPU_PrimitiveTopologies
+{
+    // treat the primitive like a list of triangles
+    GPU_PrimTop_TriangleList,
+
+    // treat the primitive like a list of lines
+    GPU_PrimTop_LineList,
+
+    // treat the primitive like a list of points
+    GPU_PrimTop_PointList,
 };
 
 /**

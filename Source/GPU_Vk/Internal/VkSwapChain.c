@@ -486,6 +486,8 @@ GPU_SwapChainFrameContext GPU_VkBeginSwapChainFrame(GPU_SwapChain* baseSwapChain
         .frameInFlightIdx = swapChain->curFrame,
         .cmdBuffer        = baseCmdBuf,
         .swapChainImg     = &(swapChain->textures.data[swapChain->acquiredSwpchImgIdx]),
+        .imageWidth       = (u16) swapChain->surfaceSize.width,
+        .imageHeight      = (u16) swapChain->surfaceSize.height,
     };
 }
 

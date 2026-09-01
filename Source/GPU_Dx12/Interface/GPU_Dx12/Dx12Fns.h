@@ -22,6 +22,12 @@ void GPU_Dx12DeleteBuffer(GPU_Buffer*);
 void GPU_Dx12NewTexture(GPU_Texture*, GPU_Instance*, GPU_TextureCfg);
 void GPU_Dx12DeleteTexture(GPU_Texture*);
 
+void GPU_Dx12NewProgramStage(GPU_ProgramStage*, GPU_Instance*, GPU_ProgramStageByteCode);
+void GPU_Dx12DeleteProgramStage(GPU_ProgramStage*);
+
+void GPU_Dx12NewProgram(GPU_Program*, GPU_Instance*, GPU_ProgramCfg);
+void GPU_Dx12DeleteProgram(GPU_Program*);
+
 void GPU_Dx12CmdsBegin(GPU_CmdBuffer*);
 void GPU_Dx12CmdsEnd(GPU_CmdBuffer*);
 void GPU_Dx12CmdBeginPass(GPU_CmdBuffer*, GPU_PassCfg);
