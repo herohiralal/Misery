@@ -77,6 +77,7 @@ VkPipelineStageFlags2 GPU_BreakVkBarrierStage(GPU_BarrierStage stages)
     if (stages & GPU_BarStg_FragmentPgmStg) stage |= VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
     if (stages & GPU_BarStg_DepthStencil)   stage |= VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
     if (stages & GPU_BarStg_DrawTarget)     stage |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    if (stages & GPU_BarStg_Present)        stage |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
     if (stages & GPU_BarStg_ComputePgmStg)  stage |= VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
     if (stages & GPU_BarStg_Copy)           stage |= VK_PIPELINE_STAGE_2_COPY_BIT | VK_PIPELINE_STAGE_2_BLIT_BIT;
     if (stages & GPU_BarStg_Clear)          stage |= VK_PIPELINE_STAGE_2_CLEAR_BIT;

@@ -370,30 +370,35 @@ enum GPU_BarrierStages
     // DX12 -> D3D12_BARRIER_SYNC_RENDER_TARGET
     GPU_BarStg_DrawTarget = 1 << 5,
 
+    // presentation stage
+    // VK -> VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT
+    // DX12 -> D3D12_BARRIER_SYNC_NONE (presentation is handled by the driver)
+    GPU_BarStg_Present = 1 << 6,
+
     // compute stage execution
     // VK -> VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT
     // DX12 -> D3D12_BARRIER_SYNC_COMPUTE_SHADING
-    GPU_BarStg_ComputePgmStg = 1 << 6,
+    GPU_BarStg_ComputePgmStg = 1 << 7,
 
     // copy/blit operations
     // VK -> VK_PIPELINE_STAGE_2_COPY_BIT | VK_PIPELINE_STAGE_2_BLIT_BIT
     // DX12 -> D3D12_BARRIER_SYNC_COPY
-    GPU_BarStg_Copy = 1 << 7,
+    GPU_BarStg_Copy = 1 << 8,
 
     // clear operations (including output and depth-stencil clears)
     // VK -> VK_PIPELINE_STAGE_2_CLEAR_BIT
     // DX12 -> D3D12_BARRIER_SYNC_CLEAR_UNORDERED_ACCESS_VIEW | D3D12_BARRIER_SYNC_RENDER_TARGET | D3D12_BARRIER_SYNC_DEPTH_STENCIL
-    GPU_BarStg_Clear = 1 << 8,
+    GPU_BarStg_Clear = 1 << 9,
 
     // resolve operations
     // VK -> VK_PIPELINE_STAGE_2_RESOLVE_BIT
     // DX12 -> D3D12_BARRIER_SYNC_RESOLVE
-    GPU_BarStg_Resolve = 1 << 9,
+    GPU_BarStg_Resolve = 1 << 10,
 
     // indirect draw/dispatch operations
     // VK -> VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT
     // DX12 -> D3D12_BARRIER_SYNC_EXECUTE_INDIRECT
-    GPU_BarStg_IndirectDraw = 1 << 10,
+    GPU_BarStg_IndirectDraw = 1 << 11,
 
     // all stages
     GPU_BarStg_All = GPU_BarStg_IndexInput |

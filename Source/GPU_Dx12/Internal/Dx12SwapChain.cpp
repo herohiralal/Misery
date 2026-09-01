@@ -316,10 +316,6 @@ GPU_SwapChainFrameContext GPU_Dx12BeginSwapChainFrame(GPU_SwapChain* baseSwapCha
     GPU_CmdBuffer* baseCmdBuffer = &(swapChain->buffers.cmdBuffers[swapChain->curFrame]);
     GPU_Dx12CmdBuffer* cmdBuffer = GPU_ToDx12CmdBuffer(baseCmdBuffer);
 
-    GPU_DX12_CHECKED_CALL(cmdBuffer->cmdAllocator->Reset());
-
-    GPU_DX12_CHECKED_CALL(cmdBuffer->cmdList->Reset(cmdBuffer->cmdAllocator, nil));
-
     return GPU_SwapChainFrameContext
     {
         .valid            = true,

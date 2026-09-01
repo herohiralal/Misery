@@ -56,7 +56,7 @@ D3D12_BARRIER_LAYOUT GPU_BreakDx12TextureLayout(GPU_TextureLayout layout)
 
 D3D12_BARRIER_SYNC GPU_BreakDx12BarrierStage(GPU_BarrierStage stages)
 {
-    if (stages == GPU_BarStg_None)
+    if (stages == GPU_BarStg_None || stages == GPU_BarStg_Present)
         return D3D12_BARRIER_SYNC_NONE;
 
     D3D12_BARRIER_SYNC sync = 0;

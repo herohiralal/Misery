@@ -7,7 +7,8 @@ void GPU_Dx12CmdsBegin(GPU_CmdBuffer* cb)
     GPU_Dx12CmdBuffer* cmdBuffer = GPU_ToDx12CmdBuffer(cb);
     MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
 
-    cmdBuffer->cmdList->Reset(cmdBuffer->cmdAllocator, nil);
+    GPU_DX12_CHECKED_CALL(cmdBuffer->cmdAllocator->Reset());
+    GPU_DX12_CHECKED_CALL(cmdBuffer->cmdList->Reset(cmdBuffer->cmdAllocator, nil));
 }
 
 void GPU_Dx12CmdsEnd(GPU_CmdBuffer* cb)
@@ -15,7 +16,7 @@ void GPU_Dx12CmdsEnd(GPU_CmdBuffer* cb)
     GPU_Dx12CmdBuffer* cmdBuffer = GPU_ToDx12CmdBuffer(cb);
     MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
 
-    cmdBuffer->cmdList->Close();
+    GPU_DX12_CHECKED_CALL(cmdBuffer->cmdList->Close());
 }
 
 void GPU_Dx12CmdBeginPass(GPU_CmdBuffer* cb, GPU_PassCfg cfg)
@@ -157,8 +158,13 @@ void GPU_Dx12CmdBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg)
             GPU_TextureBarrierCfg* tCfg = &(cfg.textureBarriers.data[i]);
             texBarriers.data[i] = D3D12_TEXTURE_BARRIER
             {
-                .SyncBefore = GPU_BreakDx12BarrierStage(tCfg->src.stage),
-                .SyncAfter = GPU_BreakDx12BarrierStage(tCfg->dst.stage),
+                .SyncBefore = tCfg->src.access == GPU_BarAcc_None
+                                ? D3D12_BARRIER_SYNC_NONE
+                                : GPU_BreakDx12BarrierStage(tCfg->src.stage),
+                .SyncAfter = tCfg->dst.access == GPU_BarAcc_None
+                                ? D3D12_BARRIER_SYNC_NONE
+                                : GPU_BreakDx12BarrierStage(tCfg->dst.stage),
+
                 .AccessBefore = GPU_BreakDx12BarrierAccess(tCfg->src.access),
                 .AccessAfter = GPU_BreakDx12BarrierAccess(tCfg->dst.access),
                 .LayoutBefore = GPU_BreakDx12TextureLayout(tCfg->srcLayout),

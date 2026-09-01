@@ -175,7 +175,7 @@ void RenderThread(rawptr data)
                     ((GPU_TextureBarrierCfg)
                     {
                         .texture = frameCtx.swapChainImg,
-                        .src = {.stage = GPU_BarStg_None,       .access = GPU_BarAcc_None      },
+                        .src = {.stage = GPU_BarStg_Present,    .access = GPU_BarAcc_None      },
                         .dst = {.stage = GPU_BarStg_DrawTarget, .access = GPU_BarAcs_DrawTarget},
                         .srcLayout = GPU_TexLyt_Unknown,
                         .dstLayout = GPU_TexLyt_DrawTarget,
@@ -206,7 +206,7 @@ void RenderThread(rawptr data)
                     {
                         .texture = frameCtx.swapChainImg,
                         .src = {.stage = GPU_BarStg_DrawTarget, .access = GPU_BarAcs_DrawTarget},
-                        .dst = {.stage = GPU_BarStg_None,       .access = GPU_BarAcc_None      },
+                        .dst = {.stage = GPU_BarStg_Present,    .access = GPU_BarAcc_None      },
                         .srcLayout = GPU_TexLyt_DrawTarget,
                         .dstLayout = GPU_TexLyt_Present,
                     }),
