@@ -120,5 +120,11 @@ GPU_EXTEND_OBJECT(Vk, Texture,
     VkImageView           view;
 );
 
+GPU_EXTEND_OBJECT(Vk, ProgramStage,
+    const GPU_VkInstance* renderer;
+    GPU_ProgramStageType  type;
+    VkShaderModule        actual;
+);
+
 EXTERN_C_END
 #endif

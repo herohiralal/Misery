@@ -109,6 +109,42 @@ void GPU_DeleteBuffer(GPU_Buffer* buffer)
     );
 }
 
+void GPU_NewTexture(GPU_Texture* outTexture, GPU_Instance* renderer, GPU_TextureCfg cfg)
+{
+    RHI_FN_SWITCH_VOID(
+        renderer ? renderer->base.type : GPU_GfxAPIType_Null,
+        NewTexture,
+        outTexture, renderer, cfg
+    );
+}
+
+void GPU_DeleteTexture(GPU_Texture* texture)
+{
+    RHI_FN_SWITCH_VOID(
+        texture ? texture->base.type : GPU_GfxAPIType_Null,
+        DeleteTexture,
+        texture
+    );
+}
+
+void GPU_NewProgramStage(GPU_ProgramStage* outStage, GPU_Instance* renderer, GPU_ProgramStageCfg cfg)
+{
+    RHI_FN_SWITCH_VOID(
+        renderer ? renderer->base.type : GPU_GfxAPIType_Null,
+        NewProgramStage,
+        outStage, renderer, cfg
+    );
+}
+
+void GPU_DeleteProgramStage(GPU_ProgramStage* stage)
+{
+    RHI_FN_SWITCH_VOID(
+        stage ? stage->base.type : GPU_GfxAPIType_Null,
+        DeleteProgramStage,
+        stage
+    );
+}
+
 void GPU_CmdsBegin(GPU_CmdBuffer* cb)
 {
     RHI_FN_SWITCH_VOID(

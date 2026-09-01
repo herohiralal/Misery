@@ -22,6 +22,9 @@ void GPU_VkDeleteBuffer(GPU_Buffer*);
 void GPU_VkNewTexture(GPU_Texture*, GPU_Instance*, GPU_TextureCfg);
 void GPU_VkDeleteTexture(GPU_Texture*);
 
+void GPU_VkNewProgramStage(GPU_ProgramStage*, GPU_Instance*, GPU_ProgramStageCfg);
+void GPU_VkDeleteProgramStage(GPU_ProgramStage*);
+
 void GPU_VkCmdsBegin(GPU_CmdBuffer*);
 void GPU_VkCmdsEnd(GPU_CmdBuffer*);
 void GPU_VkCmdBeginPass(GPU_CmdBuffer*, GPU_PassCfg);

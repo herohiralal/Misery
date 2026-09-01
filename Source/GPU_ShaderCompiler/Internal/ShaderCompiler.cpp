@@ -156,7 +156,7 @@ EXTERN_C_BEGIN
 COL_DECLARE_FOR(LPCWSTR);
 EXTERN_C_END
 
-b8 GPU_CompileProgramStage(GPU_ProgramStage* stage, GPU_ProgramStageCfg cfg)
+b8 GPU_CompileProgramStage(GPU_ProgramStageByteCode* stage, GPU_ProgramStageByteCodeCfg cfg)
 {
     #if !DX_SHADER_COMPILER
     {
@@ -271,7 +271,7 @@ b8 GPU_CompileProgramStage(GPU_ProgramStage* stage, GPU_ProgramStageCfg cfg)
         };
 
         if (stage)
-            *stage = GPU_ProgramStage
+            *stage = GPU_ProgramStageByteCode
             {
                 .stage      = cfg.stage,
                 .allocator  = cfg.allocator,
@@ -287,7 +287,7 @@ b8 GPU_CompileProgramStage(GPU_ProgramStage* stage, GPU_ProgramStageCfg cfg)
     #endif
 }
 
-void GPU_FreeProgramStage(GPU_ProgramStage* stage)
+void GPU_FreeProgramStage(GPU_ProgramStageByteCode* stage)
 {
     #if !DX_SHADER_COMPILER
     {

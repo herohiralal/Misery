@@ -108,6 +108,20 @@ void GPU_NewTexture(GPU_Texture* outTexture, GPU_Instance* renderer, GPU_Texture
  */
 void GPU_DeleteTexture(GPU_Texture* texture);
 
+// Programs ====================================================================================================================
+
+/**
+ * THREAD_SAFE
+ * Create a program stage with the given configuration.
+ */
+void GPU_NewProgramStage(GPU_ProgramStage* outStage, GPU_Instance* renderer, GPU_ProgramStageCfg cfg);
+
+/**
+ * THREAD_SAFE
+ * Destroy the given program stage, freeing up associated resources.
+ */
+void GPU_DeleteProgramStage(GPU_ProgramStage* stage);
+
 // Command-buffers =============================================================================================================
 
 /**
