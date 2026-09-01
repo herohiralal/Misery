@@ -480,12 +480,6 @@ GPU_SwapChainFrameContext GPU_VkBeginSwapChainFrame(GPU_SwapChain* baseSwapChain
 
     GPU_VK_CHECKED_CALL(vkResetCommandPool(swapChain->renderer->device, cmdBuf->cmdPool, 0));
 
-    GPU_VK_CHECKED_CALL(vkBeginCommandBuffer(cmdBuf->cmdBuffer, &(VkCommandBufferBeginInfo)
-    {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-    }));
-
     return (GPU_SwapChainFrameContext)
     {
         .valid            = true,
@@ -503,90 +497,6 @@ void GPU_VkEndSwapChainFrame(GPU_SwapChain* baseSwapChain)
     if (!swapChain->allowCmdBuff) return;
 
     GPU_VkCmdBuffer* cmdBuf = GPU_ToVkCmdBuffer(&(swapChain->perFrameInFlight[swapChain->curFrame].cmdBuffer));
-
-    // TODO: REMOVEEEE - swapchain: undefined -> rt
-    vkCmdPipelineBarrier2(cmdBuf->cmdBuffer, &(VkDependencyInfo)
-    {
-        .sType                   = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-        .imageMemoryBarrierCount = 1,
-        .pImageMemoryBarriers    = (VkImageMemoryBarrier2[])
-        {
-            {
-                .sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-                .srcStageMask        = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-                .srcAccessMask       = VK_ACCESS_2_NONE,
-                .dstStageMask        = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-                .dstAccessMask       = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-                .oldLayout           = VK_IMAGE_LAYOUT_UNDEFINED,
-                .newLayout           = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                .image               = GPU_ToVkTexture(&(swapChain->textures.data[swapChain->acquiredSwpchImgIdx]))->actual,
-                .subresourceRange    =
-                {
-                    .aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .baseMipLevel    = 0,
-                    .levelCount      = 1,
-                    .baseArrayLayer  = 0,
-                    .layerCount      = 1,
-                },
-            },
-        }
-    });
-
-    // TODO: REMOVEEEE - bind swapchain to output
-    {
-        vkCmdBeginRendering(cmdBuf->cmdBuffer, &(VkRenderingInfo)
-        {
-            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-            .renderArea = {.offset = {0, 0}, .extent = swapChain->surfaceSize},
-            .layerCount = 1,
-            .colorAttachmentCount = 1,
-            .pColorAttachments = &(VkRenderingAttachmentInfo)
-            {
-                .sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                .imageView   = GPU_ToVkTexture(&(swapChain->textures.data[swapChain->acquiredSwpchImgIdx]))->view,
-                .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                .loadOp      = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                .storeOp     = VK_ATTACHMENT_STORE_OP_STORE,
-                .clearValue  = {.color = {.float32 = {1.0, 0.0, 1.0, 1.0}}},
-            },
-            // TODO: bind
-            .pDepthAttachment = nil,
-            .pStencilAttachment = nil,
-        });
-
-        vkCmdEndRendering(cmdBuf->cmdBuffer);
-    }
-
-    // TODO: REMOVEEEE - swapchain: rt -> present
-    vkCmdPipelineBarrier2(cmdBuf->cmdBuffer, &(VkDependencyInfo)
-    {
-        .sType                   = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-        .imageMemoryBarrierCount = 1,
-        .pImageMemoryBarriers    = (VkImageMemoryBarrier2[])
-        {
-            {
-                .sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-                .srcStageMask        = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-                .srcAccessMask       = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-                .dstStageMask        = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-                .dstAccessMask       = VK_ACCESS_2_NONE,
-                .oldLayout           = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                .newLayout           = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                .image               = GPU_ToVkTexture(&(swapChain->textures.data[swapChain->acquiredSwpchImgIdx]))->actual,
-                .subresourceRange    =
-                {
-                    .aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .baseMipLevel    = 0,
-                    .levelCount      = 1,
-                    .baseArrayLayer  = 0,
-                    .layerCount      = 1,
-                },
-            },
-        }
-    });
-
-    // TODO: REMOVEEEE - command buffer over
-    GPU_VK_CHECKED_CALL(vkEndCommandBuffer(cmdBuf->cmdBuffer));
 
     // submit command buffer
     GPU_VK_CHECKED_CALL(vkQueueSubmit2(swapChain->renderer->gfxQueue, 1, &(VkSubmitInfo2)

@@ -168,6 +168,51 @@ void RenderThread(rawptr data)
         if (frameCtx.valid)
         {
             GPU_CmdsBegin(frameCtx.cmdBuffer);
+
+            GPU_CmdBarrier(frameCtx.cmdBuffer, (GPU_BarrierCfg)
+            {
+                .textureBarriers = SLICE(GPU_TextureBarrierCfg,
+                    ((GPU_TextureBarrierCfg)
+                    {
+                        .texture = frameCtx.swapChainImg,
+                        .src = {.stage = GPU_BarStg_None,       .access = GPU_BarAcc_None      },
+                        .dst = {.stage = GPU_BarStg_DrawTarget, .access = GPU_BarAcs_DrawTarget},
+                        .srcLayout = GPU_TexLyt_Unknown,
+                        .dstLayout = GPU_TexLyt_DrawTarget,
+                    }),
+                ),
+            });
+
+            GPU_CmdBeginPass(frameCtx.cmdBuffer, (GPU_PassCfg)
+            {
+                .drawTargets = SLICE(GPU_PassDrawTargetCfg,
+                    ((GPU_PassDrawTargetCfg)
+                    {
+                        .target      = frameCtx.swapChainImg,
+                        .idealLayout = true,
+                        .loadOp      = GPU_LoadOp_Clear,
+                        .storeOp     = GPU_StoreOp_Store,
+                        .clearColor  = {1.0, 0.0, 1.0, 1.0},
+                    }),
+                ),
+            });
+
+            GPU_CmdEndPass(frameCtx.cmdBuffer);
+
+            GPU_CmdBarrier(frameCtx.cmdBuffer, (GPU_BarrierCfg)
+            {
+                .textureBarriers = SLICE(GPU_TextureBarrierCfg,
+                    ((GPU_TextureBarrierCfg)
+                    {
+                        .texture = frameCtx.swapChainImg,
+                        .src = {.stage = GPU_BarStg_DrawTarget, .access = GPU_BarAcs_DrawTarget},
+                        .dst = {.stage = GPU_BarStg_None,       .access = GPU_BarAcc_None      },
+                        .srcLayout = GPU_TexLyt_DrawTarget,
+                        .dstLayout = GPU_TexLyt_Present,
+                    }),
+                ),
+            });
+
             GPU_CmdsEnd(frameCtx.cmdBuffer);
             GPU_EndSwapChainFrame(&G_RenderData.swapChain);
         }

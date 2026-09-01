@@ -29,7 +29,7 @@ void GPU_Dx12CmdBeginPass(GPU_CmdBuffer* cb, GPU_PassCfg cfg)
 
     for (isize i = 0; i < cfg.drawTargets.count; i++)
     {
-        GPU_PassDrawTarget* tgt = &(cfg.drawTargets.data[i]);
+        GPU_PassDrawTargetCfg* tgt = &(cfg.drawTargets.data[i]);
 
         GPU_Dx12Texture* tex = GPU_ToDx12Texture(tgt->target);
         MSR_ASSERT(tex && "draw target texture must not be null");
@@ -53,7 +53,7 @@ void GPU_Dx12CmdBeginPass(GPU_CmdBuffer* cb, GPU_PassCfg cfg)
     // clear the ones that need clearing
     for (isize i = 0; i < cfg.drawTargets.count; i++)
     {
-        GPU_PassDrawTarget* tgt = &(cfg.drawTargets.data[i]);
+        GPU_PassDrawTargetCfg* tgt = &(cfg.drawTargets.data[i]);
         if (tgt->loadOp != GPU_LoadOp_Clear) continue;
 
         GPU_Dx12Texture* tex = GPU_ToDx12Texture(tgt->target);

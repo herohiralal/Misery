@@ -332,72 +332,12 @@ GPU_SwapChainFrameContext GPU_Dx12BeginSwapChainFrame(GPU_SwapChain* baseSwapCha
 void GPU_Dx12EndSwapChainFrame(GPU_SwapChain* baseSwapChain)
 {
     GPU_Dx12SwapChain* swapChain = GPU_ToDx12SwapChain(baseSwapChain);
+    MSR_ASSERT(swapChain->renderer && "swapChain->renderer must not be null");
+
     if (!swapChain || !(swapChain->renderer) || !swapChain->allowCmdBuff)
         return;
 
     GPU_Dx12CmdBuffer* cmdBuffer = GPU_ToDx12CmdBuffer(&(swapChain->buffers.cmdBuffers[swapChain->curFrame]));
-
-    GPU_Dx12Texture* curImg = GPU_ToDx12Texture(&(swapChain->buffers.imgs[swapChain->curFrame]));
-    MSR_ASSERT(curImg && curImg->actual && "curImg must be valid");
-
-    // TODO: REMOVEEEE - swapchain: common -> rt
-    {
-        D3D12_TEXTURE_BARRIER textureBarrier =
-        {
-            .SyncBefore = D3D12_BARRIER_SYNC_NONE,
-            .SyncAfter = D3D12_BARRIER_SYNC_RENDER_TARGET,
-            .AccessBefore = D3D12_BARRIER_ACCESS_NO_ACCESS,
-            .AccessAfter = D3D12_BARRIER_ACCESS_RENDER_TARGET,
-            .LayoutBefore = D3D12_BARRIER_LAYOUT_COMMON,
-            .LayoutAfter = D3D12_BARRIER_LAYOUT_RENDER_TARGET,
-            .pResource = curImg->actual,
-            .Subresources = CD3DX12_BARRIER_SUBRESOURCE_RANGE(U32_MAX),
-        };
-
-        D3D12_BARRIER_GROUP barrier =
-        {
-            .Type = D3D12_BARRIER_TYPE_TEXTURE,
-            .NumBarriers = 1,
-            .pTextureBarriers = &textureBarrier,
-        };
-
-        cmdBuffer->cmdList->Barrier(1, &barrier);
-    }
-
-    // TODO: REMOVEEEE - bind swapchain to output
-    {
-        cmdBuffer->cmdList->OMSetRenderTargets(1, &(curImg->asRtv.data.cpuHandle), FALSE, nil);
-
-        float clearColor[4] = {1.0f, 0.0f, 1.0f, 1.0f};
-        cmdBuffer->cmdList->ClearRenderTargetView(curImg->asRtv.data.cpuHandle, clearColor, 0, nullptr);
-    }
-
-    // TODO: REMOVEEEE - swapchain: rt -> present
-    {
-        D3D12_TEXTURE_BARRIER textureBarrier =
-        {
-            .SyncBefore = D3D12_BARRIER_SYNC_RENDER_TARGET,
-            .SyncAfter = D3D12_BARRIER_SYNC_NONE,
-            .AccessBefore = D3D12_BARRIER_ACCESS_RENDER_TARGET,
-            .AccessAfter = D3D12_BARRIER_ACCESS_NO_ACCESS,
-            .LayoutBefore = D3D12_BARRIER_LAYOUT_RENDER_TARGET,
-            .LayoutAfter = D3D12_BARRIER_LAYOUT_PRESENT,
-            .pResource = curImg->actual,
-            .Subresources = CD3DX12_BARRIER_SUBRESOURCE_RANGE(U32_MAX),
-        };
-
-        D3D12_BARRIER_GROUP barrier =
-        {
-            .Type = D3D12_BARRIER_TYPE_TEXTURE,
-            .NumBarriers = 1,
-            .pTextureBarriers = &textureBarrier,
-        };
-
-        cmdBuffer->cmdList->Barrier(1, &barrier);
-    }
-
-    // TODO: REMOVEEEE - command buffer over
-    GPU_DX12_CHECKED_CALL(cmdBuffer->cmdList->Close());
 
     // submit
     {

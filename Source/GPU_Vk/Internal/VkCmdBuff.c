@@ -35,7 +35,7 @@ void GPU_VkCmdBeginPass(GPU_CmdBuffer* cb, GPU_PassCfg cfg)
     u16 rpW = 0, rpH = 0;
     for (isize i = 0; i < cfg.drawTargets.count; i++)
     {
-        GPU_PassDrawTarget* tgt = &(cfg.drawTargets.data[i]);
+        GPU_PassDrawTargetCfg* tgt = &(cfg.drawTargets.data[i]);
 
         GPU_VkTexture* tex = GPU_ToVkTexture(tgt->target);
         MSR_ASSERT(tex && "draw target texture must not be null");

@@ -628,9 +628,9 @@ typedef struct
 
     // if loadOp is `GPU_LoadOp_Clear`, this is the color to clear to
     float clearColor[4];
-} GPU_PassDrawTarget;
+} GPU_PassDrawTargetCfg;
 
-COL_DECLARE_FOR(GPU_PassDrawTarget);
+COL_DECLARE_FOR(GPU_PassDrawTargetCfg);
 
 typedef struct
 {
@@ -655,7 +655,7 @@ typedef struct
 
     // if loadOp is `GPU_LoadOp_Clear`, this is the stencil value to clear to
     u8    clearStencil;
-} GPU_PassDepthStencilTarget;
+} GPU_PassDepthStencilTargetCfg;
 
 /**
  * Defines the configuration for a GPU pass.
@@ -668,11 +668,11 @@ typedef struct
 {
     // the draw targets for the pass
     // all the draw targets must have a valid texture
-    Slice_(GPU_PassDrawTarget) drawTargets;
+    Slice_(GPU_PassDrawTargetCfg) drawTargets;
 
     // the depth-stencil target for the pass
     // zero-init if not wanted
-    GPU_PassDepthStencilTarget depthStencilTarget;
+    GPU_PassDepthStencilTargetCfg depthStencilTarget;
 } GPU_PassCfg;
 
 /**
