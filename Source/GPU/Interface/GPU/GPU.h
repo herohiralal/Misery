@@ -122,6 +122,18 @@ void GPU_NewProgramStage(GPU_ProgramStage* outStage, GPU_Instance* renderer, GPU
  */
 void GPU_DeleteProgramStage(GPU_ProgramStage* stage);
 
+/**
+ * THREAD_SAFE
+ * Create a program with the given configuration.
+ */
+void GPU_NewProgram(GPU_Program* outProgram, GPU_Instance* renderer, GPU_ProgramCfg cfg);
+
+/**
+ * THREAD_SAFE
+ * Destroy the given program, freeing up associated resources.
+ */
+void GPU_DeleteProgram(GPU_Program* program);
+
 // Command-buffers =============================================================================================================
 
 /**

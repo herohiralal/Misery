@@ -7,6 +7,7 @@ DXGI_FORMAT GPU_BreakDx12TextureFormat(GPU_TextureFormat fmt)
     switch ((enum GPU_TextureFormats) fmt)
     {
         case GPU_TexFmt_D32_Float:          return DXGI_FORMAT_D32_FLOAT;
+        case GPU_TexFmt_D24_UNorm_S8_UInt:  return DXGI_FORMAT_D24_UNORM_S8_UINT;
         case GPU_TexFmt_R8G8B8A8_UNorm:     return DXGI_FORMAT_R8G8B8A8_UNORM;
         case GPU_TexFmt_B8G8R8A8_UNorm:     return DXGI_FORMAT_B8G8R8A8_UNORM;
         case GPU_TexFmt_R16G16B16A16_UNorm: return DXGI_FORMAT_R16G16B16A16_UNORM;
@@ -22,6 +23,7 @@ GPU_TextureFormat GPU_MakeDx12TextureFormat(DXGI_FORMAT fmt)
     switch (fmt)
     {
         case DXGI_FORMAT_D32_FLOAT:          return GPU_TexFmt_D32_Float;
+        case DXGI_FORMAT_D24_UNORM_S8_UINT:  return GPU_TexFmt_D24_UNorm_S8_UInt;
         case DXGI_FORMAT_R8G8B8A8_UNORM:     return GPU_TexFmt_R8G8B8A8_UNorm;
         case DXGI_FORMAT_B8G8R8A8_UNORM:     return GPU_TexFmt_B8G8R8A8_UNorm;
         case DXGI_FORMAT_R16G16B16A16_UNORM: return GPU_TexFmt_R16G16B16A16_UNorm;

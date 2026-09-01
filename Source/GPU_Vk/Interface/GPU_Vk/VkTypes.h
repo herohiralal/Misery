@@ -23,6 +23,9 @@ COL_DECLARE_FOR(VkMemoryBarrier2);
 COL_DECLARE_FOR(VkBufferMemoryBarrier2);
 COL_DECLARE_FOR(VkImageMemoryBarrier2);
 COL_DECLARE_FOR(VkRenderingAttachmentInfo);
+COL_DECLARE_FOR(VkPipelineShaderStageCreateInfo);
+COL_DECLARE_FOR(VkDynamicState);
+COL_DECLARE_FOR(VkFormat);
 
 GPU_EXTEND_OBJECT(Vk, Instance,
     APP_Handle    appHandle;
@@ -124,6 +127,17 @@ GPU_EXTEND_OBJECT(Vk, ProgramStage,
     const GPU_VkInstance* renderer;
     GPU_ProgramStageType  type;
     VkShaderModule        actual;
+    u8 entryPoint[64];
+);
+
+GPU_EXTEND_OBJECT(Vk, Program,
+    const GPU_VkInstance* renderer;
+    GPU_ProgramType       type;
+    VkPipeline            actual;
+    VkPipelineLayout      pipelineLayout;
+    // TODO: add support for descriptor set layouts
+    // u8 descriptorSetsCount;
+    // VkDescriptorSetLayout descSetLayouts[16];
 );
 
 EXTERN_C_END

@@ -312,10 +312,13 @@ enum GPU_TextureFormats
 {
     GPU_TexFmt_Unknown,
     GPU_TexFmt_D32_Float,
+    GPU_TexFmt_D24_UNorm_S8_UInt,
     GPU_TexFmt_B8G8R8A8_UNorm,
     GPU_TexFmt_R8G8B8A8_UNorm,
     GPU_TexFmt_R16G16B16A16_UNorm,
 };
+
+COL_DECLARE_FOR(GPU_TextureFormat);
 
 /**
  * Represents a texture resource that can be used on the GPU.
@@ -725,7 +728,16 @@ typedef struct
 /**
  * Represents a program stage loaded onto the GPU.
  */
-GPU_DECLARE_OBJECT(ProgramStage, 32);
+GPU_DECLARE_OBJECT(ProgramStage, 128);
+
+typedef u8 GPU_ProgramType;
+enum GPU_ProgramTypes
+{
+    GPU_ProgramType_VertexFragment,   // vertex + fragment stages
+    GPU_ProgramType_MeshFragment,     // mesh + fragment stages
+    GPU_ProgramTYpe_TaskMeshFragment, // task + mesh + fragment stages
+    GPU_ProgramType_Compute,          // compute stage only
+};
 
 /**
  * Configuration structure to refer to a program stage for program creation.
@@ -738,11 +750,38 @@ typedef struct
 COL_DECLARE_FOR(GPU_ProgramStageCfg);
 
 /**
+ * Defines the available culling modes for a GPU program.
+ */
+typedef u8 GPU_CullMode;
+enum GPU_CullModes
+{
+    // cull counter-clockwise faces
+    GPU_CullMode_CounterClockwise,
+
+    // cull clockwise faces
+    GPU_CullMode_Clockwise,
+
+    // don't cull any faces
+    GPU_CullMode_None,
+};
+
+/**
  * Configuration structure for GPU program creation.
  */
 typedef struct
 {
+    // different stages that make up this program
     Slice_(GPU_ProgramStageCfg) stages;
+
+    struct
+    {
+        // the set of draw target formats
+        Slice_(GPU_TextureFormat) draw;
+
+        // the depth-stencil format
+        GPU_TextureFormat         depthStencil;
+    } targetFormats;
+
     utf8str objectName;
 } GPU_ProgramCfg;
 
@@ -751,7 +790,7 @@ typedef struct
  * It represents a "pipeline" of stages that can be used together, and the resources they
  * require.
  */
-GPU_DECLARE_OBJECT(Program, 1);
+GPU_DECLARE_OBJECT(Program, 128);
 
 #undef GPU_DECLARE_OBJECT
 
