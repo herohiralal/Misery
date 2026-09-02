@@ -51,13 +51,13 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
     MSR_ASSERT(output && "program must not be null");
 
     output->renderer = renderer;
-    output->type = GPU_ProgramType_VertexFragment;
+    MSR_ASSERT(cfg.stages.count > 0 && "program must have at least one stage");
+    GPU_VkProgramStage* firstStage = GPU_ToVkProgramStage(cfg.stages.data[0].stage);
+    MSR_ASSERT(firstStage && "first stage must be valid");
+    MSR_ASSERT(firstStage->type == GPU_ProgramStageType_Vertex || firstStage->type == GPU_ProgramStageType_Mesh
+        && "other pipelines not supported yet");
 
-    // TODO: add support for [TS -> MS -> FS] & [CS] pipelines
-    MSR_ASSERT(cfg.stages.count == 2 && "only vert+frag programs are supported for now");
-
-    GPU_VkProgramStage* vertStage = GPU_ToVkProgramStage(cfg.stages.data[0].stage);
-    GPU_VkProgramStage* fragStage = GPU_ToVkProgramStage(cfg.stages.data[1].stage);
+    GPU_VkProgramStage *cmptStage = nil, *taskStage = nil, *meshStage = nil, *vertStage = nil, *fragStage = nil;
 
     // TODO: add support for program/material parameters
     GPU_VK_CHECKED_CALL(vkCreatePipelineLayout(renderer->device, &(VkPipelineLayoutCreateInfo)
@@ -69,26 +69,78 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
         .pPushConstantRanges = nil,
     }, nil, &(output->pipelineLayout)));
 
-    Slice_(VkFormat) colourFormats = COL_NewSlice(VkFormat, cfg.targetFormats.draw.count, true, MEM_temp);
-    for (usize i = 0; i < cfg.targetFormats.draw.count; i++)
-        colourFormats.data[i] = GPU_BreakVkTextureFormat(cfg.targetFormats.draw.data[i]);
-
-    Slice_(VkPipelineShaderStageCreateInfo) shaderStages = COL_NewSlice(VkPipelineShaderStageCreateInfo, 2, true, MEM_temp);
-    shaderStages.data[0] = (VkPipelineShaderStageCreateInfo)
+    switch ((enum GPU_ProgramStageTypes) firstStage->type)
     {
-        .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-        .stage  = VK_SHADER_STAGE_VERTEX_BIT,
-        .module = vertStage->actual,
-        .pName  = (cstring) vertStage->entryPoint,
-    };
+        case GPU_ProgramStageType_Vertex:
+        {
+            vertStage = firstStage;
+            MSR_ASSERT(cfg.stages.count == 2 && "vertex program must have a fragment stage");
+            fragStage = GPU_ToVkProgramStage(cfg.stages.data[1].stage);
+            MSR_ASSERT(fragStage && "fragment stage must be valid");
+            output->type = GPU_ProgramType_VertexFragment;
+            break;
+        }
+        case GPU_ProgramStageType_Mesh:
+        {
+            meshStage = firstStage;
+            MSR_ASSERT(cfg.stages.count == 2 && "mesh program must have a fragment stage");
+            fragStage = GPU_ToVkProgramStage(cfg.stages.data[1].stage);
+            MSR_ASSERT(fragStage && "fragment stage must be valid");
+            output->type = GPU_ProgramType_MeshFragment;
+            break;
+        }
+        case GPU_ProgramStageType_Task:
+        {
+            taskStage = firstStage;
+            MSR_ASSERT(cfg.stages.count == 3 && "task program must have a mesh and fragment stage");
+            meshStage = GPU_ToVkProgramStage(cfg.stages.data[1].stage);
+            MSR_ASSERT(meshStage && "mesh stage must be valid");
+            fragStage = GPU_ToVkProgramStage(cfg.stages.data[2].stage);
+            MSR_ASSERT(fragStage && "fragment stage must be valid");
+            output->type = GPU_ProgramType_TaskMeshFragment;
+            break;
+        }
+        default:
+            MSR_ASSERT(false && "not implemented yet");
+    }
 
-    shaderStages.data[1] = (VkPipelineShaderStageCreateInfo)
-    {
-        .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-        .stage  = VK_SHADER_STAGE_FRAGMENT_BIT,
-        .module = fragStage->actual,
-        .pName  = (cstring) fragStage->entryPoint,
-    };
+    List_(VkPipelineShaderStageCreateInfo) shaderStages = COL_NewList(VkPipelineShaderStageCreateInfo, 3, MEM_temp);
+
+    if (taskStage)
+        COL_AppendToList(&shaderStages, ((VkPipelineShaderStageCreateInfo)
+        {
+            .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage  = VK_SHADER_STAGE_TASK_BIT_EXT,
+            .module = taskStage->actual,
+            .pName  = (cstring) taskStage->entryPoint,
+        }));
+
+    if (meshStage)
+        COL_AppendToList(&shaderStages, ((VkPipelineShaderStageCreateInfo)
+        {
+            .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage  = VK_SHADER_STAGE_MESH_BIT_EXT,
+            .module = meshStage->actual,
+            .pName  = (cstring) meshStage->entryPoint,
+        }));
+
+    if (vertStage)
+        COL_AppendToList(&shaderStages, ((VkPipelineShaderStageCreateInfo)
+        {
+            .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage  = VK_SHADER_STAGE_VERTEX_BIT,
+            .module = vertStage->actual,
+            .pName  = (cstring) vertStage->entryPoint,
+        }));
+
+    if (fragStage)
+        COL_AppendToList(&shaderStages, ((VkPipelineShaderStageCreateInfo)
+        {
+            .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage  = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .module = fragStage->actual,
+            .pName  = (cstring) fragStage->entryPoint,
+        }));
 
     VkDynamicState dynamicStates[] =
     {
@@ -101,11 +153,18 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
         VK_DYNAMIC_STATE_CULL_MODE, // front face will always be clockwise, and we'll use this dynamic state to flip the cull mode
     };
 
+    Slice_(VkFormat) colourFormats = COL_NewSlice(VkFormat, cfg.targetFormats.draw.count, true, MEM_temp);
+    for (usize i = 0; i < cfg.targetFormats.draw.count; i++)
+        colourFormats.data[i] = GPU_BreakVkTextureFormat(cfg.targetFormats.draw.data[i]);
+
     GPU_VK_CHECKED_CALL(vkCreateGraphicsPipelines(renderer->device, nil, 1, &(VkGraphicsPipelineCreateInfo)
     {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         .stageCount = (u32) shaderStages.count,
         .pStages = shaderStages.data,
+
+        // spec says these will be ignored if we have mesh shading stages
+        // so no need to explicitly mark them as nil for that case
         .pVertexInputState = &(VkPipelineVertexInputStateCreateInfo)
         {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
@@ -120,6 +179,7 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
             .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
             .primitiveRestartEnable = VK_FALSE,
         },
+
         .pViewportState = &(VkPipelineViewportStateCreateInfo)
         {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,

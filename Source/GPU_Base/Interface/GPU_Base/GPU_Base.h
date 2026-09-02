@@ -757,7 +757,7 @@ enum GPU_ProgramTypes
 {
     GPU_ProgramType_VertexFragment,   // vertex + fragment stages
     GPU_ProgramType_MeshFragment,     // mesh + fragment stages
-    GPU_ProgramTYpe_TaskMeshFragment, // task + mesh + fragment stages
+    GPU_ProgramType_TaskMeshFragment, // task + mesh + fragment stages
     GPU_ProgramType_Compute,          // compute stage only
 };
 
