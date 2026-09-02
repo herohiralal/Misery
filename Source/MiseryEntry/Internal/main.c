@@ -25,6 +25,67 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
 
     TIM_Value prevTime = TIM_GetCurrentMonotonicTime();
 
+    DIR_Path rootDir = {0};
+    {
+        FIL_Path currExec = PRC_GetCurrentExecutablePath(MEM_temp);
+        rootDir = DIR_Parent(DIR_Parent(currExec) /* binaries dir */) /* root dir */;
+    }
+
+    GPU_ProgramStageByteCode triangleVs = {0}, triangleMs = {0}, triangleFs = {0}, fsBlitVs = {0}, fsBlitFs = {0};
+    {
+        // compile shaders
+        {
+            DIR_Path shadersDir = DIR_DirectoryInside(rootDir, UTF8STR("Shaders"), MEM_temp);
+            DIR_Path triangleDir = DIR_DirectoryInside(shadersDir, UTF8STR("HelloTriangle"), MEM_temp);
+            DIR_Path fsBlitDir = DIR_DirectoryInside(shadersDir, UTF8STR("FullScreenBlit"), MEM_temp);
+
+            GPU_NewProgramStageByteCode(&triangleVs, (GPU_ProgramStageByteCodeCfg)
+            {
+                .gfxAPI = GPU_GfxAPIType_Vk,
+                .stage = GPU_ProgramStageType_Vertex,
+                .file = DIR_FileInside(triangleDir, UTF8STR("HelloTriangle.vert.hlsl"), MEM_temp),
+                .entryPoint = UTF8STR("main"),
+                .allocator = MEM_main,
+            });
+
+            GPU_NewProgramStageByteCode(&triangleMs, (GPU_ProgramStageByteCodeCfg)
+            {
+                .gfxAPI = GPU_GfxAPIType_Vk,
+                .stage = GPU_ProgramStageType_Mesh,
+                .file = DIR_FileInside(triangleDir, UTF8STR("HelloTriangle.mesh.hlsl"), MEM_temp),
+                .entryPoint = UTF8STR("main"),
+                .allocator = MEM_main,
+            });
+
+            GPU_NewProgramStageByteCode(&triangleFs, (GPU_ProgramStageByteCodeCfg)
+            {
+                .gfxAPI = GPU_GfxAPIType_Vk,
+                .stage = GPU_ProgramStageType_Fragment,
+                .file = DIR_FileInside(triangleDir, UTF8STR("HelloTriangle.frag.hlsl"), MEM_temp),
+                .entryPoint = UTF8STR("main"),
+                .allocator = MEM_main,
+            });
+
+            GPU_NewProgramStageByteCode(&fsBlitVs, (GPU_ProgramStageByteCodeCfg)
+            {
+                .gfxAPI = GPU_GfxAPIType_Vk,
+                .stage = GPU_ProgramStageType_Vertex,
+                .file = DIR_FileInside(fsBlitDir, UTF8STR("FullScreenBlit.vert.hlsl"), MEM_temp),
+                .entryPoint = UTF8STR("main"),
+                .allocator = MEM_main,
+            });
+
+            GPU_NewProgramStageByteCode(&fsBlitFs, (GPU_ProgramStageByteCodeCfg)
+            {
+                .gfxAPI = GPU_GfxAPIType_Vk,
+                .stage = GPU_ProgramStageType_Fragment,
+                .file = DIR_FileInside(fsBlitDir, UTF8STR("FullScreenBlit.frag.hlsl"), MEM_temp),
+                .entryPoint = UTF8STR("main"),
+                .allocator = MEM_main,
+            });
+        }
+    }
+
     GPU_Instance ren = {0};
     GPU_Create(&ren, (GPU_InstanceCfg)
     {
@@ -32,6 +93,40 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
         .appHandle = app,
         .appName = UTF8STR("Misery"),
     });
+
+    GPU_Program triangleProgram = {0};
+    {
+        GPU_ProgramStage triangleVsObj, triangleFsObj;
+        GPU_NewProgramStage(&triangleVsObj, &ren, triangleVs);
+        GPU_NewProgramStage(&triangleFsObj, &ren, triangleFs);
+
+        GPU_NewProgram(&triangleProgram, &ren, (GPU_ProgramCfg)
+        {
+            .stages = SLICE(GPU_ProgramStageCfg,
+                ((GPU_ProgramStageCfg) {.stage = &triangleVsObj}),
+                ((GPU_ProgramStageCfg) {.stage = &triangleFsObj}),
+            ),
+            .targetFormats =
+            {
+                .draw = SLICE(GPU_TextureFormat,
+                    GPU_TexFmt_B8G8R8A8_UNorm
+                ),
+                .depthStencil = GPU_TexFmt_Unknown,
+            },
+            .objectName = UTF8STR("triangle pipeline"),
+        });
+
+        GPU_DeleteProgramStage(&triangleVsObj);
+        GPU_DeleteProgramStage(&triangleFsObj);
+    }
+
+    {
+        GPU_DeleteProgramStageByteCode(&triangleVs);
+        GPU_DeleteProgramStageByteCode(&triangleMs);
+        GPU_DeleteProgramStageByteCode(&triangleFs);
+        GPU_DeleteProgramStageByteCode(&fsBlitVs);
+        GPU_DeleteProgramStageByteCode(&fsBlitFs);
+    }
 
     u16 startWidth = 1280, startHeight = 720;
 
@@ -143,6 +238,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
 
     GPU_DestroySwapChain(&G_RenderData.swapChain);
     WND_Destroy(&wnd);
+    GPU_DeleteProgram(&triangleProgram);
     GPU_Destroy(&ren);
 
     SYN_DestroyEvent(&G_ThreadSync.renThrDone);

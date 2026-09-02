@@ -729,6 +729,7 @@ typedef struct
     MEM_Allocator allocator;
     Slice_(u8) code;
     utf8str entryPoint;
+    utf8str objectName;
 } GPU_ProgramStageByteCode;
 
 COL_DECLARE_FOR(GPU_ProgramStageByteCode);
@@ -742,6 +743,7 @@ typedef struct
     GPU_ProgramStageType stage;
     FIL_Path             file;
     utf8str              entryPoint;
+    utf8str              objectName;
     MEM_Allocator        allocator;
 } GPU_ProgramStageByteCodeCfg;
 

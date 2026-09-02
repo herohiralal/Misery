@@ -27,6 +27,8 @@ void GPU_VkNewProgramStage(GPU_ProgramStage* outBaseProgramStage, GPU_Instance* 
         .codeSize =bc.code.count,
         .pCode    = (u32*) bc.code.data,
     }, nil, &(output->actual)));
+
+    GPU_VK_SET_OBJ_DEBUG_NAME(renderer, output->actual, "%", FMT(bc.objectName));
 }
 
 void GPU_VkDeleteProgramStage(GPU_ProgramStage* baseProgramStage)
@@ -176,6 +178,9 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
             .stencilAttachmentFormat = GPU_BreakVkTextureFormat(cfg.targetFormats.depthStencil),
         },
     }, nil, &(output->actual)));
+
+    GPU_VK_SET_OBJ_DEBUG_NAME(renderer, output->pipelineLayout, "pplnlayout_%", FMT(cfg.objectName));
+    GPU_VK_SET_OBJ_DEBUG_NAME(renderer, output->actual, "ppln_%", FMT(cfg.objectName));
 }
 
 void GPU_VkDeleteProgram(GPU_Program* baseProgram)

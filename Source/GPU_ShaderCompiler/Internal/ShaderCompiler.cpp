@@ -156,7 +156,7 @@ EXTERN_C_BEGIN
 COL_DECLARE_FOR(LPCWSTR);
 EXTERN_C_END
 
-b8 GPU_CompileProgramStage(GPU_ProgramStageByteCode* stage, GPU_ProgramStageByteCodeCfg cfg)
+b8 GPU_NewProgramStageByteCode(GPU_ProgramStageByteCode* stage, GPU_ProgramStageByteCodeCfg cfg)
 {
     #if !DX_SHADER_COMPILER
     {
@@ -186,16 +186,18 @@ b8 GPU_CompileProgramStage(GPU_ProgramStageByteCode* stage, GPU_ProgramStageByte
         COL_AppendToList(&args, fileW);
         COL_AppendToList(&args, L"-T");
 
+        utf8str stageStr = { };
+
         b8 useMeshShaderExt = false;
         {
             const wchar_t* shdTy = nil;
             switch (cfg.stage)
             {
-                case GPU_ProgramStageType_Compute:   shdTy = L"cs_6_0";                          break;
-                case GPU_ProgramStageType_Task:      shdTy = L"as_6_5"; useMeshShaderExt = true; break;
-                case GPU_ProgramStageType_Mesh:      shdTy = L"ms_6_5"; useMeshShaderExt = true; break;
-                case GPU_ProgramStageType_Vertex:    shdTy = L"vs_6_0";                          break;
-                case GPU_ProgramStageType_Fragment:  shdTy = L"ps_6_0";                          break;
+                case GPU_ProgramStageType_Compute:   shdTy = L"cs_6_0"; stageStr = UTF8STR("cmpt");                          break;
+                case GPU_ProgramStageType_Task:      shdTy = L"as_6_5"; stageStr = UTF8STR("task"); useMeshShaderExt = true; break;
+                case GPU_ProgramStageType_Mesh:      shdTy = L"ms_6_5"; stageStr = UTF8STR("mesh"); useMeshShaderExt = true; break;
+                case GPU_ProgramStageType_Vertex:    shdTy = L"vs_6_0"; stageStr = UTF8STR("vert");                          break;
+                case GPU_ProgramStageType_Fragment:  shdTy = L"ps_6_0"; stageStr = UTF8STR("frag");                          break;
                 default:
                 {
                     LOG_Err(SHDCMPL, "Unknown shader type!");
@@ -207,6 +209,9 @@ b8 GPU_CompileProgramStage(GPU_ProgramStageByteCode* stage, GPU_ProgramStageByte
 
         if (!cfg.entryPoint.data || !cfg.entryPoint.count)
             cfg.entryPoint = UTF8STR("main");
+
+        if (!cfg.objectName.data || !cfg.objectName.count)
+            cfg.objectName = FIL_Name(cfg.file);
 
         COL_AppendToList(&args, L"-E");
         wchar_t* entryPointW = GPU_ShaderCompiler::ToWideString(cfg.entryPoint, MEM_temp);
@@ -277,6 +282,7 @@ b8 GPU_CompileProgramStage(GPU_ProgramStageByteCode* stage, GPU_ProgramStageByte
                 .allocator  = cfg.allocator,
                 .code       = COL_CloneSlice(tempOutput, cfg.allocator),
                 .entryPoint = STR_Clone(cfg.entryPoint, cfg.allocator),
+                .objectName = FMT_APrintf(cfg.allocator, "%_%", FMT(stageStr), FMT(cfg.objectName)),
             };
 
         // TODO: use spv-reflect here to parse the shader and extract the resources it uses
@@ -287,7 +293,7 @@ b8 GPU_CompileProgramStage(GPU_ProgramStageByteCode* stage, GPU_ProgramStageByte
     #endif
 }
 
-void GPU_FreeProgramStage(GPU_ProgramStageByteCode* stage)
+void GPU_DeleteProgramStageByteCode(GPU_ProgramStageByteCode* stage)
 {
     #if !DX_SHADER_COMPILER
     {
