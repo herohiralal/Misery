@@ -863,6 +863,15 @@ typedef struct
     u32 firstPrimitiveComponentIdx;
 } GPU_DrawBasicCfg;
 
+/**
+ * Configuration structure for a meshlet draw call.
+ */
+typedef struct
+{
+    // the number of groups to dispatch in the X, Y, and Z dimensions
+    u32 groupCountX, groupCountY, groupCountZ;
+} GPU_DrawMeshletsCfg;
+
 #undef GPU_DECLARE_OBJECT
 
 #ifndef GPU_OBJ_SIZE_CHECK

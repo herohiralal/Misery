@@ -9,6 +9,7 @@ static struct
     struct
     {
         GPU_Program triangle;
+        GPU_Program triangleMs;
     } programs;
 } G_RenderData;
 
@@ -99,8 +100,9 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
     });
 
     {
-        GPU_ProgramStage triangleVsObj, triangleFsObj;
+        GPU_ProgramStage triangleVsObj, triangleMsObj, triangleFsObj;
         GPU_NewProgramStage(&triangleVsObj, &ren, triangleVs);
+        GPU_NewProgramStage(&triangleMsObj, &ren, triangleMs);
         GPU_NewProgramStage(&triangleFsObj, &ren, triangleFs);
 
         GPU_NewProgram(&G_RenderData.programs.triangle, &ren, (GPU_ProgramCfg)
@@ -119,7 +121,24 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
             .objectName = UTF8STR("triangle pipeline"),
         });
 
+        GPU_NewProgram(&G_RenderData.programs.triangleMs, &ren, (GPU_ProgramCfg)
+        {
+            .stages = SLICE(GPU_ProgramStageCfg,
+                ((GPU_ProgramStageCfg) {.stage = &triangleMsObj}),
+                ((GPU_ProgramStageCfg) {.stage = &triangleFsObj}),
+            ),
+            .targetFormats =
+            {
+                .draw = SLICE(GPU_TextureFormat,
+                    GPU_TexFmt_B8G8R8A8_UNorm
+                ),
+                .depthStencil = GPU_TexFmt_Unknown,
+            },
+            .objectName = UTF8STR("triangle pipeline"),
+        });
+
         GPU_DeleteProgramStage(&triangleVsObj);
+        GPU_DeleteProgramStage(&triangleMsObj);
         GPU_DeleteProgramStage(&triangleFsObj);
     }
 
@@ -241,6 +260,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
 
     GPU_DestroySwapChain(&G_RenderData.swapChain);
     WND_Destroy(&wnd);
+    GPU_DeleteProgram(&G_RenderData.programs.triangleMs);
     GPU_DeleteProgram(&G_RenderData.programs.triangle);
     GPU_Destroy(&ren);
 
@@ -317,6 +337,15 @@ void RenderThread(rawptr data)
             });
 
             GPU_CmdDrawBasic(frameCtx.cmdBuffer, (GPU_DrawBasicCfg) {.vertCount = 3, .primitivesCount = 1});
+
+            GPU_CmdBindProgram(frameCtx.cmdBuffer, (GPU_BindProgramCfg)
+            {
+                .program = &G_RenderData.programs.triangleMs,
+                .cullMode = GPU_CullMode_CounterClockwise,
+                .topology = GPU_PrimTop_TriangleList,
+            });
+
+            GPU_CmdDrawMeshlets(frameCtx.cmdBuffer, (GPU_DrawMeshletsCfg) {1, 1, 1});
 
             GPU_CmdEndPass(frameCtx.cmdBuffer);
 

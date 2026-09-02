@@ -210,5 +210,6 @@ void GPU_Dx12CmdBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg)
 
 void GPU_Dx12CmdBindProgram(GPU_CmdBuffer*, GPU_BindProgramCfg) { MSR_ASSERT(false && "not implemented yet"); }
 void GPU_Dx12CmdDrawBasic(GPU_CmdBuffer*, GPU_DrawBasicCfg) { MSR_ASSERT(false && "not implemented yet"); }
+void GPU_Dx12CmdDrawMeshlets(GPU_CmdBuffer*, GPU_DrawMeshletsCfg) { MSR_ASSERT(false && "not implemented yet"); }
 
 #endif

@@ -226,4 +226,13 @@ void GPU_CmdDrawBasic(GPU_CmdBuffer* cb, GPU_DrawBasicCfg cfg)
     );
 }
 
+void GPU_CmdDrawMeshlets(GPU_CmdBuffer* cb, GPU_DrawMeshletsCfg cfg)
+{
+    RHI_FN_SWITCH_VOID(
+        cb ? cb->base.type : GPU_GfxAPIType_Null,
+        CmdDrawMeshlets,
+        cb, cfg
+    );
+}
+
 #include "DynamicDispatchSwitchboard/Disable.h"

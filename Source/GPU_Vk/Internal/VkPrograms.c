@@ -142,16 +142,27 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
             .pName  = (cstring) fragStage->entryPoint,
         }));
 
-    VkDynamicState dynamicStates[] =
+    List_(VkDynamicState) dynamicStates = COL_NewList(VkDynamicState, 20, MEM_temp);
+
+    COL_AppendAllToList(&dynamicStates,
+        SLICE(VkDynamicState,
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR,
+            // VK_DYNAMIC_STATE_DEPTH_BIAS,
+            // VK_DYNAMIC_STATE_BLEND_CONSTANTS,
+            // VK_DYNAMIC_STATE_STENCIL_REFERENCE,
+            VK_DYNAMIC_STATE_CULL_MODE, // front face will always be clockwise, and we'll use this dynamic state to flip the cull mode
+        )
+    );
+
+    if (output->type == GPU_ProgramType_VertexFragment)
     {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR,
-        // VK_DYNAMIC_STATE_DEPTH_BIAS,
-        // VK_DYNAMIC_STATE_BLEND_CONSTANTS,
-        // VK_DYNAMIC_STATE_STENCIL_REFERENCE,
-        VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY,
-        VK_DYNAMIC_STATE_CULL_MODE, // front face will always be clockwise, and we'll use this dynamic state to flip the cull mode
-    };
+        COL_AppendAllToList(&dynamicStates,
+            SLICE(VkDynamicState,
+                VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY,
+            )
+        );
+    }
 
     Slice_(VkFormat) colourFormats = COL_NewSlice(VkFormat, cfg.targetFormats.draw.count, true, MEM_temp);
     for (usize i = 0; i < cfg.targetFormats.draw.count; i++)
@@ -225,8 +236,8 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
         .pDynamicState = &(VkPipelineDynamicStateCreateInfo)
         {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-            .dynamicStateCount = (u32) (sizeof(dynamicStates) / sizeof(dynamicStates[0])),
-            .pDynamicStates = dynamicStates,
+            .dynamicStateCount = (u32) dynamicStates.count,
+            .pDynamicStates = dynamicStates.data,
         },
         .layout = output->pipelineLayout,
         .renderPass = nil,

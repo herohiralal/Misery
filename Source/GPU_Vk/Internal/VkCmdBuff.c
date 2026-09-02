@@ -243,7 +243,8 @@ void GPU_VkCmdBindProgram(GPU_CmdBuffer* cb, GPU_BindProgramCfg cfg)
         default:                            MSR_ASSERT(false && "invalid cull mode"); break;
     }
 
-    vkCmdSetCullMode(cmdBuffer->cmdBuffer, cullMode);
+    if (program->type != GPU_ProgramType_Compute)
+        vkCmdSetCullMode(cmdBuffer->cmdBuffer, cullMode);
 
     VkPrimitiveTopology topology = 0;
     switch ((enum GPU_PrimitiveTopologies) cfg.topology)
@@ -254,7 +255,8 @@ void GPU_VkCmdBindProgram(GPU_CmdBuffer* cb, GPU_BindProgramCfg cfg)
         default:                       MSR_ASSERT(false && "invalid primitive topology"); break;
     }
 
-    vkCmdSetPrimitiveTopology(cmdBuffer->cmdBuffer, topology);
+    if (program->type == GPU_ProgramType_VertexFragment)
+        vkCmdSetPrimitiveTopology(cmdBuffer->cmdBuffer, topology);
 }
 
 void GPU_VkCmdDrawBasic(GPU_CmdBuffer* cb, GPU_DrawBasicCfg cfg)
@@ -263,6 +265,14 @@ void GPU_VkCmdDrawBasic(GPU_CmdBuffer* cb, GPU_DrawBasicCfg cfg)
     MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
 
     vkCmdDraw(cmdBuffer->cmdBuffer, cfg.vertCount, cfg.primitivesCount, cfg.firstVertIdx, cfg.firstPrimitiveComponentIdx);
+}
+
+void GPU_VkCmdDrawMeshlets(GPU_CmdBuffer* cb, GPU_DrawMeshletsCfg cfg)
+{
+    GPU_VkCmdBuffer* cmdBuffer = GPU_ToVkCmdBuffer(cb);
+    MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
+
+    vkCmdDrawMeshTasksEXT(cmdBuffer->cmdBuffer, cfg.groupCountX, cfg.groupCountY, cfg.groupCountZ);
 }
 
 #endif

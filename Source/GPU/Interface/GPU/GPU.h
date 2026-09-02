@@ -188,4 +188,10 @@ void GPU_CmdBindProgram(GPU_CmdBuffer* cb, GPU_BindProgramCfg cfg);
  */
 void GPU_CmdDrawBasic(GPU_CmdBuffer* cb, GPU_DrawBasicCfg cfg);
 
+/**
+ * OWNED_THREAD
+ * Issue a draw call with the given configuration, using mesh shading.
+ */
+void GPU_CmdDrawMeshlets(GPU_CmdBuffer* cb, GPU_DrawMeshletsCfg cfg);
+
 EXTERN_C_END

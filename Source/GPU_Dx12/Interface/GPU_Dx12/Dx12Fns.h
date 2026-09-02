@@ -35,6 +35,7 @@ void GPU_Dx12CmdEndPass(GPU_CmdBuffer*);
 void GPU_Dx12CmdBarrier(GPU_CmdBuffer*, GPU_BarrierCfg);
 void GPU_Dx12CmdBindProgram(GPU_CmdBuffer*, GPU_BindProgramCfg);
 void GPU_Dx12CmdDrawBasic(GPU_CmdBuffer*, GPU_DrawBasicCfg);
+void GPU_Dx12CmdDrawMeshlets(GPU_CmdBuffer*, GPU_DrawMeshletsCfg);
 
 EXTERN_C_END
 #endif
