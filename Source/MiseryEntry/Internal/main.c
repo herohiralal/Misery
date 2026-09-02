@@ -6,6 +6,10 @@ static struct
 {
     b8 die;
     GPU_SwapChain swapChain;
+    struct
+    {
+        GPU_Program triangle;
+    } programs;
 } G_RenderData;
 
 static struct
@@ -94,13 +98,12 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
         .appName = UTF8STR("Misery"),
     });
 
-    GPU_Program triangleProgram = {0};
     {
         GPU_ProgramStage triangleVsObj, triangleFsObj;
         GPU_NewProgramStage(&triangleVsObj, &ren, triangleVs);
         GPU_NewProgramStage(&triangleFsObj, &ren, triangleFs);
 
-        GPU_NewProgram(&triangleProgram, &ren, (GPU_ProgramCfg)
+        GPU_NewProgram(&G_RenderData.programs.triangle, &ren, (GPU_ProgramCfg)
         {
             .stages = SLICE(GPU_ProgramStageCfg,
                 ((GPU_ProgramStageCfg) {.stage = &triangleVsObj}),
@@ -238,7 +241,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
 
     GPU_DestroySwapChain(&G_RenderData.swapChain);
     WND_Destroy(&wnd);
-    GPU_DeleteProgram(&triangleProgram);
+    GPU_DeleteProgram(&G_RenderData.programs.triangle);
     GPU_Destroy(&ren);
 
     SYN_DestroyEvent(&G_ThreadSync.renThrDone);
@@ -288,7 +291,7 @@ void RenderThread(rawptr data)
                         .idealLayout = true,
                         .loadOp      = GPU_LoadOp_Clear,
                         .storeOp     = GPU_StoreOp_Store,
-                        .clearColor  = {1.0, 0.0, 1.0, 1.0},
+                        .clearColor  = {0.15, 0.15, 0.2, 1.0},
                     }),
                 ),
                 .viewport =
@@ -305,6 +308,15 @@ void RenderThread(rawptr data)
                     .height = frameCtx.imageHeight,
                 },
             });
+
+            GPU_CmdBindProgram(frameCtx.cmdBuffer, (GPU_BindProgramCfg)
+            {
+                .program = &G_RenderData.programs.triangle,
+                .cullMode = GPU_CullMode_CounterClockwise,
+                .topology = GPU_PrimTop_TriangleList,
+            });
+
+            GPU_CmdDrawBasic(frameCtx.cmdBuffer, (GPU_DrawBasicCfg) {.vertCount = 3, .primitivesCount = 1});
 
             GPU_CmdEndPass(frameCtx.cmdBuffer);
 
