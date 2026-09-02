@@ -51,6 +51,7 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
     MSR_ASSERT(output && "program must not be null");
 
     output->renderer = renderer;
+    output->type = GPU_ProgramType_VertexFragment;
 
     // TODO: add support for [TS -> MS -> FS] & [CS] pipelines
     MSR_ASSERT(cfg.stages.count == 2 && "only vert+frag programs are supported for now");

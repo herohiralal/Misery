@@ -176,4 +176,16 @@ void GPU_CmdEndPass(GPU_CmdBuffer* cb);
  */
 void GPU_CmdBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg);
 
+/**
+ * OWNED_THREAD
+ * Bind a program to the command buffer, so that it can be used for subsequent dispatches.
+ */
+void GPU_CmdBindProgram(GPU_CmdBuffer* cb, GPU_BindProgramCfg cfg);
+
+/**
+ * OWNED_THREAD
+ * Issue a basic draw call with the given configuration.
+ */
+void GPU_CmdDrawBasic(GPU_CmdBuffer* cb, GPU_DrawBasicCfg cfg);
+
 EXTERN_C_END

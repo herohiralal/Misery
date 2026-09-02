@@ -830,6 +830,39 @@ typedef struct
  */
 GPU_DECLARE_OBJECT(Program, 128);
 
+/**
+ * Configuration structure for binding a program to a command buffer.
+ */
+typedef struct
+{
+    // the program to use
+    GPU_Program* program;
+
+    // the culling mode to use for the program
+    GPU_CullMode          cullMode;
+
+    // the primitive topology to use for the program
+    GPU_PrimitiveTopology topology;
+} GPU_BindProgramCfg;
+
+/**
+ * Configuration structure for an instanced draw call.
+ */
+typedef struct
+{
+    // the number of vertices to draw
+    u32 vertCount;
+
+    // the number of primitives to draw
+    u32 primitivesCount;
+
+    // the index of the first vertex to use in the bound vertex buffer
+    u32 firstVertIdx;
+
+    // the index of the first primitive component to use in the bound index buffer
+    u32 firstPrimitiveComponentIdx;
+} GPU_DrawBasicCfg;
+
 #undef GPU_DECLARE_OBJECT
 
 #ifndef GPU_OBJ_SIZE_CHECK

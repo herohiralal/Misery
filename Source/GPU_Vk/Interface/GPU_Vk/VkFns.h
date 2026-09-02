@@ -33,6 +33,8 @@ void GPU_VkCmdsEnd(GPU_CmdBuffer*);
 void GPU_VkCmdBeginPass(GPU_CmdBuffer*, GPU_PassCfg);
 void GPU_VkCmdEndPass(GPU_CmdBuffer*);
 void GPU_VkCmdBarrier(GPU_CmdBuffer*, GPU_BarrierCfg);
+void GPU_VkCmdBindProgram(GPU_CmdBuffer*, GPU_BindProgramCfg);
+void GPU_VkCmdDrawBasic(GPU_CmdBuffer*, GPU_DrawBasicCfg);
 
 EXTERN_C_END
 #endif

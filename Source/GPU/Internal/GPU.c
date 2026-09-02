@@ -208,4 +208,22 @@ void GPU_CmdBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg)
     );
 }
 
+void GPU_CmdBindProgram(GPU_CmdBuffer* cb, GPU_BindProgramCfg cfg)
+{
+    RHI_FN_SWITCH_VOID(
+        cb ? cb->base.type : GPU_GfxAPIType_Null,
+        CmdBindProgram,
+        cb, cfg
+    );
+}
+
+void GPU_CmdDrawBasic(GPU_CmdBuffer* cb, GPU_DrawBasicCfg cfg)
+{
+    RHI_FN_SWITCH_VOID(
+        cb ? cb->base.type : GPU_GfxAPIType_Null,
+        CmdDrawBasic,
+        cb, cfg
+    );
+}
+
 #include "DynamicDispatchSwitchboard/Disable.h"

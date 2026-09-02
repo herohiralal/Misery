@@ -208,4 +208,7 @@ void GPU_Dx12CmdBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg)
     cmdBuffer->cmdList->Barrier((u32) barrierGroups.count, barrierGroups.data);
 }
 
+void GPU_Dx12CmdBindProgram(GPU_CmdBuffer*, GPU_BindProgramCfg) { MSR_ASSERT(false && "not implemented yet"); }
+void GPU_Dx12CmdDrawBasic(GPU_CmdBuffer*, GPU_DrawBasicCfg) { MSR_ASSERT(false && "not implemented yet"); }
+
 #endif

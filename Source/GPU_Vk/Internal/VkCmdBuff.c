@@ -221,4 +221,48 @@ void GPU_VkCmdBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg)
     });
 }
 
+void GPU_VkCmdBindProgram(GPU_CmdBuffer* cb, GPU_BindProgramCfg cfg)
+{
+    GPU_VkCmdBuffer* cmdBuffer = GPU_ToVkCmdBuffer(cb);
+    MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
+
+    GPU_VkProgram* program = GPU_ToVkProgram(cfg.program);
+    MSR_ASSERT(program && "program must not be null");
+
+    vkCmdBindPipeline(cmdBuffer->cmdBuffer,
+        program->type == GPU_ProgramType_Compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
+        program->actual);
+
+    VkCullModeFlags cullMode = VK_CULL_MODE_NONE;
+    switch ((enum GPU_CullModes) cfg.cullMode)
+    {
+        // we always mark clockwise as front face
+        case GPU_CullMode_CounterClockwise: cullMode = VK_CULL_MODE_BACK_BIT; break;
+        case GPU_CullMode_Clockwise:        cullMode = VK_CULL_MODE_FRONT_BIT; break;
+        case GPU_CullMode_None:             cullMode = VK_CULL_MODE_NONE; break;
+        default:                            MSR_ASSERT(false && "invalid cull mode"); break;
+    }
+
+    vkCmdSetCullMode(cmdBuffer->cmdBuffer, cullMode);
+
+    VkPrimitiveTopology topology = 0;
+    switch ((enum GPU_PrimitiveTopologies) cfg.topology)
+    {
+        case GPU_PrimTop_TriangleList: topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; break;
+        case GPU_PrimTop_LineList:     topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST; break;
+        case GPU_PrimTop_PointList:    topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST; break;
+        default:                       MSR_ASSERT(false && "invalid primitive topology"); break;
+    }
+
+    vkCmdSetPrimitiveTopology(cmdBuffer->cmdBuffer, topology);
+}
+
+void GPU_VkCmdDrawBasic(GPU_CmdBuffer* cb, GPU_DrawBasicCfg cfg)
+{
+    GPU_VkCmdBuffer* cmdBuffer = GPU_ToVkCmdBuffer(cb);
+    MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
+
+    vkCmdDraw(cmdBuffer->cmdBuffer, cfg.vertCount, cfg.primitivesCount, cfg.firstVertIdx, cfg.firstPrimitiveComponentIdx);
+}
+
 #endif
