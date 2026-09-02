@@ -11,40 +11,21 @@ BRAHMA_IMPLEMENT_LIBRARY(MiseryDeps)
     brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_STB_Image");
     brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_VulkanLoader");
     brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_VulkanMemoryAllocator");
+    brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_TinyGLTF");
 
-    bool found = false;
-    bool buildDeps = false;
-    for (size_t i = 0; i < package->definitions.count; i++)
-    {
-        Brahma_String_KVP* definition = brahma_index_definition_paged_list(&package->definitions, i);
-        if (strcmp(definition->key, "MSR_BUILD_DEPS") == 0)
-        {
-            found = true;
-
-            bool isTrue = definition->value && definition->value[0] == '1' && definition->value[1] == '\0';
-            bool isFalse = definition->value && definition->value[0] == '0' && definition->value[1] == '\0';
-            if (!isTrue && !isFalse)
-            {
-                library->error = brahma_sprintf("Invalid value for definition 'MSR_BUILD_DEPS' in package '%s'. Expected '1' or '0', got '%s'.",
-                    package->name, definition->value ? definition->value : "null");
-                return;
-            }
-
-            if (isTrue && isFalse)
-            {
-                library->error = brahma_sprintf("Conflicting values for definition 'MSR_BUILD_DEPS' in package '%s'. Expected '1' or '0', got both.",
-                    package->name);
-                return;
-            }
-
-            buildDeps = isTrue;
-        }
-    }
-
-    if (!found)
+    const char* msrBuildDeps = NULL;
+    if (!brahma_find_in_definitions(&package->definitions, "MSR_BUILD_DEPS", &msrBuildDeps))
     {
         library->error = brahma_sprintf("Definition 'MSR_BUILD_DEPS' not found in package '%s'. Expected '1' or '0'.",
             package->name);
+        return;
+    }
+
+    bool buildDeps = false;
+    if (!brahma_bool_from_string(msrBuildDeps, &buildDeps))
+    {
+        library->error = brahma_sprintf("Invalid value for definition 'MSR_BUILD_DEPS' in package '%s'. Expected '1' or '0', got '%s'.",
+            package->name, msrBuildDeps ? msrBuildDeps : "null");
         return;
     }
 

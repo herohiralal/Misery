@@ -608,6 +608,18 @@ typedef struct
     char* clangdOutputDir;
 } Brahma_Args;
 
+// find a definition by its key in a list of definitions
+// returns true if found, false otherwise
+// if found, outValue will be set to the value of the definition
+bool brahma_find_in_definitions(const Brahma_Definition_Paged_List* definitions, const char* key, const char** outValue);
+
+// parse a string as a boolean
+// returns true if parsed, false otherwise
+// if parsed, outValue will be set to the value of the string
+// `1`, `true`, `yes`, `on` will be parsed as true
+// `0`, `false`, `no`, `off` will be parsed as false
+bool brahma_bool_from_string(const char* str, bool* outValue);
+
 // main entry point function
 bool brahma_execute(Brahma_Args ex);
 
@@ -622,6 +634,40 @@ bool brahma_execute(Brahma_Args ex);
 #define BRAHMA_LOG_WARNING "\033[33m[WRN]\033[0m " // yellow
 #define BRAHMA_LOG_ERROR   "\033[31m[ERR]\033[0m " // red
 #define BRAHMA_LOG_SUCCESS "\033[32m[SCS]\033[0m " // green
+
+bool brahma_find_in_definitions(const Brahma_Definition_Paged_List* definitions, const char* key, const char** outValue)
+{
+    for (size_t i = 0; i < definitions->count; i++)
+    {
+        Brahma_String_KVP* kvp = brahma_index_definition_paged_list(definitions, i);
+        if (strcmp(kvp->key, key) == 0)
+        {
+            if (outValue) *outValue = kvp->value;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool brahma_bool_from_string(const char* str, bool* outValue)
+{
+    if (!str)
+        return false;
+
+    bool isTrue = (!strcmp(str, "1")) || (!strcmp(str, "true")) ||
+        (!strcmp(str, "yes")) || (!strcmp(str, "on"));
+    bool isFalse = (!strcmp(str, "0")) || (!strcmp(str, "false")) ||
+        (!strcmp(str, "no")) || (!strcmp(str, "off"));
+
+    if (isTrue == isFalse) // both true or both false
+        return false;
+
+    if (outValue)
+        *outValue = isTrue;
+
+    return true;
+}
 
 // get current time in nanoseconds since unix epoch
 int64_t brahma_get_time(void);
