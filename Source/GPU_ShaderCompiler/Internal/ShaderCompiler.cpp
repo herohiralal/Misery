@@ -81,12 +81,12 @@ namespace GPU_ShaderCompiler
             FIL_Path libPath = DIR_FileInside(execContainingDir, UTF8STR(DX_SHADER_COMPILER_PATH), MEM_temp);
             PRC_Library library = PRC_LoadLibrary(libPath);
             MSR_ASSERT(library.handle && "Failed to load shader compiler library!");
-            *const_cast<Internals*>(&G_Internals) = Internals(library);
+            new (const_cast<Internals*>(&G_Internals)) Internals(library);
         });
 
         if (!G_ThreadInternals.init)
         {
-            *const_cast<ThreadInternals*>(&G_ThreadInternals) = ThreadInternals(G_Internals);
+            new (const_cast<ThreadInternals*>(&G_ThreadInternals)) ThreadInternals(G_Internals);
         }
     }
 
@@ -112,12 +112,14 @@ namespace GPU_ShaderCompiler
             int convertedSize = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
                 (const char*) str.data, (int) str.count, output, requiredSize + 1);
 
-            if (convertedSize <= 0)
+            if (convertedSize != requiredSize)
             {
+                MSR_ASSERT(false && "Failed to convert UTF-8 string to wide string!");
                 MEM_Deallocate(allocator, output);
                 return nil;
             }
 
+            output[convertedSize] = L'\0';
             return output;
         }
         #else
