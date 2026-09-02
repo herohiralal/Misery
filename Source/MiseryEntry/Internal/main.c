@@ -28,7 +28,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
     DIR_Path rootDir = {0};
     {
         FIL_Path currExec = PRC_GetCurrentExecutablePath(MEM_temp);
-        rootDir = DIR_Parent(DIR_Parent(currExec) /* binaries dir */) /* root dir */;
+        rootDir = DIR_Parent(DIR_Parent(DIR_Parent(currExec) /* platform-specific */) /* binaries dir */) /* root dir */;
     }
 
     GPU_ProgramStageByteCode triangleVs = {0}, triangleMs = {0}, triangleFs = {0}, fsBlitVs = {0}, fsBlitFs = {0};
@@ -291,6 +291,19 @@ void RenderThread(rawptr data)
                         .clearColor  = {1.0, 0.0, 1.0, 1.0},
                     }),
                 ),
+                .viewport =
+                {
+                    .x = 0.0f, .y = 0.0f,
+                    .width = (f32) frameCtx.imageWidth,
+                    .height = (f32) frameCtx.imageHeight,
+                    .minDepth = 0.0f, .maxDepth = 1.0f,
+                },
+                .scissor =
+                {
+                    .offsetX = 0, .offsetY = 0,
+                    .width = frameCtx.imageWidth,
+                    .height = frameCtx.imageHeight,
+                },
             });
 
             GPU_CmdEndPass(frameCtx.cmdBuffer);
