@@ -12,7 +12,7 @@ FIL_Path PRC_GetCurrentExecutablePath(MEM_Allocator allocator)
             return (FIL_Path) {0};
 
         utf8str pathStr = {.data = (u8*) buffer, .count = (isize) length};
-        return (FIL_Path) {.path = STR_Clone(pathStr, allocator)};
+        return FIL_Normalise(pathStr, allocator);
     }
     #elif MSR_LINUX
     {
@@ -23,7 +23,7 @@ FIL_Path PRC_GetCurrentExecutablePath(MEM_Allocator allocator)
             return (FIL_Path) {0};
 
         utf8str pathStr = {.data = (u8*) buffer, .count = (isize) length};
-        return (FIL_Path) {.path = STR_Clone(pathStr, allocator)};
+        return FIL_Normalise(pathStr, allocator);
     }
     #elif MSR_OSX || MSR_IOS
     {
