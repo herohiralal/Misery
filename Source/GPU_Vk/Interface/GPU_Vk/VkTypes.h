@@ -132,7 +132,15 @@ GPU_EXTEND_OBJECT(Vk, ProgramStage,
 
 GPU_EXTEND_OBJECT(Vk, ProgramArgsLayout,
     const GPU_VkInstance* renderer;
-    VkDescriptorSetLayout actual;
+    VkPipelineLayout      actual;
+    VkDescriptorSetLayout groups[16];
+);
+
+GPU_EXTEND_OBJECT(Vk, ProgramArgsBuffer,
+    const GPU_VkInstance*    renderer;
+    GPU_VkProgramArgsLayout* layout;
+    VkDescriptorSet          actual;
+    VmaAllocation            allocation;
 );
 
 GPU_EXTEND_OBJECT(Vk, Program,

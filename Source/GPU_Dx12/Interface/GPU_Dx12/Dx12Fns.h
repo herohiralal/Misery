@@ -28,6 +28,9 @@ void GPU_Dx12NewProgramArgsLayout(GPU_ProgramArgsLayout*, GPU_Instance*, GPU_Pro
 void GPU_Dx12DeleteProgramArgsLayout(GPU_ProgramArgsLayout*);
 void GPU_Dx12NewProgram(GPU_Program*, GPU_Instance*, GPU_ProgramCfg);
 void GPU_Dx12DeleteProgram(GPU_Program*);
+void GPU_Dx12NewProgramArgsBuffer(GPU_ProgramArgsBuffer*, GPU_Instance*, GPU_ProgramArgsBufferCfg);
+void GPU_Dx12DeleteProgramArgsBuffer(GPU_ProgramArgsBuffer*);
+void GPU_Dx12UpdateProgramArgsBuffer(GPU_ProgramArgsBuffer*, Slice_(GPU_ProgramArgBindingCfg));
 
 void GPU_Dx12CmdsBegin(GPU_CmdBuffer*);
 void GPU_Dx12CmdsEnd(GPU_CmdBuffer*);
@@ -35,6 +38,9 @@ void GPU_Dx12CmdBeginPass(GPU_CmdBuffer*, GPU_PassCfg);
 void GPU_Dx12CmdEndPass(GPU_CmdBuffer*);
 void GPU_Dx12CmdBarrier(GPU_CmdBuffer*, GPU_BarrierCfg);
 void GPU_Dx12CmdBindProgram(GPU_CmdBuffer*, GPU_BindProgramCfg);
+void GPU_Dx12CmdBindProgramArgsBuffer(GPU_CmdBuffer*, u8, GPU_ProgramArgsBuffer*);
+void GPU_Dx12CmdBindProgramArg(GPU_CmdBuffer*, u8, Slice_(GPU_ProgramArgBindingCfg));
+void GPU_Dx12CmdBindProgramInlineConstants(GPU_CmdBuffer*, u32, Slice_(u8));
 void GPU_Dx12CmdDrawBasic(GPU_CmdBuffer*, GPU_DrawBasicCfg);
 void GPU_Dx12CmdDrawMeshlets(GPU_CmdBuffer*, GPU_DrawMeshletsCfg);
 

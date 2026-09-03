@@ -209,6 +209,9 @@ void GPU_Dx12CmdBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg)
 }
 
 void GPU_Dx12CmdBindProgram(GPU_CmdBuffer*, GPU_BindProgramCfg) { MSR_ASSERT(false && "not implemented yet"); }
+void GPU_Dx12CmdBindProgramArgsBuffer(GPU_CmdBuffer*, u8, GPU_ProgramArgsBuffer*) { MSR_ASSERT(false && "not implemented yet"); }
+void GPU_Dx12CmdBindProgramArg(GPU_CmdBuffer*, u8, Slice_(GPU_ProgramArgBindingCfg)) { MSR_ASSERT(false && "not implemented yet"); }
+void GPU_Dx12CmdBindProgramInlineConstants(GPU_CmdBuffer*, u32, Slice_(u8)) { MSR_ASSERT(false && "not implemented yet"); }
 void GPU_Dx12CmdDrawBasic(GPU_CmdBuffer*, GPU_DrawBasicCfg) { MSR_ASSERT(false && "not implemented yet"); }
 void GPU_Dx12CmdDrawMeshlets(GPU_CmdBuffer*, GPU_DrawMeshletsCfg) { MSR_ASSERT(false && "not implemented yet"); }
 

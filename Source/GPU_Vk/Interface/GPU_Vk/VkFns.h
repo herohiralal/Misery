@@ -28,6 +28,9 @@ void GPU_VkNewProgramArgsLayout(GPU_ProgramArgsLayout*, GPU_Instance*, GPU_Progr
 void GPU_VkDeleteProgramArgsLayout(GPU_ProgramArgsLayout*);
 void GPU_VkNewProgram(GPU_Program*, GPU_Instance*, GPU_ProgramCfg);
 void GPU_VkDeleteProgram(GPU_Program*);
+void GPU_VkNewProgramArgsBuffer(GPU_ProgramArgsBuffer*, GPU_Instance*, GPU_ProgramArgsBufferCfg);
+void GPU_VkDeleteProgramArgsBuffer(GPU_ProgramArgsBuffer*);
+void GPU_VkUpdateProgramArgsBuffer(GPU_ProgramArgsBuffer*, Slice_(GPU_ProgramArgBindingCfg));
 
 void GPU_VkCmdsBegin(GPU_CmdBuffer*);
 void GPU_VkCmdsEnd(GPU_CmdBuffer*);
@@ -35,6 +38,9 @@ void GPU_VkCmdBeginPass(GPU_CmdBuffer*, GPU_PassCfg);
 void GPU_VkCmdEndPass(GPU_CmdBuffer*);
 void GPU_VkCmdBarrier(GPU_CmdBuffer*, GPU_BarrierCfg);
 void GPU_VkCmdBindProgram(GPU_CmdBuffer*, GPU_BindProgramCfg);
+void GPU_VkCmdBindProgramArgsBuffer(GPU_CmdBuffer*, u8, GPU_ProgramArgsBuffer*);
+void GPU_VkCmdBindProgramArg(GPU_CmdBuffer*, u8, Slice_(GPU_ProgramArgBindingCfg));
+void GPU_VkCmdBindProgramInlineConstants(GPU_CmdBuffer*, u32, Slice_(u8));
 void GPU_VkCmdDrawBasic(GPU_CmdBuffer*, GPU_DrawBasicCfg);
 void GPU_VkCmdDrawMeshlets(GPU_CmdBuffer*, GPU_DrawMeshletsCfg);
 

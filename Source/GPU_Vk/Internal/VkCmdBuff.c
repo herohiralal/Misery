@@ -259,6 +259,27 @@ void GPU_VkCmdBindProgram(GPU_CmdBuffer* cb, GPU_BindProgramCfg cfg)
         vkCmdSetPrimitiveTopology(cmdBuffer->cmdBuffer, topology);
 }
 
+void GPU_VkCmdBindProgramArgsBuffer(GPU_CmdBuffer* cb, u8 groupIdx, GPU_ProgramArgsBuffer* argsBuffer)
+{
+    GPU_VkCmdBuffer* cmdBuffer = GPU_ToVkCmdBuffer(cb);
+    MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
+
+    GPU_VkProgramArgsBuffer* argsBuf = GPU_ToVkProgramArgsBuffer(argsBuffer);
+    MSR_ASSERT(argsBuf && "argsBuffer must not be null");
+}
+
+void GPU_VkCmdBindProgramArg(GPU_CmdBuffer* cb, u8 groupIdx, Slice_(GPU_ProgramArgBindingCfg) bindings)
+{
+    GPU_VkCmdBuffer* cmdBuffer = GPU_ToVkCmdBuffer(cb);
+    MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
+}
+
+void GPU_VkCmdBindProgramInlineConstants(GPU_CmdBuffer* cb, u32 offset, Slice_(u8) data)
+{
+    GPU_VkCmdBuffer* cmdBuffer = GPU_ToVkCmdBuffer(cb);
+    MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
+}
+
 void GPU_VkCmdDrawBasic(GPU_CmdBuffer* cb, GPU_DrawBasicCfg cfg)
 {
     GPU_VkCmdBuffer* cmdBuffer = GPU_ToVkCmdBuffer(cb);

@@ -295,4 +295,30 @@ void GPU_VkDeleteProgram(GPU_Program* baseProgram)
     vkDestroyPipelineLayout(program->renderer->device, program->pipelineLayout, nil);
 }
 
+void GPU_VkNewProgramArgsBuffer(GPU_ProgramArgsBuffer* outBaseArgsBuffer, GPU_Instance* baseRenderer, GPU_ProgramArgsBufferCfg cfg)
+{
+    GPU_VkInstance* renderer = GPU_ToVkInstance(baseRenderer);
+    MSR_ASSERT(renderer && "renderer must not be null");
+
+    MSR_ASSERT(outBaseArgsBuffer && "outBaseArgsBuffer must not be null");
+    outBaseArgsBuffer->base.type = GPU_GfxAPIType_Vk;
+
+    GPU_VkProgramArgsBuffer* output = GPU_ToVkProgramArgsBuffer(outBaseArgsBuffer);
+    MSR_ASSERT(output && "programArgsBuffer must not be null");
+
+    output->renderer = renderer;
+}
+
+void GPU_VkDeleteProgramArgsBuffer(GPU_ProgramArgsBuffer* baseArgsBuffer)
+{
+    GPU_VkProgramArgsBuffer* argsBuffer = GPU_ToVkProgramArgsBuffer(baseArgsBuffer);
+    MSR_ASSERT(argsBuffer && "argsBuffer must not be null");
+}
+
+void GPU_VkUpdateProgramArgsBuffer(GPU_ProgramArgsBuffer* baseArgsBuffer, Slice_(GPU_ProgramArgBindingCfg) bindings)
+{
+    GPU_VkProgramArgsBuffer* argsBuffer = GPU_ToVkProgramArgsBuffer(baseArgsBuffer);
+    MSR_ASSERT(argsBuffer && "argsBuffer must not be null");
+}
+
 #endif

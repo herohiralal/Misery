@@ -181,6 +181,33 @@ void GPU_DeleteProgram(GPU_Program* program)
     );
 }
 
+void GPU_NewProgramArgsBuffer(GPU_ProgramArgsBuffer* outArgsBuffer, GPU_Instance* renderer, GPU_ProgramArgsBufferCfg cfg)
+{
+    RHI_FN_SWITCH_VOID(
+        renderer ? renderer->base.type : GPU_GfxAPIType_Null,
+        NewProgramArgsBuffer,
+        outArgsBuffer, renderer, cfg
+    );
+}
+
+void GPU_DeleteProgramArgsBuffer(GPU_ProgramArgsBuffer* argsBuffer)
+{
+    RHI_FN_SWITCH_VOID(
+        argsBuffer ? argsBuffer->base.type : GPU_GfxAPIType_Null,
+        DeleteProgramArgsBuffer,
+        argsBuffer
+    );
+}
+
+void GPU_UpdateProgramArgsBuffer(GPU_ProgramArgsBuffer* argsBuffer, Slice_(GPU_ProgramArgBindingCfg) bindings)
+{
+    RHI_FN_SWITCH_VOID(
+        argsBuffer ? argsBuffer->base.type : GPU_GfxAPIType_Null,
+        UpdateProgramArgsBuffer,
+        argsBuffer, bindings
+    );
+}
+
 void GPU_CmdsBegin(GPU_CmdBuffer* cb)
 {
     RHI_FN_SWITCH_VOID(
@@ -232,6 +259,33 @@ void GPU_CmdBindProgram(GPU_CmdBuffer* cb, GPU_BindProgramCfg cfg)
         cb ? cb->base.type : GPU_GfxAPIType_Null,
         CmdBindProgram,
         cb, cfg
+    );
+}
+
+void GPU_CmdBindProgramArgsBuffer(GPU_CmdBuffer* cb, u8 groupIdx, GPU_ProgramArgsBuffer* argsBuffer)
+{
+    RHI_FN_SWITCH_VOID(
+        cb ? cb->base.type : GPU_GfxAPIType_Null,
+        CmdBindProgramArgsBuffer,
+        cb, groupIdx, argsBuffer
+    );
+}
+
+void GPU_CmdBindProgramArg(GPU_CmdBuffer* cb, u8 groupIdx, Slice_(GPU_ProgramArgBindingCfg) bindings)
+{
+    RHI_FN_SWITCH_VOID(
+        cb ? cb->base.type : GPU_GfxAPIType_Null,
+        CmdBindProgramArg,
+        cb, groupIdx, bindings
+    );
+}
+
+void GPU_CmdBindProgramInlineConstants(GPU_CmdBuffer* cb, u32 offset, Slice_(u8) data)
+{
+    RHI_FN_SWITCH_VOID(
+        cb ? cb->base.type : GPU_GfxAPIType_Null,
+        CmdBindProgramInlineConstants,
+        cb, offset, data
     );
 }
 

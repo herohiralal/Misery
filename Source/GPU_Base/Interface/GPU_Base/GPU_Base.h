@@ -777,7 +777,9 @@ GPU_DECLARE_OBJECT(ProgramStage, 128);
 typedef u8 GPU_ProgramArgType;
 enum GPU_ProgramArgTypes
 {
+    // intentional hole within a program args group
     GPU_PgmArg_None,
+
     // read a read-only buffer
     // VK -> VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
     // DX12 -> D3D12_DESCRIPTOR_RANGE_TYPE_CBV
@@ -792,6 +794,26 @@ enum GPU_ProgramArgTypes
     // VK -> VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
     // DX12 -> D3D12_DESCRIPTOR_RANGE_TYPE_UAV
     GPU_PgmArg_WriteRWBuffer,
+
+    // read a read-only texture
+    // VK -> VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE
+    // DX12 -> D3D12_DESCRIPTOR_RANGE_TYPE_SRV
+    GPU_PgmArg_ReadROTexture,
+
+    // read a read-write texture
+    // VK -> VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
+    // DX12 -> D3D12_DESCRIPTOR_RANGE_TYPE_SRV
+    GPU_PgmArg_ReadRWTexture,
+
+    // write a read-write texture
+    // VK -> VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
+    // DX12 -> D3D12_DESCRIPTOR_RANGE_TYPE_UAV
+    GPU_PgmArg_WriteRWTexture,
+
+    // read a sampler
+    // VK -> VK_DESCRIPTOR_TYPE_SAMPLER
+    // DX12 -> D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER
+    GPU_PgmArg_Sampler,
 };
 
 /**
@@ -801,9 +823,6 @@ typedef struct
 {
     // the type of the argument
     GPU_ProgramArgType   type;
-
-    // the slot to bind to
-    u8                   slot;
 
     // the stage that this argument is visible to
     GPU_ProgramStageType visibility;
@@ -815,12 +834,42 @@ typedef struct
 COL_DECLARE_FOR(GPU_ProgramArgCfg);
 
 /**
+ * Defines the available argument group types for a GPU program.
+ */
+typedef u8 GPU_ProgramArgsGroupType;
+enum GPU_ProgramArgsGroupTypes
+{
+    // args written once into the group and the whole group is bound to the program
+    // VK -> descriptor set
+    // DX12 -> descriptor table
+    GPU_PgmArgsGrpTy_Baked,
+
+    // args bound individually at record time
+    // note that due to some vulkan limitations, an arguments layout object can only
+    // have one group of this type
+    // VK -> push descriptors
+    // DX12 -> root descriptors
+    GPU_PgmArgsGrpTy_Direct,
+};
+
+/**
+ * Configuration structure for a group of program arguments.
+ */
+typedef struct
+{
+    GPU_ProgramArgsGroupType  type;
+    Slice_(GPU_ProgramArgCfg) args;
+} GPU_ProgramArgsGroupCfg;
+
+COL_DECLARE_FOR(GPU_ProgramArgsGroupCfg);
+
+/**
  * Configuration structure for a program's arguments.
  */
 typedef struct
 {
-    // the arguments for the program
-    Slice_(GPU_ProgramArgCfg) args;
+    // the groups of arguments for the program
+    Slice_(GPU_ProgramArgsGroupCfg) argsGroups;
 
     // the inline constants for the program
     // VK -> push constants
@@ -835,8 +884,84 @@ typedef struct
     utf8str objectName;
 } GPU_ProgramArgsLayoutCfg;
 
-GPU_DECLARE_OBJECT(ProgramArgsLayout, 128);
+/**
+ * Represents the layout of a program's arguments.
+ * This is used to create a program and bind arguments to it.
+ */
+GPU_DECLARE_OBJECT(ProgramArgsLayout, 192);
 
+/**
+ * Represents a group of arguments for a program.
+ * This is used to bind arguments to a program.
+ */
+GPU_DECLARE_OBJECT(ProgramArgsBuffer, 128);
+
+/**
+ * Configuration structure for a program's argument buffer.
+ */
+typedef struct
+{
+    GPU_ProgramArgsLayout* layout;
+    u8 groupIdx;
+    utf8str objectName;
+} GPU_ProgramArgsBufferCfg;
+
+/**
+ * Defines the available binding types for a program argument.
+ * This is used to bind a resource to a program argument.
+ */
+typedef u8 GPU_ProgramArgBindingType;
+enum GPU_ProgramArgBindingTypes
+{
+    // no binding; the argument is not used
+    GPU_PgmArgBindTy_None,
+
+    // bind a buffer to the program
+    GPU_PgmArgBindTy_Buffer,
+
+    // bind a texture
+    GPU_PgmArgBindTy_Texture,
+
+    // bind a sampler
+    GPU_PgmArgBindTy_Sampler,
+};
+
+/**
+ * Configuration structure for binding a resource to a program argument.
+ */
+typedef struct
+{
+    GPU_ProgramArgBindingType type;
+
+    union
+    {
+
+        struct
+        {
+            GPU_Buffer*               argsBuffer;
+            u32                       offset, size;
+        } buffer;
+
+        struct
+        {
+            GPU_Texture*              texture;
+            GPU_TextureLayout         layout;
+        } texture;
+
+        struct
+        {
+            u8 padding;
+            // TODO: add sampler support
+        } sampler;
+    } value;
+} GPU_ProgramArgBindingCfg;
+
+COL_DECLARE_FOR(GPU_ProgramArgBindingCfg);
+
+/**
+ * Defines the available program types for a GPU program.
+ * This is used to create a program and bind it to a command buffer.
+ */
 typedef u8 GPU_ProgramType;
 enum GPU_ProgramTypes
 {

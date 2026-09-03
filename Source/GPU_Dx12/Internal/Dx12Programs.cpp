@@ -8,5 +8,8 @@ void GPU_Dx12NewProgramArgsLayout(GPU_ProgramArgsLayout*, GPU_Instance*, GPU_Pro
 void GPU_Dx12DeleteProgramArgsLayout(GPU_ProgramArgsLayout*) { MSR_ASSERT(false && "not implemented"); }
 void GPU_Dx12NewProgram(GPU_Program*, GPU_Instance*, GPU_ProgramCfg) { MSR_ASSERT(false && "not implemented"); }
 void GPU_Dx12DeleteProgram(GPU_Program*) { MSR_ASSERT(false && "not implemented"); }
+void GPU_Dx12NewProgramArgsBuffer(GPU_ProgramArgsBuffer*, GPU_Instance*, GPU_ProgramArgsBufferCfg) { MSR_ASSERT(false && "not implemented"); }
+void GPU_Dx12DeleteProgramArgsBuffer(GPU_ProgramArgsBuffer*) { MSR_ASSERT(false && "not implemented"); }
+void GPU_Dx12UpdateProgramArgsBuffer(GPU_ProgramArgsBuffer*, Slice_(GPU_ProgramArgBindingCfg)) { MSR_ASSERT(false && "not implemented"); }
 
 #endif

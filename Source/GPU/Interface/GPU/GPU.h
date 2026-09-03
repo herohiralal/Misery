@@ -146,6 +146,28 @@ void GPU_NewProgram(GPU_Program* outProgram, GPU_Instance* renderer, GPU_Program
  */
 void GPU_DeleteProgram(GPU_Program* program);
 
+// Program arguments buffers ===================================================================================================
+
+/**
+ * THREAD_SAFE
+ * Create a program arguments buffer with the given configuration.
+ */
+void GPU_NewProgramArgsBuffer(GPU_ProgramArgsBuffer* outArgsBuffer, GPU_Instance* renderer, GPU_ProgramArgsBufferCfg cfg);
+
+/**
+ * THREAD_SAFE
+ * Destroy the given program arguments buffer, freeing up associated resources.
+ */
+void GPU_DeleteProgramArgsBuffer(GPU_ProgramArgsBuffer* argsBuffer);
+
+/**
+ * THREAD_SAFE
+ * Update the given program arguments buffer with the provided bindings.
+ * This will update the buffer with the new bindings, and mark it as dirty so that it can be
+ * re-uploaded to the GPU.
+ */
+void GPU_UpdateProgramArgsBuffer(GPU_ProgramArgsBuffer* argsBuffer, Slice_(GPU_ProgramArgBindingCfg) bindings);
+
 // Command-buffers =============================================================================================================
 
 /**
@@ -193,6 +215,26 @@ void GPU_CmdBarrier(GPU_CmdBuffer* cb, GPU_BarrierCfg cfg);
  * Bind a program to the command buffer, so that it can be used for subsequent dispatches.
  */
 void GPU_CmdBindProgram(GPU_CmdBuffer* cb, GPU_BindProgramCfg cfg);
+
+/**
+ * OWNED_THREAD
+ * Bind a program arguments buffer to the command buffer, so that it can be used for subsequent dispatches.
+ * Note - this should only be used for "baked" arg groups.
+ */
+void GPU_CmdBindProgramArgsBuffer(GPU_CmdBuffer* cb, u8 groupIdx, GPU_ProgramArgsBuffer* argsBuffer);
+
+/**
+ * OWNED_THREAD
+ * Bind a program argument to the command buffer, so that it can be used for subsequent dispatches.
+ * Note - this should only be used for "direct" arg groups.
+ */
+void GPU_CmdBindProgramArg(GPU_CmdBuffer* cb, u8 groupIdx, Slice_(GPU_ProgramArgBindingCfg) bindings);
+
+/**
+ * OWNED_THREAD
+ * Bind inline constants to the command buffer, so that they can be used for subsequent dispatches.
+ */
+void GPU_CmdBindProgramInlineConstants(GPU_CmdBuffer* cb, u32 offset, Slice_(u8) data);
 
 /**
  * OWNED_THREAD
