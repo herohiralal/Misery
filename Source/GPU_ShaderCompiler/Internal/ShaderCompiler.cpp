@@ -173,6 +173,10 @@ b8 GPU_NewProgramStageByteCode(GPU_ProgramStageByteCode* stage, GPU_ProgramStage
         GPU_ShaderCompiler::Init();
         wchar_t* fileW = GPU_ShaderCompiler::ToWideString(cfg.file.path, MEM_temp);
 
+        MSR_ASSERT(cfg.gfxAPI != GPU_GfxAPIType_Null && "gfxAPI must be specified!");
+        MSR_ASSERT(cfg.stage != GPU_ProgramStageType_Unknown && "stage must be specified!");
+        MSR_ASSERT((cfg.stage & (cfg.stage - 1)) == 0 && "stage must be a single stage (not a combination of stages)!");
+
         IDxcBlobEncoding* srcBlob = nil;
         {
             u32 codePage = DXC_CP_ACP;

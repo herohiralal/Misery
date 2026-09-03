@@ -709,13 +709,17 @@ typedef struct
 typedef u8 GPU_ProgramStageType;
 enum GPU_ProgramStageTypes
 {
-    GPU_ProgramStageType_Unknown,
-    GPU_ProgramStageType_Compute,
-    GPU_ProgramStageType_Task,
-    GPU_ProgramStageType_Mesh,
-    GPU_ProgramStageType_Vertex,
-    GPU_ProgramStageType_Fragment,
+    GPU_ProgramStageType_Unknown = 0,
+    GPU_ProgramStageType_Compute = 1 << 0,
+    GPU_ProgramStageType_Task = 1 << 1,
+    GPU_ProgramStageType_Mesh = 1 << 2,
+    GPU_ProgramStageType_Vertex = 1 << 3,
+    GPU_ProgramStageType_Fragment = 1 << 4,
+
+    GPU_ProgramStageType_MAX,
 };
+
+static_assert(GPU_ProgramStageType_MAX < INTEGER_MAX(GPU_ProgramStageType), "GPU_ProgramStageType must be able to fit all GPU_ProgramStageTypes");
 
 /**
  * Represents a compiled program stage blob.
