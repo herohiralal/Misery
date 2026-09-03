@@ -124,6 +124,18 @@ void GPU_DeleteProgramStage(GPU_ProgramStage* stage);
 
 /**
  * THREAD_SAFE
+ * Create a program arguments layout object with the given configuration.
+ */
+void GPU_NewProgramArgsLayout(GPU_ProgramArgsLayout* outArgs, GPU_Instance* renderer, GPU_ProgramArgsLayoutCfg cfg);
+
+/**
+ * THREAD_SAFE
+ * Destroy the given program arguments layout object, freeing up associated resources.
+ */
+void GPU_DeleteProgramArgsLayout(GPU_ProgramArgsLayout* args);
+
+/**
+ * THREAD_SAFE
  * Create a program with the given configuration.
  */
 void GPU_NewProgram(GPU_Program* outProgram, GPU_Instance* renderer, GPU_ProgramCfg cfg);

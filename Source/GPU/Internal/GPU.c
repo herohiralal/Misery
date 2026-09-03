@@ -145,6 +145,24 @@ void GPU_DeleteProgramStage(GPU_ProgramStage* stage)
     );
 }
 
+void GPU_NewProgramArgsLayout(GPU_ProgramArgsLayout* outArgs, GPU_Instance* renderer, GPU_ProgramArgsLayoutCfg cfg)
+{
+    RHI_FN_SWITCH_VOID(
+        renderer ? renderer->base.type : GPU_GfxAPIType_Null,
+        NewProgramArgsLayout,
+        outArgs, renderer, cfg
+    );
+}
+
+void GPU_DeleteProgramArgsLayout(GPU_ProgramArgsLayout* args)
+{
+    RHI_FN_SWITCH_VOID(
+        args ? args->base.type : GPU_GfxAPIType_Null,
+        DeleteProgramArgsLayout,
+        args
+    );
+}
+
 void GPU_NewProgram(GPU_Program* outProgram, GPU_Instance* renderer, GPU_ProgramCfg cfg)
 {
     RHI_FN_SWITCH_VOID(

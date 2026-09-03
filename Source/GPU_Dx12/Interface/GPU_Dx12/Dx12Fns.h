@@ -24,7 +24,8 @@ void GPU_Dx12DeleteTexture(GPU_Texture*);
 
 void GPU_Dx12NewProgramStage(GPU_ProgramStage*, GPU_Instance*, GPU_ProgramStageByteCode);
 void GPU_Dx12DeleteProgramStage(GPU_ProgramStage*);
-
+void GPU_Dx12NewProgramArgsLayout(GPU_ProgramArgsLayout*, GPU_Instance*, GPU_ProgramArgsLayoutCfg);
+void GPU_Dx12DeleteProgramArgsLayout(GPU_ProgramArgsLayout*);
 void GPU_Dx12NewProgram(GPU_Program*, GPU_Instance*, GPU_ProgramCfg);
 void GPU_Dx12DeleteProgram(GPU_Program*);
 

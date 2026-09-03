@@ -726,6 +726,11 @@ enum GPU_ProgramStageTypes
     // output the colours for a given fragment on the output
     GPU_PgmStgTy_Fragment = 1 << 4,
 
+    GPU_PgmStgTy_AllGraphics = GPU_PgmStgTy_Task | GPU_PgmStgTy_Mesh |
+                               GPU_PgmStgTy_Vertex | GPU_PgmStgTy_Fragment,
+
+    GPU_PgmStgTy_All = GPU_PgmStgTy_AllGraphics | GPU_PgmStgTy_Compute,
+
     GPU_PgmStgTy_MAX,
 };
 
@@ -765,6 +770,72 @@ typedef struct
  * Represents a program stage loaded onto the GPU.
  */
 GPU_DECLARE_OBJECT(ProgramStage, 128);
+
+/**
+ * Defines the available argument types for a GPU program.
+ */
+typedef u8 GPU_ProgramArgType;
+enum GPU_ProgramArgTypes
+{
+    GPU_PgmArg_None,
+    // read a read-only buffer
+    // VK -> VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+    // DX12 -> D3D12_DESCRIPTOR_RANGE_TYPE_CBV
+    GPU_PgmArg_ReadROBuffer,
+
+    // read a read-write buffer
+    // VK -> VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+    // DX12 -> D3D12_DESCRIPTOR_RANGE_TYPE_SRV
+    GPU_PgmArg_ReadRWBuffer,
+
+    // write a read-write buffer
+    // VK -> VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+    // DX12 -> D3D12_DESCRIPTOR_RANGE_TYPE_UAV
+    GPU_PgmArg_WriteRWBuffer,
+};
+
+/**
+ * Configuration structure for a program argument.
+ */
+typedef struct
+{
+    // the type of the argument
+    GPU_ProgramArgType   type;
+
+    // the slot to bind to
+    u8                   slot;
+
+    // the stage that this argument is visible to
+    GPU_ProgramStageType visibility;
+
+    // the name of the argument in the shader code
+    utf8str              name;
+} GPU_ProgramArgCfg;
+
+COL_DECLARE_FOR(GPU_ProgramArgCfg);
+
+/**
+ * Configuration structure for a program's arguments.
+ */
+typedef struct
+{
+    // the arguments for the program
+    Slice_(GPU_ProgramArgCfg) args;
+
+    // the inline constants for the program
+    // VK -> push constants
+    // DX12 -> root constants
+    struct
+    {
+        u16                  size;
+        GPU_ProgramStageType visibility;
+    } inlineConstants;
+
+    // the name of the program in the shader code
+    utf8str objectName;
+} GPU_ProgramArgsLayoutCfg;
+
+GPU_DECLARE_OBJECT(ProgramArgsLayout, 128);
 
 typedef u8 GPU_ProgramType;
 enum GPU_ProgramTypes

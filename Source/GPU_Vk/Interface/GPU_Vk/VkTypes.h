@@ -130,6 +130,11 @@ GPU_EXTEND_OBJECT(Vk, ProgramStage,
     u8 entryPoint[64];
 );
 
+GPU_EXTEND_OBJECT(Vk, ProgramArgsLayout,
+    const GPU_VkInstance* renderer;
+    VkDescriptorSetLayout actual;
+);
+
 GPU_EXTEND_OBJECT(Vk, Program,
     const GPU_VkInstance* renderer;
     GPU_ProgramType       type;

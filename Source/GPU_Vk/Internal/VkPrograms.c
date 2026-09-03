@@ -39,6 +39,26 @@ void GPU_VkDeleteProgramStage(GPU_ProgramStage* baseProgramStage)
     vkDestroyShaderModule(programStage->renderer->device, programStage->actual, nil);
 }
 
+void GPU_VkNewProgramArgsLayout(GPU_ProgramArgsLayout* outBaseArgs, GPU_Instance* baseRenderer, GPU_ProgramArgsLayoutCfg cfg)
+{
+    GPU_VkInstance* renderer = GPU_ToVkInstance(baseRenderer);
+    MSR_ASSERT(renderer && "renderer must not be null");
+
+    MSR_ASSERT(outBaseArgs && "outBaseArgs must not be null");
+    outBaseArgs->base.type = GPU_GfxAPIType_Vk;
+
+    GPU_VkProgramArgsLayout* output = GPU_ToVkProgramArgsLayout(outBaseArgs);
+    MSR_ASSERT(output && "programArgsLayout must not be null");
+
+    output->renderer = renderer;
+}
+
+void GPU_VkDeleteProgramArgsLayout(GPU_ProgramArgsLayout* baseArgs)
+{
+    GPU_VkProgramArgsLayout* args = GPU_ToVkProgramArgsLayout(baseArgs);
+    MSR_ASSERT(args && "programArgsLayout must not be null");
+}
+
 void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, GPU_ProgramCfg cfg)
 {
     GPU_VkInstance* renderer = GPU_ToVkInstance(baseRenderer);
