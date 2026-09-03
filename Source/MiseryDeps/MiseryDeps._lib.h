@@ -3,15 +3,16 @@
 
 BRAHMA_IMPLEMENT_LIBRARY(MiseryDeps)
 {
-    brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_DirectX12MemoryAllocator");
-    brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_MeshOpt");
-    brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_RadDbgMarkup");
-    brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_SpirvCross");
-    brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_SpirvReflect");
-    brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_STB_Image");
-    brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_VulkanLoader");
-    brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_VulkanMemoryAllocator");
-    brahma_append_string_to_paged_list(&library->interfaceDependencies, "Ext_TinyGLTF");
+    brahma_append_string_to_paged_list(&library->internalDependencies, "Ext_DirectX12MemoryAllocator");
+    brahma_append_string_to_paged_list(&library->internalDependencies, "Ext_MeshOpt");
+    brahma_append_string_to_paged_list(&library->internalDependencies, "Ext_RadDbgMarkup");
+    brahma_append_string_to_paged_list(&library->internalDependencies, "Ext_SpirvCross");
+    brahma_append_string_to_paged_list(&library->internalDependencies, "Ext_SpirvReflect");
+    brahma_append_string_to_paged_list(&library->internalDependencies, "Ext_STB_Image");
+    brahma_append_string_to_paged_list(&library->internalDependencies, "Ext_VulkanLoader");
+    brahma_append_string_to_paged_list(&library->internalDependencies, "Ext_VulkanMemoryAllocator");
+    brahma_append_string_to_paged_list(&library->internalDependencies, "Ext_TinyGLTF");
+    brahma_append_string_to_paged_list(&library->internalDependencies, "Ext_TinyObj");
 
     const char* msrBuildDeps = NULL;
     if (!brahma_find_in_definitions(&package->definitions, "MSR_BUILD_DEPS", &msrBuildDeps))
