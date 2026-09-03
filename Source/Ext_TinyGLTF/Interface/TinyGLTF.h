@@ -27,12 +27,15 @@ MSR_UNSUPPRESS_WARN
 
     /**
     * Get an allocator to use with TinyGLTF.
-    * The memory pertaining to
+    * The memory pertaining to `ctx` must stay valid for the lifetime
+    * of the allocator.
     */
     tg3_allocator TGLTF_GetAllocator(TGLTF_Ctx* ctx);
 
     /**
     * Get a file-system callbacks to use with TinyGLTF.
+    * The memory pertaining to `ctx` must stay valid for the lifetime
+    * of the file-system callbacks.
     */
     tg3_fs_callbacks TGLTF_GetFileSystem(TGLTF_Ctx* ctx);
 
