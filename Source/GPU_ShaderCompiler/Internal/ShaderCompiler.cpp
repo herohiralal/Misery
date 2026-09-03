@@ -174,7 +174,7 @@ b8 GPU_NewProgramStageByteCode(GPU_ProgramStageByteCode* stage, GPU_ProgramStage
         wchar_t* fileW = GPU_ShaderCompiler::ToWideString(cfg.file.path, MEM_temp);
 
         MSR_ASSERT(cfg.gfxAPI != GPU_GfxAPIType_Null && "gfxAPI must be specified!");
-        MSR_ASSERT(cfg.stage != GPU_ProgramStageType_Unknown && "stage must be specified!");
+        MSR_ASSERT(cfg.stage != GPU_PgmStgTy_Unknown && "stage must be specified!");
         MSR_ASSERT((cfg.stage & (cfg.stage - 1)) == 0 && "stage must be a single stage (not a combination of stages)!");
 
         IDxcBlobEncoding* srcBlob = nil;
@@ -199,11 +199,11 @@ b8 GPU_NewProgramStageByteCode(GPU_ProgramStageByteCode* stage, GPU_ProgramStage
             const wchar_t* shdTy = nil;
             switch (cfg.stage)
             {
-                case GPU_ProgramStageType_Compute:   shdTy = L"cs_6_0"; stageStr = UTF8STR("cmpt");                          break;
-                case GPU_ProgramStageType_Task:      shdTy = L"as_6_5"; stageStr = UTF8STR("task"); useMeshShaderExt = true; break;
-                case GPU_ProgramStageType_Mesh:      shdTy = L"ms_6_5"; stageStr = UTF8STR("mesh"); useMeshShaderExt = true; break;
-                case GPU_ProgramStageType_Vertex:    shdTy = L"vs_6_0"; stageStr = UTF8STR("vert");                          break;
-                case GPU_ProgramStageType_Fragment:  shdTy = L"ps_6_0"; stageStr = UTF8STR("frag");                          break;
+                case GPU_PgmStgTy_Compute:   shdTy = L"cs_6_0"; stageStr = UTF8STR("cmpt");                          break;
+                case GPU_PgmStgTy_Task:      shdTy = L"as_6_5"; stageStr = UTF8STR("task"); useMeshShaderExt = true; break;
+                case GPU_PgmStgTy_Mesh:      shdTy = L"ms_6_5"; stageStr = UTF8STR("mesh"); useMeshShaderExt = true; break;
+                case GPU_PgmStgTy_Vertex:    shdTy = L"vs_6_0"; stageStr = UTF8STR("vert");                          break;
+                case GPU_PgmStgTy_Fragment:  shdTy = L"ps_6_0"; stageStr = UTF8STR("frag");                          break;
                 default:
                 {
                     LOG_Err(SHDCMPL, "Unknown shader type!");

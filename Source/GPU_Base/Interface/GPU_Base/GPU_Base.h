@@ -709,17 +709,27 @@ typedef struct
 typedef u8 GPU_ProgramStageType;
 enum GPU_ProgramStageTypes
 {
-    GPU_ProgramStageType_Unknown = 0,
-    GPU_ProgramStageType_Compute = 1 << 0,
-    GPU_ProgramStageType_Task = 1 << 1,
-    GPU_ProgramStageType_Mesh = 1 << 2,
-    GPU_ProgramStageType_Vertex = 1 << 3,
-    GPU_ProgramStageType_Fragment = 1 << 4,
+    GPU_PgmStgTy_Unknown  = 0,
 
-    GPU_ProgramStageType_MAX,
+    // compute program (to be used for GPGPU stuff)
+    GPU_PgmStgTy_Compute  = 1 << 0,
+
+    // task/amplification program stage
+    GPU_PgmStgTy_Task     = 1 << 1,
+
+    // output
+    GPU_PgmStgTy_Mesh     = 1 << 2,
+
+    // output the clip space position for a given vertex
+    GPU_PgmStgTy_Vertex   = 1 << 3,
+
+    // output the colours for a given fragment on the output
+    GPU_PgmStgTy_Fragment = 1 << 4,
+
+    GPU_PgmStgTy_MAX,
 };
 
-static_assert(GPU_ProgramStageType_MAX < INTEGER_MAX(GPU_ProgramStageType), "GPU_ProgramStageType must be able to fit all GPU_ProgramStageTypes");
+static_assert(GPU_PgmStgTy_MAX < INTEGER_MAX(GPU_ProgramStageType), "GPU_ProgramStageType must be able to fit all GPU_ProgramStageTypes");
 
 /**
  * Represents a compiled program stage blob.
@@ -782,13 +792,13 @@ typedef u8 GPU_CullMode;
 enum GPU_CullModes
 {
     // cull counter-clockwise faces
-    GPU_CullMode_CounterClockwise,
+    GPU_Cull_CounterClockwise,
 
     // cull clockwise faces
-    GPU_CullMode_Clockwise,
+    GPU_Cull_Clockwise,
 
     // don't cull any faces
-    GPU_CullMode_None,
+    GPU_Cull_None,
 };
 
 /**
@@ -798,13 +808,13 @@ typedef u8 GPU_PrimitiveTopology;
 enum GPU_PrimitiveTopologies
 {
     // treat the primitive like a list of triangles
-    GPU_PrimTop_TriangleList,
+    GPU_Topo_TriangleList,
 
     // treat the primitive like a list of lines
-    GPU_PrimTop_LineList,
+    GPU_Topo_LineList,
 
     // treat the primitive like a list of points
-    GPU_PrimTop_PointList,
+    GPU_Topo_PointList,
 };
 
 /**

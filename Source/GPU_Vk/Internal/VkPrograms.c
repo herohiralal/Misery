@@ -54,7 +54,7 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
     MSR_ASSERT(cfg.stages.count > 0 && "program must have at least one stage");
     GPU_VkProgramStage* firstStage = GPU_ToVkProgramStage(cfg.stages.data[0].stage);
     MSR_ASSERT(firstStage && "first stage must be valid");
-    MSR_ASSERT(firstStage->type == GPU_ProgramStageType_Vertex || firstStage->type == GPU_ProgramStageType_Mesh
+    MSR_ASSERT(firstStage->type == GPU_PgmStgTy_Vertex || firstStage->type == GPU_PgmStgTy_Mesh
         && "other pipelines not supported yet");
 
     GPU_VkProgramStage *cmptStage = nil, *taskStage = nil, *meshStage = nil, *vertStage = nil, *fragStage = nil;
@@ -71,43 +71,43 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
 
     switch ((enum GPU_ProgramStageTypes) firstStage->type)
     {
-        case GPU_ProgramStageType_Compute:
+        case GPU_PgmStgTy_Compute:
             MSR_ASSERT(false && "not implemented yet");
             break;
-        case GPU_ProgramStageType_Vertex:
+        case GPU_PgmStgTy_Vertex:
         {
             vertStage = firstStage;
             MSR_ASSERT(cfg.stages.count == 2 && "vertex program must have a fragment stage");
             fragStage = GPU_ToVkProgramStage(cfg.stages.data[1].stage);
             MSR_ASSERT(fragStage && "fragment stage must be valid");
-            MSR_ASSERT(fragStage->type == GPU_ProgramStageType_Fragment && "incorrect stage type; fragment expected");
+            MSR_ASSERT(fragStage->type == GPU_PgmStgTy_Fragment && "incorrect stage type; fragment expected");
             output->type = GPU_ProgramType_VertexFragment;
             break;
         }
-        case GPU_ProgramStageType_Mesh:
+        case GPU_PgmStgTy_Mesh:
         {
             meshStage = firstStage;
             MSR_ASSERT(cfg.stages.count == 2 && "mesh program must have a fragment stage");
             fragStage = GPU_ToVkProgramStage(cfg.stages.data[1].stage);
             MSR_ASSERT(fragStage && "fragment stage must be valid");
-            MSR_ASSERT(fragStage->type == GPU_ProgramStageType_Fragment && "incorrect stage type; fragment expected");
+            MSR_ASSERT(fragStage->type == GPU_PgmStgTy_Fragment && "incorrect stage type; fragment expected");
             output->type = GPU_ProgramType_MeshFragment;
             break;
         }
-        case GPU_ProgramStageType_Task:
+        case GPU_PgmStgTy_Task:
         {
             taskStage = firstStage;
             MSR_ASSERT(cfg.stages.count == 3 && "task program must have a mesh and fragment stage");
             meshStage = GPU_ToVkProgramStage(cfg.stages.data[1].stage);
-            MSR_ASSERT(meshStage->type == GPU_ProgramStageType_Mesh && "incorrect stage type; mesh expected");
+            MSR_ASSERT(meshStage->type == GPU_PgmStgTy_Mesh && "incorrect stage type; mesh expected");
             MSR_ASSERT(meshStage && "mesh stage must be valid");
             fragStage = GPU_ToVkProgramStage(cfg.stages.data[2].stage);
-            MSR_ASSERT(meshStage->type == GPU_ProgramStageType_Fragment && "incorrect stage type; fragment expected");
+            MSR_ASSERT(meshStage->type == GPU_PgmStgTy_Fragment && "incorrect stage type; fragment expected");
             MSR_ASSERT(fragStage && "fragment stage must be valid");
             output->type = GPU_ProgramType_TaskMeshFragment;
             break;
         }
-        case GPU_ProgramStageType_Fragment:
+        case GPU_PgmStgTy_Fragment:
             MSR_ASSERT(false && "first stage can't be fragment stage");
             break;
         default:

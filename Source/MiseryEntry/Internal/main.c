@@ -47,7 +47,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
             GPU_NewProgramStageByteCode(&triangleVs, (GPU_ProgramStageByteCodeCfg)
             {
                 .gfxAPI = GPU_GfxAPIType_Vk,
-                .stage = GPU_ProgramStageType_Vertex,
+                .stage = GPU_PgmStgTy_Vertex,
                 .file = DIR_FileInside(triangleDir, UTF8STR("HelloTriangle.vert.hlsl"), MEM_temp),
                 .entryPoint = UTF8STR("main"),
                 .allocator = MEM_main,
@@ -56,7 +56,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
             GPU_NewProgramStageByteCode(&triangleMs, (GPU_ProgramStageByteCodeCfg)
             {
                 .gfxAPI = GPU_GfxAPIType_Vk,
-                .stage = GPU_ProgramStageType_Mesh,
+                .stage = GPU_PgmStgTy_Mesh,
                 .file = DIR_FileInside(triangleDir, UTF8STR("HelloTriangle.mesh.hlsl"), MEM_temp),
                 .entryPoint = UTF8STR("main"),
                 .allocator = MEM_main,
@@ -65,7 +65,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
             GPU_NewProgramStageByteCode(&triangleFs, (GPU_ProgramStageByteCodeCfg)
             {
                 .gfxAPI = GPU_GfxAPIType_Vk,
-                .stage = GPU_ProgramStageType_Fragment,
+                .stage = GPU_PgmStgTy_Fragment,
                 .file = DIR_FileInside(triangleDir, UTF8STR("HelloTriangle.frag.hlsl"), MEM_temp),
                 .entryPoint = UTF8STR("main"),
                 .allocator = MEM_main,
@@ -74,7 +74,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
             GPU_NewProgramStageByteCode(&fsBlitVs, (GPU_ProgramStageByteCodeCfg)
             {
                 .gfxAPI = GPU_GfxAPIType_Vk,
-                .stage = GPU_ProgramStageType_Vertex,
+                .stage = GPU_PgmStgTy_Vertex,
                 .file = DIR_FileInside(fsBlitDir, UTF8STR("FullScreenBlit.vert.hlsl"), MEM_temp),
                 .entryPoint = UTF8STR("main"),
                 .allocator = MEM_main,
@@ -83,7 +83,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
             GPU_NewProgramStageByteCode(&fsBlitFs, (GPU_ProgramStageByteCodeCfg)
             {
                 .gfxAPI = GPU_GfxAPIType_Vk,
-                .stage = GPU_ProgramStageType_Fragment,
+                .stage = GPU_PgmStgTy_Fragment,
                 .file = DIR_FileInside(fsBlitDir, UTF8STR("FullScreenBlit.frag.hlsl"), MEM_temp),
                 .entryPoint = UTF8STR("main"),
                 .allocator = MEM_main,
@@ -332,8 +332,8 @@ void RenderThread(rawptr data)
             GPU_CmdBindProgram(frameCtx.cmdBuffer, (GPU_BindProgramCfg)
             {
                 .program = &G_RenderData.programs.triangle,
-                .cullMode = GPU_CullMode_CounterClockwise,
-                .topology = GPU_PrimTop_TriangleList,
+                .cullMode = GPU_Cull_CounterClockwise,
+                .topology = GPU_Topo_TriangleList,
             });
 
             GPU_CmdDrawBasic(frameCtx.cmdBuffer, (GPU_DrawBasicCfg) {.vertCount = 3, .primitivesCount = 1});
@@ -341,8 +341,8 @@ void RenderThread(rawptr data)
             GPU_CmdBindProgram(frameCtx.cmdBuffer, (GPU_BindProgramCfg)
             {
                 .program = &G_RenderData.programs.triangleMs,
-                .cullMode = GPU_CullMode_CounterClockwise,
-                .topology = GPU_PrimTop_TriangleList,
+                .cullMode = GPU_Cull_CounterClockwise,
+                .topology = GPU_Topo_TriangleList,
             });
 
             GPU_CmdDrawMeshlets(frameCtx.cmdBuffer, (GPU_DrawMeshletsCfg) {1, 1, 1});

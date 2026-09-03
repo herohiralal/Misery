@@ -237,10 +237,10 @@ void GPU_VkCmdBindProgram(GPU_CmdBuffer* cb, GPU_BindProgramCfg cfg)
     switch ((enum GPU_CullModes) cfg.cullMode)
     {
         // we always mark clockwise as front face
-        case GPU_CullMode_CounterClockwise: cullMode = VK_CULL_MODE_BACK_BIT; break;
-        case GPU_CullMode_Clockwise:        cullMode = VK_CULL_MODE_FRONT_BIT; break;
-        case GPU_CullMode_None:             cullMode = VK_CULL_MODE_NONE; break;
-        default:                            MSR_ASSERT(false && "invalid cull mode"); break;
+        case GPU_Cull_CounterClockwise: cullMode = VK_CULL_MODE_BACK_BIT; break;
+        case GPU_Cull_Clockwise:        cullMode = VK_CULL_MODE_FRONT_BIT; break;
+        case GPU_Cull_None:             cullMode = VK_CULL_MODE_NONE; break;
+        default:                        MSR_ASSERT(false && "invalid cull mode"); break;
     }
 
     if (program->type != GPU_ProgramType_Compute)
@@ -249,10 +249,10 @@ void GPU_VkCmdBindProgram(GPU_CmdBuffer* cb, GPU_BindProgramCfg cfg)
     VkPrimitiveTopology topology = 0;
     switch ((enum GPU_PrimitiveTopologies) cfg.topology)
     {
-        case GPU_PrimTop_TriangleList: topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; break;
-        case GPU_PrimTop_LineList:     topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST; break;
-        case GPU_PrimTop_PointList:    topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST; break;
-        default:                       MSR_ASSERT(false && "invalid primitive topology"); break;
+        case GPU_Topo_TriangleList: topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; break;
+        case GPU_Topo_LineList:     topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST; break;
+        case GPU_Topo_PointList:    topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST; break;
+        default:                    MSR_ASSERT(false && "invalid primitive topology"); break;
     }
 
     if (program->type == GPU_ProgramType_VertexFragment)
