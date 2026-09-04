@@ -218,23 +218,15 @@ void GPU_CmdBindProgram(GPU_CmdBuffer* cb, GPU_BindProgramCfg cfg);
 
 /**
  * OWNED_THREAD
- * Bind a program arguments buffer to the command buffer, so that it can be used for subsequent dispatches.
- * Note - this should only be used for "baked" arg groups.
+ * Bind a program arguments group to the command buffer, so that it can be used for subsequent dispatches.
  */
-void GPU_CmdBindProgramArgsBuffer(GPU_CmdBuffer* cb, u8 groupIdx, GPU_ProgramArgsBuffer* argsBuffer);
-
-/**
- * OWNED_THREAD
- * Bind a program argument to the command buffer, so that it can be used for subsequent dispatches.
- * Note - this should only be used for "direct" arg groups.
- */
-void GPU_CmdBindProgramArg(GPU_CmdBuffer* cb, u8 groupIdx, Slice_(GPU_ProgramArgBindingCfg) bindings);
+void GPU_CmdBindProgramArgsGroup(GPU_CmdBuffer* cb, GPU_ProgramArgsGroupBindingCfg cfg);
 
 /**
  * OWNED_THREAD
  * Bind inline constants to the command buffer, so that they can be used for subsequent dispatches.
  */
-void GPU_CmdBindProgramInlineConstants(GPU_CmdBuffer* cb, u32 offset, Slice_(u8) data);
+void GPU_CmdBindProgramInlineConstants(GPU_CmdBuffer* cb, GPU_ProgramInlineConstantArgBindingCfg cfg);
 
 /**
  * OWNED_THREAD

@@ -38,9 +38,8 @@ void GPU_VkCmdBeginPass(GPU_CmdBuffer*, GPU_PassCfg);
 void GPU_VkCmdEndPass(GPU_CmdBuffer*);
 void GPU_VkCmdBarrier(GPU_CmdBuffer*, GPU_BarrierCfg);
 void GPU_VkCmdBindProgram(GPU_CmdBuffer*, GPU_BindProgramCfg);
-void GPU_VkCmdBindProgramArgsBuffer(GPU_CmdBuffer*, u8, GPU_ProgramArgsBuffer*);
-void GPU_VkCmdBindProgramArg(GPU_CmdBuffer*, u8, Slice_(GPU_ProgramArgBindingCfg));
-void GPU_VkCmdBindProgramInlineConstants(GPU_CmdBuffer*, u32, Slice_(u8));
+void GPU_VkCmdBindProgramArgsGroup(GPU_CmdBuffer*, GPU_ProgramArgsGroupBindingCfg);
+void GPU_VkCmdBindProgramInlineConstants(GPU_CmdBuffer*, GPU_ProgramInlineConstantArgBindingCfg);
 void GPU_VkCmdDrawBasic(GPU_CmdBuffer*, GPU_DrawBasicCfg);
 void GPU_VkCmdDrawMeshlets(GPU_CmdBuffer*, GPU_DrawMeshletsCfg);
 

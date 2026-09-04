@@ -171,5 +171,7 @@ VkAttachmentStoreOp GPU_BreakVkStoreOp(GPU_StoreOp);
 VkDescriptorType GPU_BreakVkProgramArgType(GPU_ProgramArgType);
 VkShaderStageFlags GPU_BreakVkProgramStage(GPU_ProgramStageType);
 
+Slice_(VkWriteDescriptorSet) GPU_BreakVkProgramArgsBindings(VkDescriptorSet, Slice_(GPU_ProgramArgBindingCfg), MEM_Allocator);
+
 EXTERN_C_END
 #endif

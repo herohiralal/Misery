@@ -958,6 +958,40 @@ enum GPU_ProgramTypes
 };
 
 /**
+ * Configuration structure for binding a group of arguments to a program.
+ */
+typedef struct
+{
+    // the type of args group
+    GPU_ProgramArgsGroupType groupType;
+
+    // the index of the group within the program's args layout
+    u8 groupIdx;
+
+    // the type of program that the arguments are being bound for
+    GPU_ProgramType programType;
+
+    // the layout of the program's arguments
+    GPU_ProgramArgsLayout* layout;
+
+    // the value to actually bind
+    union
+    {
+        Slice_(GPU_ProgramArgBindingCfg) direct;
+        GPU_ProgramArgsBuffer*           baked;
+    } value;
+} GPU_ProgramArgsGroupBindingCfg;
+
+/**
+ * Configuration structure for binding inline constants to a program.
+ */
+typedef struct
+{
+    GPU_ProgramArgsLayout* layout;
+    Slice_(u8) data;
+} GPU_ProgramInlineConstantArgBindingCfg;
+
+/**
  * Configuration structure to refer to a program stage for program creation.
  */
 typedef struct

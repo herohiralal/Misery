@@ -259,25 +259,43 @@ void GPU_VkCmdBindProgram(GPU_CmdBuffer* cb, GPU_BindProgramCfg cfg)
         vkCmdSetPrimitiveTopology(cmdBuffer->cmdBuffer, topology);
 }
 
-void GPU_VkCmdBindProgramArgsBuffer(GPU_CmdBuffer* cb, u8 groupIdx, GPU_ProgramArgsBuffer* argsBuffer)
+void GPU_VkCmdBindProgramArgsGroup(GPU_CmdBuffer* cb, GPU_ProgramArgsGroupBindingCfg cfg)
 {
     GPU_VkCmdBuffer* cmdBuffer = GPU_ToVkCmdBuffer(cb);
     MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
 
-    GPU_VkProgramArgsBuffer* argsBuf = GPU_ToVkProgramArgsBuffer(argsBuffer);
-    MSR_ASSERT(argsBuf && "argsBuffer must not be null");
+    GPU_VkProgramArgsLayout* argsLayout = GPU_ToVkProgramArgsLayout(cfg.layout);
+    MSR_ASSERT(argsLayout && "layout must not be null");
+
+    VkPipelineBindPoint bindPoint = cfg.programType == GPU_ProgramType_Compute
+        ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+    switch ((enum GPU_ProgramArgsGroupTypes) cfg.groupType)
+    {
+        case GPU_PgmArgsGrpTy_Baked:
+            GPU_VkProgramArgsBuffer* argsBuf = GPU_ToVkProgramArgsBuffer(cfg.value.baked);
+            MSR_ASSERT(argsBuf && "argsBuffer must not be null");
+            vkCmdBindDescriptorSets(cmdBuffer->cmdBuffer, bindPoint, argsLayout->actual, cfg.groupIdx, 1, &(argsBuf->actual), 0, nil);
+            break;
+        case GPU_PgmArgsGrpTy_Direct:
+            Slice_(VkWriteDescriptorSet) writes = GPU_BreakVkProgramArgsBindings(VK_NULL_HANDLE, cfg.value.direct, MEM_temp);
+            vkCmdPushDescriptorSet(cmdBuffer->cmdBuffer, bindPoint, argsLayout->actual, cfg.groupIdx, (u32) writes.count, writes.data);
+            break;
+        default:
+            MSR_ASSERT(false && "invalid program args group binding type");
+            break;
+    }
 }
 
-void GPU_VkCmdBindProgramArg(GPU_CmdBuffer* cb, u8 groupIdx, Slice_(GPU_ProgramArgBindingCfg) bindings)
+void GPU_VkCmdBindProgramInlineConstants(GPU_CmdBuffer* cb, GPU_ProgramInlineConstantArgBindingCfg cfg)
 {
     GPU_VkCmdBuffer* cmdBuffer = GPU_ToVkCmdBuffer(cb);
     MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
-}
 
-void GPU_VkCmdBindProgramInlineConstants(GPU_CmdBuffer* cb, u32 offset, Slice_(u8) data)
-{
-    GPU_VkCmdBuffer* cmdBuffer = GPU_ToVkCmdBuffer(cb);
-    MSR_ASSERT(cmdBuffer && "cmdBuffer must not be null");
+    GPU_VkProgramArgsLayout* argsLayout = GPU_ToVkProgramArgsLayout(cfg.layout);
+    MSR_ASSERT(argsLayout && "layout must not be null");
+
+    vkCmdPushConstants(cmdBuffer->cmdBuffer, argsLayout->actual, argsLayout->pushConstantVisibility, 0, (u32) cfg.data.count, cfg.data.data);
 }
 
 void GPU_VkCmdDrawBasic(GPU_CmdBuffer* cb, GPU_DrawBasicCfg cfg)

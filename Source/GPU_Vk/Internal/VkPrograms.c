@@ -107,6 +107,8 @@ void GPU_VkNewProgramArgsLayout(GPU_ProgramArgsLayout* outBaseArgs, GPU_Instance
         } : nil,
     }, nil, &(output->actual)));
 
+    output->pushConstantVisibility = GPU_BreakVkProgramStage(cfg.inlineConstants.visibility);
+
     GPU_VK_SET_OBJ_DEBUG_NAME(renderer, output->actual, "pplnlyt_%", FMT(cfg.objectName));
 }
 
@@ -388,7 +390,13 @@ void GPU_VkUpdateProgramArgsBuffer(GPU_ProgramArgsBuffer* baseArgsBuffer, Slice_
     GPU_VkProgramArgsBuffer* argsBuffer = GPU_ToVkProgramArgsBuffer(baseArgsBuffer);
     MSR_ASSERT(argsBuffer && "argsBuffer must not be null");
 
-    Slice_(VkWriteDescriptorSet) vkBindings = COL_NewSlice(VkWriteDescriptorSet, bindings.count, true, MEM_temp);
+    Slice_(VkWriteDescriptorSet) vkBindings = GPU_BreakVkProgramArgsBindings(argsBuffer->actual, bindings, MEM_temp);
+    vkUpdateDescriptorSets(argsBuffer->renderer->device, (u32) vkBindings.count, vkBindings.data, 0, nil);
+}
+
+Slice_(VkWriteDescriptorSet) GPU_BreakVkProgramArgsBindings(VkDescriptorSet set, Slice_(GPU_ProgramArgBindingCfg) bindings, MEM_Allocator allocator)
+{
+    Slice_(VkWriteDescriptorSet) vkBindings = COL_NewSlice(VkWriteDescriptorSet, bindings.count, true, allocator);
 
     for (isize i = 0; i < bindings.count; i++)
     {
@@ -437,7 +445,7 @@ void GPU_VkUpdateProgramArgsBuffer(GPU_ProgramArgsBuffer* baseArgsBuffer, Slice_
         vkBindings.data[i] = (VkWriteDescriptorSet)
         {
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet = argsBuffer->actual,
+            .dstSet = set,
             .dstBinding = (u32) i,
             .dstArrayElement = 0, // TODO: support arrays of descriptors
             .descriptorCount = 1,
@@ -448,7 +456,8 @@ void GPU_VkUpdateProgramArgsBuffer(GPU_ProgramArgsBuffer* baseArgsBuffer, Slice_
         };
     }
 
-    vkUpdateDescriptorSets(argsBuffer->renderer->device, (u32) vkBindings.count, vkBindings.data, 0, nil);
+    return vkBindings;
 }
+
 
 #endif

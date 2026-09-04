@@ -138,6 +138,7 @@ GPU_EXTEND_OBJECT(Vk, ProgramStage,
 
 GPU_EXTEND_OBJECT(Vk, ProgramArgsLayout,
     const GPU_VkInstance* renderer;
+    VkShaderStageFlags    pushConstantVisibility;
     VkPipelineLayout      actual;
     VkDescriptorSetLayout groups[16];
 );

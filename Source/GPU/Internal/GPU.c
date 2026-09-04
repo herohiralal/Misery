@@ -262,30 +262,21 @@ void GPU_CmdBindProgram(GPU_CmdBuffer* cb, GPU_BindProgramCfg cfg)
     );
 }
 
-void GPU_CmdBindProgramArgsBuffer(GPU_CmdBuffer* cb, u8 groupIdx, GPU_ProgramArgsBuffer* argsBuffer)
+void GPU_CmdBindProgramArgsGroup(GPU_CmdBuffer* cb, GPU_ProgramArgsGroupBindingCfg cfg)
 {
     RHI_FN_SWITCH_VOID(
         cb ? cb->base.type : GPU_GfxAPIType_Null,
-        CmdBindProgramArgsBuffer,
-        cb, groupIdx, argsBuffer
+        CmdBindProgramArgsGroup,
+        cb, cfg
     );
 }
 
-void GPU_CmdBindProgramArg(GPU_CmdBuffer* cb, u8 groupIdx, Slice_(GPU_ProgramArgBindingCfg) bindings)
-{
-    RHI_FN_SWITCH_VOID(
-        cb ? cb->base.type : GPU_GfxAPIType_Null,
-        CmdBindProgramArg,
-        cb, groupIdx, bindings
-    );
-}
-
-void GPU_CmdBindProgramInlineConstants(GPU_CmdBuffer* cb, u32 offset, Slice_(u8) data)
+void GPU_CmdBindProgramInlineConstants(GPU_CmdBuffer* cb, GPU_ProgramInlineConstantArgBindingCfg cfg)
 {
     RHI_FN_SWITCH_VOID(
         cb ? cb->base.type : GPU_GfxAPIType_Null,
         CmdBindProgramInlineConstants,
-        cb, offset, data
+        cb, cfg
     );
 }
 
