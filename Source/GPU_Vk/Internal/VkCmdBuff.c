@@ -273,14 +273,18 @@ void GPU_VkCmdBindProgramArgsGroup(GPU_CmdBuffer* cb, GPU_ProgramArgsGroupBindin
     switch ((enum GPU_ProgramArgsGroupTypes) cfg.groupType)
     {
         case GPU_PgmArgsGrpTy_Baked:
+        {
             GPU_VkProgramArgsBuffer* argsBuf = GPU_ToVkProgramArgsBuffer(cfg.value.baked);
             MSR_ASSERT(argsBuf && "argsBuffer must not be null");
             vkCmdBindDescriptorSets(cmdBuffer->cmdBuffer, bindPoint, argsLayout->actual, cfg.groupIdx, 1, &(argsBuf->actual), 0, nil);
             break;
+        }
         case GPU_PgmArgsGrpTy_Direct:
-            Slice_(VkWriteDescriptorSet) writes = GPU_BreakVkProgramArgsBindings(VK_NULL_HANDLE, cfg.value.direct, MEM_temp);
-            vkCmdPushDescriptorSet(cmdBuffer->cmdBuffer, bindPoint, argsLayout->actual, cfg.groupIdx, (u32) writes.count, writes.data);
+        {
+            GPU_VkWriteDescriptorSets writes = GPU_BreakVkProgramArgsBindings(VK_NULL_HANDLE, cfg.value.direct, MEM_temp);
+            vkCmdPushDescriptorSet(cmdBuffer->cmdBuffer, bindPoint, argsLayout->actual, cfg.groupIdx, (u32) writes.writes.count, writes.writes.data);
             break;
+        }
         default:
             MSR_ASSERT(false && "invalid program args group binding type");
             break;

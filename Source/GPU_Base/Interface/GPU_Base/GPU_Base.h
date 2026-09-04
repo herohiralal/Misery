@@ -924,7 +924,7 @@ typedef struct
 
         struct
         {
-            GPU_Buffer*               argsBuffer;
+            GPU_Buffer*               buffer;
             u32                       offset, size;
         } buffer;
 

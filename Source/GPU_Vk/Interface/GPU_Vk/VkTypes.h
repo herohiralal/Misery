@@ -29,6 +29,8 @@ COL_DECLARE_FOR(VkFormat);
 COL_DECLARE_FOR(VkDescriptorSetLayoutBinding);
 COL_DECLARE_FOR(VkDescriptorPoolSize);
 COL_DECLARE_FOR(VkWriteDescriptorSet);
+COL_DECLARE_FOR(VkDescriptorBufferInfo);
+COL_DECLARE_FOR(VkDescriptorImageInfo);
 
 GPU_EXTEND_OBJECT(Vk, Instance,
     APP_Handle    appHandle;

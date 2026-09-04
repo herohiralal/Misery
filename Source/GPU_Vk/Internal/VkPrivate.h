@@ -171,7 +171,24 @@ VkAttachmentStoreOp GPU_BreakVkStoreOp(GPU_StoreOp);
 VkDescriptorType GPU_BreakVkProgramArgType(GPU_ProgramArgType);
 VkShaderStageFlags GPU_BreakVkProgramStage(GPU_ProgramStageType);
 
-Slice_(VkWriteDescriptorSet) GPU_BreakVkProgramArgsBindings(VkDescriptorSet, Slice_(GPU_ProgramArgBindingCfg), MEM_Allocator);
+typedef struct
+{
+    Slice_(VkWriteDescriptorSet) writes;
+    Slice_(VkDescriptorBufferInfo) buffers;
+    Slice_(VkDescriptorImageInfo) images;
+    MEM_Allocator allocator;
+} GPU_VkWriteDescriptorSets;
+
+static void GPU_VkFreeWriteDescriptorSets(GPU_VkWriteDescriptorSets* writes)
+{
+    COL_DeleteSlice(&writes->writes, writes->allocator);
+    COL_DeleteSlice(&writes->buffers, writes->allocator);
+    COL_DeleteSlice(&writes->images, writes->allocator);
+
+    *writes = (GPU_VkWriteDescriptorSets) {0};
+}
+
+GPU_VkWriteDescriptorSets GPU_BreakVkProgramArgsBindings(VkDescriptorSet, Slice_(GPU_ProgramArgBindingCfg), MEM_Allocator);
 
 EXTERN_C_END
 #endif
