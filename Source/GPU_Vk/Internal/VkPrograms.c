@@ -354,6 +354,9 @@ void GPU_VkNewProgramArgsBuffer(GPU_ProgramArgsBuffer* outBaseArgsBuffer, GPU_In
     GPU_VkInstance* renderer = GPU_ToVkInstance(baseRenderer);
     MSR_ASSERT(renderer && "renderer must not be null");
 
+    GPU_VkProgramArgsLayout* argsLayout = GPU_ToVkProgramArgsLayout(cfg.layout);
+    MSR_ASSERT(argsLayout && "argsLayout must not be null");
+
     MSR_ASSERT(outBaseArgsBuffer && "outBaseArgsBuffer must not be null");
     outBaseArgsBuffer->base.type = GPU_GfxAPIType_Vk;
 
@@ -361,12 +364,23 @@ void GPU_VkNewProgramArgsBuffer(GPU_ProgramArgsBuffer* outBaseArgsBuffer, GPU_In
     MSR_ASSERT(output && "programArgsBuffer must not be null");
 
     output->renderer = renderer;
+
+    vkAllocateDescriptorSets(renderer->device, &(VkDescriptorSetAllocateInfo)
+    {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .pNext = nil,
+        .descriptorPool = nil,
+        .descriptorSetCount = 1,
+        .pSetLayouts = &(argsLayout->groups[cfg.groupIdx]),
+    }, &(output->actual));
 }
 
 void GPU_VkDeleteProgramArgsBuffer(GPU_ProgramArgsBuffer* baseArgsBuffer)
 {
     GPU_VkProgramArgsBuffer* argsBuffer = GPU_ToVkProgramArgsBuffer(baseArgsBuffer);
     MSR_ASSERT(argsBuffer && "argsBuffer must not be null");
+
+    vkFreeDescriptorSets(argsBuffer->renderer->device, nil, 1, &(argsBuffer->actual));
 }
 
 void GPU_VkUpdateProgramArgsBuffer(GPU_ProgramArgsBuffer* baseArgsBuffer, Slice_(GPU_ProgramArgBindingCfg) bindings)

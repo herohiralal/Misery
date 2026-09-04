@@ -50,7 +50,12 @@ typedef struct
     {
         struct
         {
-            usize _padding;
+            struct
+            {
+                u32 sampledImage, storageImage, uniformBuffer, storageBuffer;
+            } globalDescriptorPoolSizes;
+
+            u32 maxDescriptorSetsCount;
         } vk;
 
         struct
@@ -74,7 +79,7 @@ typedef struct
  * multiple GPU APIs active, it's more common to have just one. This object is used as the primary
  * entry point for creating other GPU objects.
  */
-GPU_DECLARE_OBJECT(Instance, 176);
+GPU_DECLARE_OBJECT(Instance, 256);
 
 /**
  * A command buffer for recording GPU commands.

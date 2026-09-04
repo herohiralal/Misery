@@ -808,6 +808,48 @@ void GPU_VkCreate(GPU_Instance* outBaseInstance, GPU_InstanceCfg cfg)
             .vkGetDeviceProcAddr   = vkGetDeviceProcAddr,
         },
     }, &(output->vmaAllocator)));
+
+    {
+        if (!cfg.apiSpecific.vk.globalDescriptorPoolSizes.sampledImage) cfg.apiSpecific.vk.globalDescriptorPoolSizes.sampledImage   = 9216;
+        if (!cfg.apiSpecific.vk.globalDescriptorPoolSizes.storageImage) cfg.apiSpecific.vk.globalDescriptorPoolSizes.storageImage   = 1024;
+        if (!cfg.apiSpecific.vk.globalDescriptorPoolSizes.uniformBuffer) cfg.apiSpecific.vk.globalDescriptorPoolSizes.uniformBuffer = 5120;
+        if (!cfg.apiSpecific.vk.globalDescriptorPoolSizes.storageBuffer) cfg.apiSpecific.vk.globalDescriptorPoolSizes.storageBuffer = 1024;
+        if (!cfg.apiSpecific.vk.maxDescriptorSetsCount) cfg.apiSpecific.vk.maxDescriptorSetsCount = 8192;
+
+        // don't need samplers
+        Slice_(VkDescriptorPoolSize) poolSizes = SLICE(VkDescriptorPoolSize,
+            (VkDescriptorPoolSize)
+            {
+                .type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                .descriptorCount = cfg.apiSpecific.vk.globalDescriptorPoolSizes.sampledImage,
+            },
+            (VkDescriptorPoolSize)
+            {
+                .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                .descriptorCount = cfg.apiSpecific.vk.globalDescriptorPoolSizes.storageImage,
+            },
+            (VkDescriptorPoolSize)
+            {
+                .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                .descriptorCount = cfg.apiSpecific.vk.globalDescriptorPoolSizes.uniformBuffer,
+            },
+            (VkDescriptorPoolSize)
+            {
+                .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                .descriptorCount = cfg.apiSpecific.vk.globalDescriptorPoolSizes.storageBuffer,
+            }
+        );
+
+        GPU_VK_CHECKED_CALL(vkCreateDescriptorPool(output->device, &(VkDescriptorPoolCreateInfo)
+        {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+            .pNext =  nil,
+            .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT | VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
+            .maxSets = cfg.apiSpecific.vk.maxDescriptorSetsCount,
+            .poolSizeCount = (u32) poolSizes.count,
+            .pPoolSizes = poolSizes.data,
+        }, nil, &(output->primaryDescriptorPool)));
+    }
 }
 
 void GPU_VkWaitTillIdle(GPU_Instance* baseRenderer)
@@ -826,6 +868,8 @@ void GPU_VkDestroy(GPU_Instance* baseRenderer)
     if (!renderer) return;
 
     GPU_VkWaitTillIdle(baseRenderer);
+
+    vkDestroyDescriptorPool(renderer->device, renderer->primaryDescriptorPool, nil);
 
     vmaDestroyAllocator(renderer->vmaAllocator);
 

@@ -27,6 +27,7 @@ COL_DECLARE_FOR(VkPipelineShaderStageCreateInfo);
 COL_DECLARE_FOR(VkDynamicState);
 COL_DECLARE_FOR(VkFormat);
 COL_DECLARE_FOR(VkDescriptorSetLayoutBinding);
+COL_DECLARE_FOR(VkDescriptorPoolSize);
 
 GPU_EXTEND_OBJECT(Vk, Instance,
     APP_Handle    appHandle;
@@ -57,6 +58,7 @@ GPU_EXTEND_OBJECT(Vk, Instance,
     utf8str                  appName;
 
     VmaAllocator vmaAllocator;
+    VkDescriptorPool primaryDescriptorPool;
 
     struct
     {
@@ -143,7 +145,6 @@ GPU_EXTEND_OBJECT(Vk, ProgramArgsBuffer,
     const GPU_VkInstance*    renderer;
     GPU_VkProgramArgsLayout* layout;
     VkDescriptorSet          actual;
-    VmaAllocation            allocation;
 );
 
 GPU_EXTEND_OBJECT(Vk, Program,
