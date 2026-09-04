@@ -369,7 +369,7 @@ void GPU_VkNewProgramArgsBuffer(GPU_ProgramArgsBuffer* outBaseArgsBuffer, GPU_In
     {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
         .pNext = nil,
-        .descriptorPool = nil,
+        .descriptorPool = renderer->primaryDescriptorPool,
         .descriptorSetCount = 1,
         .pSetLayouts = &(argsLayout->groups[cfg.groupIdx]),
     }, &(output->actual));
@@ -380,13 +380,75 @@ void GPU_VkDeleteProgramArgsBuffer(GPU_ProgramArgsBuffer* baseArgsBuffer)
     GPU_VkProgramArgsBuffer* argsBuffer = GPU_ToVkProgramArgsBuffer(baseArgsBuffer);
     MSR_ASSERT(argsBuffer && "argsBuffer must not be null");
 
-    vkFreeDescriptorSets(argsBuffer->renderer->device, nil, 1, &(argsBuffer->actual));
+    vkFreeDescriptorSets(argsBuffer->renderer->device, argsBuffer->renderer->primaryDescriptorPool, 1, &(argsBuffer->actual));
 }
 
 void GPU_VkUpdateProgramArgsBuffer(GPU_ProgramArgsBuffer* baseArgsBuffer, Slice_(GPU_ProgramArgBindingCfg) bindings)
 {
     GPU_VkProgramArgsBuffer* argsBuffer = GPU_ToVkProgramArgsBuffer(baseArgsBuffer);
     MSR_ASSERT(argsBuffer && "argsBuffer must not be null");
+
+    Slice_(VkWriteDescriptorSet) vkBindings = COL_NewSlice(VkWriteDescriptorSet, bindings.count, true, MEM_temp);
+
+    for (isize i = 0; i < bindings.count; i++)
+    {
+        GPU_ProgramArgBindingCfg* binding = &(bindings.data[i]);
+
+        VkDescriptorBufferInfo bufferInfo = {0};
+        VkDescriptorImageInfo imageInfo = {0};
+        b8 isBuffer = false, isSampler = false, isTexture = false;
+        switch ((enum GPU_ProgramArgTypes) binding->type)
+        {
+            case GPU_PgmArg_ReadROBuffer:
+            case GPU_PgmArg_ReadRWBuffer:
+            case GPU_PgmArg_WriteRWBuffer:
+                isBuffer = true;
+                GPU_VkBuffer* buffer = GPU_ToVkBuffer(binding->value.buffer.argsBuffer);
+                MSR_ASSERT(buffer && "buffer must not be null");
+                bufferInfo = (VkDescriptorBufferInfo)
+                {
+                    .buffer = buffer->actual,
+                    .offset = binding->value.buffer.offset,
+                    .range  = binding->value.buffer.size,
+                };
+                break;
+            case GPU_PgmArg_Sampler:
+                isSampler = true;
+                MSR_ASSERT(false && "sampler not implemented yet");
+                break;
+            case GPU_PgmArg_ReadROTexture:
+            case GPU_PgmArg_ReadRWTexture:
+            case GPU_PgmArg_WriteRWTexture:
+                isTexture = true;
+                GPU_VkTexture* texture = GPU_ToVkTexture(binding->value.texture.texture);
+                MSR_ASSERT(texture && "texture must not be null");
+                imageInfo = (VkDescriptorImageInfo)
+                {
+                    .imageView   = texture->view,
+                    .imageLayout = GPU_BreakVkTextureLayout(binding->value.texture.layout),
+                };
+                break;
+            case GPU_PgmArg_None:
+            default:
+                MSR_ASSERT(false && "invalid program arg type");
+                break;
+        }
+
+        vkBindings.data[i] = (VkWriteDescriptorSet)
+        {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = argsBuffer->actual,
+            .dstBinding = (u32) i,
+            .dstArrayElement = 0, // TODO: support arrays of descriptors
+            .descriptorCount = 1,
+            .descriptorType = GPU_BreakVkProgramArgType(binding->type),
+            .pBufferInfo = isBuffer ? &bufferInfo : nil,
+            .pImageInfo = isTexture || isSampler ? &imageInfo : nil,
+            .pTexelBufferView = nil,
+        };
+    }
+
+    vkUpdateDescriptorSets(argsBuffer->renderer->device, (u32) vkBindings.count, vkBindings.data, 0, nil);
 }
 
 #endif

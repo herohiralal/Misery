@@ -28,6 +28,7 @@ COL_DECLARE_FOR(VkDynamicState);
 COL_DECLARE_FOR(VkFormat);
 COL_DECLARE_FOR(VkDescriptorSetLayoutBinding);
 COL_DECLARE_FOR(VkDescriptorPoolSize);
+COL_DECLARE_FOR(VkWriteDescriptorSet);
 
 GPU_EXTEND_OBJECT(Vk, Instance,
     APP_Handle    appHandle;

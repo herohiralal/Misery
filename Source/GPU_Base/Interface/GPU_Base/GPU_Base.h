@@ -913,31 +913,11 @@ typedef struct
 } GPU_ProgramArgsBufferCfg;
 
 /**
- * Defines the available binding types for a program argument.
- * This is used to bind a resource to a program argument.
- */
-typedef u8 GPU_ProgramArgBindingType;
-enum GPU_ProgramArgBindingTypes
-{
-    // no binding; the argument is not used
-    GPU_PgmArgBindTy_None,
-
-    // bind a buffer to the program
-    GPU_PgmArgBindTy_Buffer,
-
-    // bind a texture
-    GPU_PgmArgBindTy_Texture,
-
-    // bind a sampler
-    GPU_PgmArgBindTy_Sampler,
-};
-
-/**
  * Configuration structure for binding a resource to a program argument.
  */
 typedef struct
 {
-    GPU_ProgramArgBindingType type;
+    GPU_ProgramArgType type;
 
     union
     {
