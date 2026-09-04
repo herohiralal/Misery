@@ -26,6 +26,7 @@ COL_DECLARE_FOR(VkRenderingAttachmentInfo);
 COL_DECLARE_FOR(VkPipelineShaderStageCreateInfo);
 COL_DECLARE_FOR(VkDynamicState);
 COL_DECLARE_FOR(VkFormat);
+COL_DECLARE_FOR(VkDescriptorSetLayoutBinding);
 
 GPU_EXTEND_OBJECT(Vk, Instance,
     APP_Handle    appHandle;
@@ -49,6 +50,8 @@ GPU_EXTEND_OBJECT(Vk, Instance,
     b8 meshShadersSupported;
     b8 taskShadersSupported;
     b8 descriptorBufferSupported;
+    u32 maxPushConstantsSize;
+    u32 maxBoundDescriptorSets;
 
     VkDebugUtilsMessengerEXT debugMessenger;
     utf8str                  appName;
@@ -147,10 +150,6 @@ GPU_EXTEND_OBJECT(Vk, Program,
     const GPU_VkInstance* renderer;
     GPU_ProgramType       type;
     VkPipeline            actual;
-    VkPipelineLayout      pipelineLayout;
-    // TODO: add support for descriptor set layouts
-    // u8 descriptorSetsCount;
-    // VkDescriptorSetLayout descSetLayouts[16];
 );
 
 EXTERN_C_END

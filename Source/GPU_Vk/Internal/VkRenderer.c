@@ -473,6 +473,8 @@ void GPU_VkCreate(GPU_Instance* outBaseInstance, GPU_InstanceCfg cfg)
             output->meshShadersSupported = !!meshFeatures.meshShader;
             output->taskShadersSupported = !!meshFeatures.taskShader;
             output->descriptorBufferSupported = !!descriptorBufferFeatures.descriptorBuffer;
+            output->maxPushConstantsSize = deviceProperties.properties.limits.maxPushConstantsSize;
+            output->maxBoundDescriptorSets = deviceProperties.properties.limits.maxBoundDescriptorSets;
 
             selectedDeviceScore = score;
         }

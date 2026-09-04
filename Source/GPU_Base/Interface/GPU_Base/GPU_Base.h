@@ -859,6 +859,7 @@ typedef struct
 {
     GPU_ProgramArgsGroupType  type;
     Slice_(GPU_ProgramArgCfg) args;
+    utf8str                   objectName;
 } GPU_ProgramArgsGroupCfg;
 
 COL_DECLARE_FOR(GPU_ProgramArgsGroupCfg);
@@ -1029,6 +1030,9 @@ typedef struct
         // the depth-stencil format
         GPU_TextureFormat         depthStencil;
     } targetFormats;
+
+    // the layout of the program's arguments
+    GPU_ProgramArgsLayout* argsLayout;
 
     utf8str objectName;
 } GPU_ProgramCfg;

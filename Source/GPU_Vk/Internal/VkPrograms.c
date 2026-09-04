@@ -28,7 +28,7 @@ void GPU_VkNewProgramStage(GPU_ProgramStage* outBaseProgramStage, GPU_Instance* 
         .pCode    = (u32*) bc.code.data,
     }, nil, &(output->actual)));
 
-    GPU_VK_SET_OBJ_DEBUG_NAME(renderer, output->actual, "%", FMT(bc.objectName));
+    GPU_VK_SET_OBJ_DEBUG_NAME(renderer, output->actual, "shrmod_%", FMT(bc.objectName));
 }
 
 void GPU_VkDeleteProgramStage(GPU_ProgramStage* baseProgramStage)
@@ -51,18 +51,83 @@ void GPU_VkNewProgramArgsLayout(GPU_ProgramArgsLayout* outBaseArgs, GPU_Instance
     MSR_ASSERT(output && "programArgsLayout must not be null");
 
     output->renderer = renderer;
+    MSR_ASSERT(cfg.argsGroups.count <= renderer->maxBoundDescriptorSets && "argsGroups count exceeds maxBoundDescriptorSets");
+    MSR_ASSERT(cfg.argsGroups.count <= (sizeof(output->groups) / sizeof(output->groups[0])) && "argsGroups count exceeds groups array size");
+    MSR_ASSERT(cfg.inlineConstants.size <= renderer->maxPushConstantsSize && "inlineConstants size exceeds maxPushConstantsSize");
+
+    for (isize i = 0; i < cfg.argsGroups.count; i++)
+    {
+        GPU_ProgramArgsGroupCfg* group = &(cfg.argsGroups.data[i]);
+
+        Slice_(VkDescriptorSetLayoutBinding) args = COL_NewSlice(VkDescriptorSetLayoutBinding, group->args.count, true, MEM_temp);
+
+        for (isize j = 0; j < group->args.count; j++)
+        {
+            GPU_ProgramArgCfg* argCfg = &(group->args.data[j]);
+            args.data[j] = (VkDescriptorSetLayoutBinding)
+            {
+                .binding            = (u32) j,
+                .descriptorType     = GPU_BreakVkProgramArgType(argCfg->type),
+                .descriptorCount    = 1, // TODO: support arrays of descriptors
+                .stageFlags         = GPU_BreakVkProgramStage(argCfg->visibility),
+                .pImmutableSamplers = nil,
+            };
+        }
+
+        VkDescriptorSetLayoutCreateFlags flags = 0;
+        if (group->type == GPU_PgmArgsGrpTy_Direct)
+            flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT;
+
+        GPU_VK_CHECKED_CALL(vkCreateDescriptorSetLayout(renderer->device, &(VkDescriptorSetLayoutCreateInfo)
+        {
+            .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+            .flags        = flags,
+            .bindingCount = (u32) args.count,
+            .pBindings    = args.data,
+        }, nil, &(output->groups[i])));
+
+        GPU_VK_SET_OBJ_DEBUG_NAME(renderer, output->groups[i], "pplnlyt_%.dsl_%_%",
+            FMT(cfg.objectName), FMT(group->objectName), FMT(i));
+    }
+
+    GPU_VK_CHECKED_CALL(vkCreatePipelineLayout(renderer->device, &(VkPipelineLayoutCreateInfo)
+    {
+        .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount         = (u32) cfg.argsGroups.count,
+        .pSetLayouts            = output->groups,
+        .pushConstantRangeCount = cfg.inlineConstants.size > 0 ? 1 : 0,
+        .pPushConstantRanges    = cfg.inlineConstants.size > 0 ? &(VkPushConstantRange)
+        {
+            .stageFlags = GPU_BreakVkProgramStage(cfg.inlineConstants.visibility),
+            .offset     = 0,
+            .size       = cfg.inlineConstants.size,
+        } : nil,
+    }, nil, &(output->actual)));
+
+    GPU_VK_SET_OBJ_DEBUG_NAME(renderer, output->actual, "pplnlyt_%", FMT(cfg.objectName));
 }
 
 void GPU_VkDeleteProgramArgsLayout(GPU_ProgramArgsLayout* baseArgs)
 {
     GPU_VkProgramArgsLayout* args = GPU_ToVkProgramArgsLayout(baseArgs);
     MSR_ASSERT(args && "programArgsLayout must not be null");
+
+    for (isize i = 0; i < args->renderer->maxBoundDescriptorSets; i++)
+    {
+        if (args->groups[i] != VK_NULL_HANDLE)
+            vkDestroyDescriptorSetLayout(args->renderer->device, args->groups[i], nil);
+    }
+
+    vkDestroyPipelineLayout(args->renderer->device, args->actual, nil);
 }
 
 void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, GPU_ProgramCfg cfg)
 {
     GPU_VkInstance* renderer = GPU_ToVkInstance(baseRenderer);
     MSR_ASSERT(renderer && "renderer must not be null");
+
+    GPU_VkProgramArgsLayout* argsLayout = GPU_ToVkProgramArgsLayout(cfg.argsLayout);
+    MSR_ASSERT(argsLayout && "argsLayout must not be null");
 
     MSR_ASSERT(outBaseProgram && "outBaseProgram must not be null");
     outBaseProgram->base.type = GPU_GfxAPIType_Vk;
@@ -78,16 +143,6 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
         && "other pipelines not supported yet");
 
     GPU_VkProgramStage *cmptStage = nil, *taskStage = nil, *meshStage = nil, *vertStage = nil, *fragStage = nil;
-
-    // TODO: add support for program/material parameters
-    GPU_VK_CHECKED_CALL(vkCreatePipelineLayout(renderer->device, &(VkPipelineLayoutCreateInfo)
-    {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 0,
-        .pSetLayouts = nil,
-        .pushConstantRangeCount = 0,
-        .pPushConstantRanges = nil,
-    }, nil, &(output->pipelineLayout)));
 
     switch ((enum GPU_ProgramStageTypes) firstStage->type)
     {
@@ -141,7 +196,7 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
         COL_AppendToList(&shaderStages, ((VkPipelineShaderStageCreateInfo)
         {
             .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .stage  = VK_SHADER_STAGE_TASK_BIT_EXT,
+            .stage  = GPU_BreakVkProgramStage(taskStage->type),
             .module = taskStage->actual,
             .pName  = (cstring) taskStage->entryPoint,
         }));
@@ -150,7 +205,7 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
         COL_AppendToList(&shaderStages, ((VkPipelineShaderStageCreateInfo)
         {
             .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .stage  = VK_SHADER_STAGE_MESH_BIT_EXT,
+            .stage  = GPU_BreakVkProgramStage(meshStage->type),
             .module = meshStage->actual,
             .pName  = (cstring) meshStage->entryPoint,
         }));
@@ -159,7 +214,7 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
         COL_AppendToList(&shaderStages, ((VkPipelineShaderStageCreateInfo)
         {
             .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .stage  = VK_SHADER_STAGE_VERTEX_BIT,
+            .stage  = GPU_BreakVkProgramStage(vertStage->type),
             .module = vertStage->actual,
             .pName  = (cstring) vertStage->entryPoint,
         }));
@@ -168,7 +223,7 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
         COL_AppendToList(&shaderStages, ((VkPipelineShaderStageCreateInfo)
         {
             .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .stage  = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .stage  = GPU_BreakVkProgramStage(fragStage->type),
             .module = fragStage->actual,
             .pName  = (cstring) fragStage->entryPoint,
         }));
@@ -270,7 +325,7 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
             .dynamicStateCount = (u32) dynamicStates.count,
             .pDynamicStates = dynamicStates.data,
         },
-        .layout = output->pipelineLayout,
+        .layout = argsLayout->actual,
         .renderPass = nil,
         .pNext = &(VkPipelineRenderingCreateInfo)
         {
@@ -282,7 +337,6 @@ void GPU_VkNewProgram(GPU_Program* outBaseProgram, GPU_Instance* baseRenderer, G
         },
     }, nil, &(output->actual)));
 
-    GPU_VK_SET_OBJ_DEBUG_NAME(renderer, output->pipelineLayout, "pplnlayout_%", FMT(cfg.objectName));
     GPU_VK_SET_OBJ_DEBUG_NAME(renderer, output->actual, "ppln_%", FMT(cfg.objectName));
 }
 
@@ -292,7 +346,6 @@ void GPU_VkDeleteProgram(GPU_Program* baseProgram)
     MSR_ASSERT(program && "program must not be null");
 
     vkDestroyPipeline(program->renderer->device, program->actual, nil);
-    vkDestroyPipelineLayout(program->renderer->device, program->pipelineLayout, nil);
 }
 
 void GPU_VkNewProgramArgsBuffer(GPU_ProgramArgsBuffer* outBaseArgsBuffer, GPU_Instance* baseRenderer, GPU_ProgramArgsBufferCfg cfg)

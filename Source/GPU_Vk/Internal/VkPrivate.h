@@ -168,6 +168,8 @@ VkPipelineStageFlags2 GPU_BreakVkBarrierStage(GPU_BarrierStage);
 VkAccessFlags2 GPU_BreakVkBarrierAccess(GPU_BarrierAccess);
 VkAttachmentLoadOp GPU_BreakVkLoadOp(GPU_LoadOp);
 VkAttachmentStoreOp GPU_BreakVkStoreOp(GPU_StoreOp);
+VkDescriptorType GPU_BreakVkProgramArgType(GPU_ProgramArgType);
+VkShaderStageFlags GPU_BreakVkProgramStage(GPU_ProgramStageType);
 
 EXTERN_C_END
 #endif

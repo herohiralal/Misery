@@ -138,4 +138,34 @@ VkAttachmentStoreOp GPU_BreakVkStoreOp(GPU_StoreOp op)
     return VK_ATTACHMENT_STORE_OP_STORE;
 }
 
+VkDescriptorType GPU_BreakVkProgramArgType(GPU_ProgramArgType argTy)
+{
+    VkDescriptorType descTy = VK_DESCRIPTOR_TYPE_MAX_ENUM;
+    switch ((enum GPU_ProgramArgTypes) argTy)
+    {
+        case GPU_PgmArg_None:           descTy = VK_DESCRIPTOR_TYPE_MAX_ENUM;       break;
+        case GPU_PgmArg_ReadROBuffer:   descTy = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; break;
+        case GPU_PgmArg_ReadRWBuffer:   descTy = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; break;
+        case GPU_PgmArg_WriteRWBuffer:  descTy = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; break;
+        case GPU_PgmArg_ReadROTexture:  descTy = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;  break;
+        case GPU_PgmArg_ReadRWTexture:  descTy = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;  break;
+        case GPU_PgmArg_WriteRWTexture: descTy = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;  break;
+        case GPU_PgmArg_Sampler:        descTy = VK_DESCRIPTOR_TYPE_SAMPLER;        break;
+        default:                        MSR_ASSERT(false && "Invalid GPU_ProgramArgType value"); break;
+    }
+
+    return descTy;
+}
+
+VkShaderStageFlags GPU_BreakVkProgramStage(GPU_ProgramStageType stages)
+{
+    VkShaderStageFlags stage = 0;
+    if (stages & GPU_PgmStgTy_Compute)  stage |= VK_SHADER_STAGE_COMPUTE_BIT;
+    if (stages & GPU_PgmStgTy_Task)     stage |= VK_SHADER_STAGE_TASK_BIT_EXT;
+    if (stages & GPU_PgmStgTy_Mesh)     stage |= VK_SHADER_STAGE_MESH_BIT_EXT;
+    if (stages & GPU_PgmStgTy_Vertex)   stage |= VK_SHADER_STAGE_VERTEX_BIT;
+    if (stages & GPU_PgmStgTy_Fragment) stage |= VK_SHADER_STAGE_FRAGMENT_BIT;
+    return stage;
+}
+
 #endif
