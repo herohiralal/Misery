@@ -90,6 +90,9 @@ void GPU_VkNewProgramArgsLayout(GPU_ProgramArgsLayout* outBaseArgs, GPU_Instance
             FMT(cfg.objectName), FMT(group->objectName), FMT(i));
     }
 
+    for (isize i = cfg.argsGroups.count; i < sizeof(output->groups) / sizeof(output->groups[0]); i++)
+        output->groups[i] = VK_NULL_HANDLE;
+
     GPU_VK_CHECKED_CALL(vkCreatePipelineLayout(renderer->device, &(VkPipelineLayoutCreateInfo)
     {
         .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -112,11 +115,9 @@ void GPU_VkDeleteProgramArgsLayout(GPU_ProgramArgsLayout* baseArgs)
     GPU_VkProgramArgsLayout* args = GPU_ToVkProgramArgsLayout(baseArgs);
     MSR_ASSERT(args && "programArgsLayout must not be null");
 
-    for (isize i = 0; i < args->renderer->maxBoundDescriptorSets; i++)
-    {
+    for (isize i = 0; i < sizeof(args->groups) / sizeof(args->groups[0]); i++)
         if (args->groups[i] != VK_NULL_HANDLE)
             vkDestroyDescriptorSetLayout(args->renderer->device, args->groups[i], nil);
-    }
 
     vkDestroyPipelineLayout(args->renderer->device, args->actual, nil);
 }
