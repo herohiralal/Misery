@@ -8,6 +8,7 @@ static struct
     GPU_SwapChain swapChain;
     struct
     {
+        GPU_ProgramArgsLayout argsLayout;
         GPU_Program triangle;
         GPU_Program triangleMs;
     } programs;
@@ -100,6 +101,17 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
     });
 
     {
+        GPU_NewProgramArgsLayout(&G_RenderData.programs.argsLayout, &ren, (GPU_ProgramArgsLayoutCfg)
+        {
+            .argsGroups = {0},
+            .inlineConstants =
+            {
+                .size       = 0,
+                .visibility = GPU_PgmStgTy_AllGraphics,
+            },
+            .objectName = UTF8STR("mainlayout"),
+        });
+
         GPU_ProgramStage triangleVsObj, triangleMsObj, triangleFsObj;
         GPU_NewProgramStage(&triangleVsObj, &ren, triangleVs);
         GPU_NewProgramStage(&triangleMsObj, &ren, triangleMs);
@@ -118,6 +130,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
                 ),
                 .depthStencil = GPU_TexFmt_Unknown,
             },
+            .argsLayout = &G_RenderData.programs.argsLayout,
             .objectName = UTF8STR("triangle pipeline"),
         });
 
@@ -134,6 +147,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
                 ),
                 .depthStencil = GPU_TexFmt_Unknown,
             },
+            .argsLayout = &G_RenderData.programs.argsLayout,
             .objectName = UTF8STR("triangle pipeline"),
         });
 
@@ -262,6 +276,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
     WND_Destroy(&wnd);
     GPU_DeleteProgram(&G_RenderData.programs.triangleMs);
     GPU_DeleteProgram(&G_RenderData.programs.triangle);
+    GPU_DeleteProgramArgsLayout(&G_RenderData.programs.argsLayout);
     GPU_Destroy(&ren);
 
     SYN_DestroyEvent(&G_ThreadSync.renThrDone);
