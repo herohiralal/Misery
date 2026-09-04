@@ -11,6 +11,9 @@ static struct
         GPU_ProgramArgsLayout argsLayout;
         GPU_Program triangle;
         GPU_Program triangleMs;
+
+        GPU_Buffer trianglePropsBuffer;
+        GPU_Buffer triangleMsPropsBuffer;
     } programs;
 } G_RenderData;
 
@@ -19,6 +22,12 @@ static struct
     SYN_Event renThrWake;
     SYN_Event renThrDone;
 } G_ThreadSync;
+
+typedef struct alignas(256) TriangleMatProps
+{
+    float vertexColours[3][4];
+    float tint[4];
+} TriangleMatProps;
 
 void RenderThread(rawptr data);
 
@@ -103,13 +112,45 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
     {
         GPU_NewProgramArgsLayout(&G_RenderData.programs.argsLayout, &ren, (GPU_ProgramArgsLayoutCfg)
         {
-            .argsGroups = {0},
+            .argsGroups = SLICE(GPU_ProgramArgsGroupCfg,
+                ((GPU_ProgramArgsGroupCfg)
+                {
+                    .objectName = UTF8STR("defaultgroup"),
+                    .type = GPU_PgmArgsGrpTy_Direct,
+                    .args = SLICE(GPU_ProgramArgCfg,
+                        ((GPU_ProgramArgCfg)
+                        {
+                            .name       = UTF8STR("G_MatProps"),
+                            .visibility = GPU_PgmStgTy_AllGraphics,
+                            .type       = GPU_PgmArg_ReadROBuffer,
+                        }),
+                    ),
+                }),
+            ),
             .inlineConstants =
             {
                 .size       = 0,
                 .visibility = GPU_PgmStgTy_AllGraphics,
             },
             .objectName = UTF8STR("mainlayout"),
+        });
+
+        GPU_NewBuffer(&G_RenderData.programs.trianglePropsBuffer, &ren, (GPU_BufferCfg)
+        {
+            .memType = GPU_MemType_Default,
+            .usages = GPU_BufUsg_ReadOnly,
+            .size = sizeof(TriangleMatProps),
+            .align = alignof(TriangleMatProps),
+            .objectName = UTF8STR("triangle props buffer (vs)"),
+        });
+
+        GPU_NewBuffer(&G_RenderData.programs.triangleMsPropsBuffer, &ren, (GPU_BufferCfg)
+        {
+            .memType = GPU_MemType_Default,
+            .usages = GPU_BufUsg_ReadOnly,
+            .size = sizeof(TriangleMatProps),
+            .align = alignof(TriangleMatProps),
+            .objectName = UTF8STR("triangle props buffer (ms)"),
         });
 
         GPU_ProgramStage triangleVsObj, triangleMsObj, triangleFsObj;
@@ -276,6 +317,8 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
     WND_Destroy(&wnd);
     GPU_DeleteProgram(&G_RenderData.programs.triangleMs);
     GPU_DeleteProgram(&G_RenderData.programs.triangle);
+    GPU_DeleteBuffer(&G_RenderData.programs.triangleMsPropsBuffer);
+    GPU_DeleteBuffer(&G_RenderData.programs.trianglePropsBuffer);
     GPU_DeleteProgramArgsLayout(&G_RenderData.programs.argsLayout);
     GPU_Destroy(&ren);
 
@@ -351,6 +394,26 @@ void RenderThread(rawptr data)
                 .topology = GPU_Topo_TriangleList,
             });
 
+            GPU_CmdBindProgramArgsGroup(frameCtx.cmdBuffer, (GPU_ProgramArgsGroupBindingCfg)
+            {
+                .groupType = GPU_PgmArgsGrpTy_Direct,
+                .groupIdx = 0,
+                .programType = GPU_ProgramType_VertexFragment,
+                .layout = &G_RenderData.programs.argsLayout,
+                .value.direct = SLICE(GPU_ProgramArgBindingCfg,
+                    ((GPU_ProgramArgBindingCfg)
+                    {
+                        .type = GPU_PgmArg_ReadROBuffer,
+                        .value.buffer =
+                        {
+                            .buffer = &G_RenderData.programs.trianglePropsBuffer,
+                            .offset = 0,
+                            .size = sizeof(TriangleMatProps),
+                        },
+                    })
+                ),
+            });
+
             GPU_CmdDrawBasic(frameCtx.cmdBuffer, (GPU_DrawBasicCfg) {.vertCount = 3, .primitivesCount = 1});
 
             GPU_CmdBindProgram(frameCtx.cmdBuffer, (GPU_BindProgramCfg)
@@ -358,6 +421,26 @@ void RenderThread(rawptr data)
                 .program = &G_RenderData.programs.triangleMs,
                 .cullMode = GPU_Cull_CounterClockwise,
                 .topology = GPU_Topo_TriangleList,
+            });
+
+            GPU_CmdBindProgramArgsGroup(frameCtx.cmdBuffer, (GPU_ProgramArgsGroupBindingCfg)
+            {
+                .groupType = GPU_PgmArgsGrpTy_Direct,
+                .groupIdx = 0,
+                .programType = GPU_ProgramType_VertexFragment,
+                .layout = &G_RenderData.programs.argsLayout,
+                .value.direct = SLICE(GPU_ProgramArgBindingCfg,
+                    ((GPU_ProgramArgBindingCfg)
+                    {
+                        .type = GPU_PgmArg_ReadROBuffer,
+                        .value.buffer =
+                        {
+                            .buffer = &G_RenderData.programs.triangleMsPropsBuffer,
+                            .offset = 0,
+                            .size = sizeof(TriangleMatProps),
+                        },
+                    })
+                ),
             });
 
             GPU_CmdDrawMeshlets(frameCtx.cmdBuffer, (GPU_DrawMeshletsCfg) {1, 1, 1});

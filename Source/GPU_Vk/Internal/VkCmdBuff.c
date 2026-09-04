@@ -282,7 +282,7 @@ void GPU_VkCmdBindProgramArgsGroup(GPU_CmdBuffer* cb, GPU_ProgramArgsGroupBindin
         case GPU_PgmArgsGrpTy_Direct:
         {
             GPU_VkWriteDescriptorSets writes = GPU_BreakVkProgramArgsBindings(VK_NULL_HANDLE, cfg.value.direct, MEM_temp);
-            vkCmdPushDescriptorSet(cmdBuffer->cmdBuffer, bindPoint, argsLayout->actual, cfg.groupIdx, (u32) writes.writes.count, writes.writes.data);
+            vkCmdPushDescriptorSetKHR(cmdBuffer->cmdBuffer, bindPoint, argsLayout->actual, cfg.groupIdx, (u32) writes.writes.count, writes.writes.data);
             break;
         }
         default:

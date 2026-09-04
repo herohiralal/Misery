@@ -682,6 +682,12 @@ void GPU_VkCreate(GPU_Instance* outBaseInstance, GPU_InstanceCfg cfg)
             continue;
         }
 
+        if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME)))
+        {
+            COL_AppendToList(&enabledDeviceExtensions, ext->extensionName);
+            continue;
+        }
+
         if (STR_Eq(STR_AliasCStr(ext->extensionName), UTF8STR(VK_EXT_MESH_SHADER_EXTENSION_NAME)))
         {
             COL_AppendToList(&enabledDeviceExtensions, ext->extensionName);

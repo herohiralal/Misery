@@ -17,7 +17,7 @@ void main(out vertices VertexOutput verts[3], out indices uint3 tris[1])
 #endif
 
         verts[i].posCS = posCS;
-        verts[i].vtCol = colours[i];
+        verts[i].vtCol = G_MatProps.vertexColours[i].rgb;
     }
 
     // triangles

@@ -268,7 +268,13 @@ b8 GPU_NewProgramStageByteCode(GPU_ProgramStageByteCode* stage, GPU_ProgramStage
 
                 if (SUCCEEDED(result->GetErrorBuffer(&error)) && error)
                 {
-                    LOG_Err(SHDCMPL, "Shader compiler error: %", FMT(error->GetBufferPointer()));
+                    utf8str errorStr =
+                    {
+                        .data = (u8*) error->GetBufferPointer(),
+                        .count = (isize) error->GetBufferSize(),
+                    };
+
+                    LOG_Err(SHDCMPL, "Shader compiler error: %", FMT(errorStr));
                 }
             }
 
