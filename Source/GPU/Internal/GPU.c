@@ -109,6 +109,18 @@ void GPU_DeleteBuffer(GPU_Buffer* buffer)
     );
 }
 
+Slice_(u8) GPU_GetMappedBufferData(GPU_Buffer* buffer)
+{
+    Slice_(u8) output = {0};
+
+    RHI_FN_SWITCH_RET(
+        buffer ? buffer->base.type : GPU_GfxAPIType_Null,
+        output,
+        GetMappedBufferData,
+        buffer
+    );
+}
+
 void GPU_NewTexture(GPU_Texture* outTexture, GPU_Instance* renderer, GPU_TextureCfg cfg)
 {
     RHI_FN_SWITCH_VOID(
@@ -123,6 +135,18 @@ void GPU_DeleteTexture(GPU_Texture* texture)
     RHI_FN_SWITCH_VOID(
         texture ? texture->base.type : GPU_GfxAPIType_Null,
         DeleteTexture,
+        texture
+    );
+}
+
+Slice_(u8) GPU_GetMappedTextureData(GPU_Texture* texture)
+{
+    Slice_(u8) output = {0};
+
+    RHI_FN_SWITCH_RET(
+        texture ? texture->base.type : GPU_GfxAPIType_Null,
+        output,
+        GetMappedTextureData,
         texture
     );
 }

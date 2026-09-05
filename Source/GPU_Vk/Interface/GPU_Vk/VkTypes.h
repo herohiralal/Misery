@@ -129,6 +129,8 @@ GPU_EXTEND_OBJECT(Vk, Texture,
     VkImage               actual;
     VmaAllocation         allocation;
     VkImageView           view;
+    void*                 mappedPtr;
+    VkDeviceSize          mappedSize;
 );
 
 GPU_EXTEND_OBJECT(Vk, ProgramStage,

@@ -18,9 +18,11 @@ void GPU_Dx12EndSwapChainFrame(GPU_SwapChain*);
 
 void GPU_Dx12NewBuffer(GPU_Buffer*, GPU_Instance*, GPU_BufferCfg);
 void GPU_Dx12DeleteBuffer(GPU_Buffer*);
+Slice_(u8) GPU_Dx12GetMappedBufferData(GPU_Buffer*);
 
 void GPU_Dx12NewTexture(GPU_Texture*, GPU_Instance*, GPU_TextureCfg);
 void GPU_Dx12DeleteTexture(GPU_Texture*);
+Slice_(u8) GPU_Dx12GetMappedTextureData(GPU_Texture*);
 
 void GPU_Dx12NewProgramStage(GPU_ProgramStage*, GPU_Instance*, GPU_ProgramStageByteCode);
 void GPU_Dx12DeleteProgramStage(GPU_ProgramStage*);

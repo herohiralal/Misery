@@ -332,13 +332,24 @@ COL_DECLARE_FOR(GPU_TextureFormat);
  */
 GPU_DECLARE_OBJECT(Texture, 256);
 
+/**
+ * Configuration structure for texture creation.
+ */
 typedef struct
 {
+    // the width and height of the texture in pixels
     u16               width, height;
+
+    // the memory type to use for the texture
     GPU_MemType       memType;
+
+    // the usages to use for the texture
     GPU_TextureUsage  usages;
+
+    // the format to use for the texture
     GPU_TextureFormat format;
-    GPU_TextureLayout initialLayout;
+
+    // the name of the texture object
     utf8str           objectName;
 } GPU_TextureCfg;
 

@@ -68,6 +68,28 @@ VkImageLayout GPU_BreakVkTextureLayout(GPU_TextureLayout layout)
     return VK_IMAGE_LAYOUT_UNDEFINED;
 }
 
+// you'll want this for barriers too
+VkImageLayout GPU_VkToImageLayout(GPU_TextureLayout layout)
+{
+    switch (layout)
+    {
+        case GPU_TexLyt_Unknown:            return VK_IMAGE_LAYOUT_UNDEFINED;
+        case GPU_TexLyt_Generic:            return VK_IMAGE_LAYOUT_GENERAL;
+        case GPU_TexLyt_ReadOnly:           return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        case GPU_TexLyt_ReadWrite:          return VK_IMAGE_LAYOUT_GENERAL;
+        case GPU_TexLyt_DrawTarget:         return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        case GPU_TexLyt_Present:            return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        case GPU_TexLyt_DepthStencilRead:   return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+        case GPU_TexLyt_DepthStencilWrite:  return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        case GPU_TexLyt_CopySrc:            return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        case GPU_TexLyt_CopyDst:            return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        case GPU_TexLyt_ShadingRateSrc:     return VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR;
+        default:
+            MSR_ASSERT(false && "Invalid texture layout");
+            return VK_IMAGE_LAYOUT_UNDEFINED;
+    }
+}
+
 VkPipelineStageFlags2 GPU_BreakVkBarrierStage(GPU_BarrierStage stages)
 {
     if (stages == GPU_BarStg_None)

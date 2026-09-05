@@ -94,6 +94,15 @@ void GPU_NewBuffer(GPU_Buffer* outBuffer, GPU_Instance* renderer, GPU_BufferCfg 
  */
 void GPU_DeleteBuffer(GPU_Buffer* buffer);
 
+/**
+ * THREAD_SAFE
+ * Returns a slice of the buffer's data mapped to the CPU's virtual address space.
+ * This is only valid for buffers that are created with a memory type that allows CPU access.
+ * Note that for readback, it is ideal to copy this memory to a CPU-side buffer at once, before reading.
+ * Note that for writedown, it is ideal to copy to this memory at once, instead of in small chunks.
+ */
+Slice_(u8) GPU_GetMappedBufferData(GPU_Buffer* buffer);
+
 // Textures ====================================================================================================================
 
 /**
@@ -107,6 +116,15 @@ void GPU_NewTexture(GPU_Texture* outTexture, GPU_Instance* renderer, GPU_Texture
  * Destroy the given texture resource, freeing up associated resources.
  */
 void GPU_DeleteTexture(GPU_Texture* texture);
+
+/**
+ * THREAD_SAFE
+ * Returns a slice of the texture's data mapped to the CPU's virtual address space.
+ * This is only valid for textures that are created with a memory type that allows CPU access.
+ * Note that for readback, it is ideal to copy this memory to a CPU-side buffer at once, before reading.
+ * Note that for writedown, it is ideal to copy to this memory at once, instead of in small chunks.
+ */
+Slice_(u8) GPU_GetMappedTextureData(GPU_Texture* texture);
 
 // Programs ====================================================================================================================
 
