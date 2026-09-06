@@ -9,10 +9,10 @@ static struct
     struct
     {
         GPU_ProgramArgsLayout argsLayout;
-        GPU_Program triangle;
+        GPU_Program triangleVs;
         GPU_Program triangleMs;
 
-        GPU_Buffer trianglePropsBuffer;
+        GPU_Buffer triangleVsPropsBuffer;
         GPU_Buffer triangleMsPropsBuffer;
     } programs;
 } G_RenderData;
@@ -25,8 +25,10 @@ static struct
 
 typedef struct alignas(256) TriangleMatProps
 {
-    float vertexColours[3][4];
-    float tint[4];
+    f32 prevVal[3][4];
+    f32 newVal[3][4];
+
+    f32 tint[4];
 } TriangleMatProps;
 
 void RenderThread(rawptr data);
@@ -135,7 +137,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
             .objectName = UTF8STR("mainlayout"),
         });
 
-        GPU_NewBuffer(&G_RenderData.programs.trianglePropsBuffer, &ren, (GPU_BufferCfg)
+        GPU_NewBuffer(&G_RenderData.programs.triangleVsPropsBuffer, &ren, (GPU_BufferCfg)
         {
             .memType = GPU_MemType_Default,
             .usages = GPU_BufUsg_ReadOnly,
@@ -158,7 +160,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
         GPU_NewProgramStage(&triangleMsObj, &ren, triangleMs);
         GPU_NewProgramStage(&triangleFsObj, &ren, triangleFs);
 
-        GPU_NewProgram(&G_RenderData.programs.triangle, &ren, (GPU_ProgramCfg)
+        GPU_NewProgram(&G_RenderData.programs.triangleVs, &ren, (GPU_ProgramCfg)
         {
             .stages = SLICE(GPU_ProgramStageCfg,
                 ((GPU_ProgramStageCfg) {.stage = &triangleVsObj}),
@@ -227,6 +229,9 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
 
     MEM_DeallocateAll(MEM_temp);
 
+    TriangleMatProps vsVals = {0}, msVals = {0};
+    f32 rgbArr[3][4] = {{1.0, 1.0, 0.0, 1.0}, {0.0, 1.0, 1.0, 1.0}, {1.0, 0.0, 1.0, 1.0}};
+    i32 idx = 0, tintIdx = 0; f32 timer = 0.0f;
     b8 running = true, fullscreen = false;
     while (running)
     {
@@ -234,6 +239,7 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
         f32 dt = (f32) ((f64) (newTime.ns - prevTime.ns) / 1000000000.0);
         prevTime = newTime;
 
+        b8 nextTint = false, prevTint = false;
         INP_GatherEvts();
         isize evtIt = 0; INP_Evt evt;
         while (INP_IterateEvts(&evtIt, &evt))
@@ -269,7 +275,72 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
                 case INP_Evt_Quit:       LOG_Inf(INPUT, "EVT: Quit");       break;
                 default:                 LOG_Inf(INPUT, "EVT: ???");        break;
             }
+
+            if (evt.ty == INP_Evt_Keyboard && evt.keyStatus == INP_KS_Pressed && evt.keyCode == INP_KC_ArrowUp)
+                nextTint = true;
+            if (evt.ty == INP_Evt_Keyboard && evt.keyStatus == INP_KS_Pressed && evt.keyCode == INP_KC_ArrowDown)
+                prevTint = true;
         }
+
+        // do the pattern
+        {
+            static const f32 duration = 3.0f;
+            f32 factor = timer / duration;
+            timer -= dt;
+            if (timer < 0.0f)
+            {
+                timer = duration; // every 3 seconds
+                i32 aIdx0 = idx, aIdx1 = (idx + 1) % 3, aIdx2 = (idx + 2) % 3;
+                idx++; idx %= 3;
+                i32 bIdx0 = idx, bIdx1 = (idx + 1) % 3, bIdx2 = (idx + 2) % 3;
+                i32 cIdx0 = (idx + 1) % 3, cIdx1 = (idx + 2) % 3, cIdx2 = idx;
+                vsVals = (TriangleMatProps)
+                {
+                    .prevVal = {{rgbArr[bIdx0][0], rgbArr[bIdx0][1], rgbArr[bIdx0][2], 1.0},
+                                {rgbArr[bIdx1][0], rgbArr[bIdx1][1], rgbArr[bIdx1][2], 1.0},
+                                {rgbArr[bIdx2][0], rgbArr[bIdx2][1], rgbArr[bIdx2][2], 1.0}},
+                    .newVal  = {{rgbArr[aIdx0][0], rgbArr[aIdx0][1], rgbArr[aIdx0][2], 1.0},
+                                {rgbArr[aIdx1][0], rgbArr[aIdx1][1], rgbArr[aIdx1][2], 1.0},
+                                {rgbArr[aIdx2][0], rgbArr[aIdx2][1], rgbArr[aIdx2][2], 1.0}},
+                    .tint = {1.0, 1.0, 1.0, 1.0},
+                };
+                msVals = (TriangleMatProps)
+                {
+                    .prevVal = {{rgbArr[cIdx0][0], rgbArr[cIdx0][1], rgbArr[cIdx0][2], 1.0},
+                                {rgbArr[cIdx1][0], rgbArr[cIdx1][1], rgbArr[cIdx1][2], 1.0},
+                                {rgbArr[cIdx2][0], rgbArr[cIdx2][1], rgbArr[cIdx2][2], 1.0}},
+                    .newVal  = {{rgbArr[bIdx0][0], rgbArr[bIdx0][1], rgbArr[bIdx0][2], 1.0},
+                                {rgbArr[bIdx1][0], rgbArr[bIdx1][1], rgbArr[bIdx1][2], 1.0},
+                                {rgbArr[bIdx2][0], rgbArr[bIdx2][1], rgbArr[bIdx2][2], 1.0}},
+                    .tint = {1.0, 1.0, 1.0, 1.0},
+                };
+            }
+            else
+            {
+                vsVals.prevVal[0][3] = vsVals.prevVal[1][3] = vsVals.prevVal[2][3] = factor;
+                msVals.prevVal[0][3] = msVals.prevVal[1][3] = msVals.prevVal[2][3] = factor;
+            }
+
+            static const struct { f32 val[4]; } tints[][4] =
+            {
+                {1.00, 1.00, 1.00, 1.00}, // none
+                {0.75, 0.75, 0.75, 1.00}, // light gray
+                {0.25, 0.25, 0.25, 1.00}, // dark gray
+                {1.00, 0.50, 0.50, 1.00}, // red
+                {0.50, 1.00, 0.50, 1.00}, // green
+                {0.50, 0.50, 1.00, 1.00}, // blue
+                {1.00, 1.00, 0.50, 1.00}, // yellow
+                {1.00, 0.50, 1.00, 1.00}, // magenta
+                {0.50, 1.00, 1.00, 1.00}, // cyan
+            };
+
+            if (nextTint) tintIdx++; else if (prevTint) tintIdx--; else (void) tintIdx;
+            tintIdx %= (sizeof(tints) / sizeof(tints[0]));
+
+            MEM_Copy(vsVals.tint, tints[tintIdx], sizeof(f32) * 4);
+            MEM_Copy(msVals.tint, tints[tintIdx], sizeof(f32) * 4);
+        }
+
 
         // render thread kick-off
         {
@@ -280,6 +351,18 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
             }
             else
             {
+                MEM_Copy(
+                    GPU_GetMappedBufferData(&G_RenderData.programs.triangleVsPropsBuffer).data,
+                    &vsVals,
+                    sizeof(TriangleMatProps)
+                );
+
+                MEM_Copy(
+                    GPU_GetMappedBufferData(&G_RenderData.programs.triangleMsPropsBuffer).data,
+                    &msVals,
+                    sizeof(TriangleMatProps)
+                );
+
                 isize resizeIt = 0; INP_WindowResizeData resizeData;
                 while (INP_IterateResizeEvts(&resizeIt, &resizeData))
                 {
@@ -316,9 +399,9 @@ i32 RealMain(APP_Handle app, Slice_(utf8str) args)
     GPU_DestroySwapChain(&G_RenderData.swapChain);
     WND_Destroy(&wnd);
     GPU_DeleteProgram(&G_RenderData.programs.triangleMs);
-    GPU_DeleteProgram(&G_RenderData.programs.triangle);
+    GPU_DeleteProgram(&G_RenderData.programs.triangleVs);
     GPU_DeleteBuffer(&G_RenderData.programs.triangleMsPropsBuffer);
-    GPU_DeleteBuffer(&G_RenderData.programs.trianglePropsBuffer);
+    GPU_DeleteBuffer(&G_RenderData.programs.triangleVsPropsBuffer);
     GPU_DeleteProgramArgsLayout(&G_RenderData.programs.argsLayout);
     GPU_Destroy(&ren);
 
@@ -389,7 +472,7 @@ void RenderThread(rawptr data)
 
             GPU_CmdBindProgram(frameCtx.cmdBuffer, (GPU_BindProgramCfg)
             {
-                .program = &G_RenderData.programs.triangle,
+                .program = &G_RenderData.programs.triangleVs,
                 .cullMode = GPU_Cull_CounterClockwise,
                 .topology = GPU_Topo_TriangleList,
             });
@@ -406,7 +489,7 @@ void RenderThread(rawptr data)
                         .type = GPU_PgmArg_ReadROBuffer,
                         .value.buffer =
                         {
-                            .buffer = &G_RenderData.programs.trianglePropsBuffer,
+                            .buffer = &G_RenderData.programs.triangleVsPropsBuffer,
                             .offset = 0,
                             .size = sizeof(TriangleMatProps),
                         },

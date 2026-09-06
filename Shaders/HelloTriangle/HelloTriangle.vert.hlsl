@@ -10,6 +10,6 @@ VertexOutput main(uint vid: SV_VertexID)
     output.posCS.y *= -1;
 #endif
 
-    output.vtCol = G_MatProps.vertexColours[vid].rgb;
+    output.vtCol = lerp(G_MatProps.prevVal[vid].rgb, G_MatProps.newVal[vid].rgb, G_MatProps.prevVal[vid].a);
     return output;
 }

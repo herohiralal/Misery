@@ -20,8 +20,9 @@ struct VertexOutput
 
 struct MatProps
 {
-    float4 vertexColours[3]; // .rgb used; float4 for alignment
-    float4 tint;             // .rgb used; float4 for alignment
+    float4 prevVal[3]; // .rgb used for colour; .a for lerp
+    float4 newVal[3];  // .rgb used; float4 for alignment
+    float4 tint;       // .rgb used; float4 for alignment
 };
 
 [[vk::binding(0, 0)]]
