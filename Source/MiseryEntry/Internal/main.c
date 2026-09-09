@@ -452,7 +452,7 @@ void RenderThread(rawptr data)
                         .idealLayout = true,
                         .loadOp      = GPU_LoadOp_Clear,
                         .storeOp     = GPU_StoreOp_Store,
-                        .clearColor  = {0.15, 0.15, 0.2, 1.0},
+                        .clearColor  = {0.15f, 0.15f, 0.2f, 1.0f},
                     }),
                 ),
                 .viewport =

@@ -27,7 +27,14 @@ FIL_Path PRC_GetCurrentExecutablePath(MEM_Allocator allocator)
     }
     #elif MSR_OSX || MSR_IOS
     {
-        // _NSGetExecutablePath()
+        char buffer[PATH_MAX];
+        uint32_t size = sizeof(buffer);
+
+        if (_NSGetExecutablePath(buffer, &size) != 0)
+            return (FIL_Path) {0};
+
+        utf8str pathStr = {.data = (u8*) buffer, .count = (isize) strlen(buffer)};
+        return FIL_Normalise(pathStr, allocator);
     }
     #else
         #error "unimplemented"
