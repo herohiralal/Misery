@@ -27,6 +27,7 @@ static Slice_(VkDeviceQueueCreateInfo) GPU_SelectVkQueueFamilies(VkPhysicalDevic
 
         VkQueueFlags flags = properties->queueFlags;
 
+
         // graphics queue must support compute and transfer both
         if ((!!properties->queueCount) &&
             (flags & VK_QUEUE_GRAPHICS_BIT) && (flags & VK_QUEUE_COMPUTE_BIT) && (flags & VK_QUEUE_TRANSFER_BIT) &&
@@ -48,7 +49,7 @@ static Slice_(VkDeviceQueueCreateInfo) GPU_SelectVkQueueFamilies(VkPhysicalDevic
         }
 
         if ((!!properties->queueCount) &&
-            (flags & VK_QUEUE_TRANSFER_BIT) && !(flags & VK_QUEUE_GRAPHICS_BIT) && !(flags & VK_QUEUE_COMPUTE_BIT) &&
+            (flags & VK_QUEUE_TRANSFER_BIT) &&
             i != *gfxQueue && i != *asyncComputeQueue)
         {
             if (*dedicatedTransferQueue == U32_MAX)
@@ -59,7 +60,7 @@ static Slice_(VkDeviceQueueCreateInfo) GPU_SelectVkQueueFamilies(VkPhysicalDevic
         }
 
         if ((!!properties->queueCount) &&
-            (flags & VK_QUEUE_COMPUTE_BIT) && !(flags & VK_QUEUE_GRAPHICS_BIT) &&
+            (flags & VK_QUEUE_COMPUTE_BIT) &&
             i != *gfxQueue && i != *dedicatedTransferQueue)
         {
             if (*asyncComputeQueue == U32_MAX)
@@ -95,14 +96,16 @@ static Slice_(VkDeviceQueueCreateInfo) GPU_SelectVkQueueFamilies(VkPhysicalDevic
     // create queue create infos
     List_(VkDeviceQueueCreateInfo) queueCreateInfos = COL_NewList(VkDeviceQueueCreateInfo, 8, MEM_temp);
 
-    float queuePriority = 1.0f;
+    float* queuePriority = MEM_New(float, MEM_temp);
+    MSR_ASSERT(queuePriority && "Failed to allocate queue priority");
+    *queuePriority = 1.0f;
 
     COL_AppendToList(&queueCreateInfos, ((VkDeviceQueueCreateInfo)
     {
         .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
         .queueFamilyIndex = *gfxQueue,
         .queueCount = 1,
-        .pQueuePriorities = &queuePriority,
+        .pQueuePriorities = queuePriority,
     }));
 
     if (*gfxQueue != *presQueue)
@@ -112,7 +115,7 @@ static Slice_(VkDeviceQueueCreateInfo) GPU_SelectVkQueueFamilies(VkPhysicalDevic
             .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
             .queueFamilyIndex = *presQueue,
             .queueCount = 1,
-            .pQueuePriorities = &queuePriority,
+            .pQueuePriorities = queuePriority,
         }));
     }
 
@@ -121,7 +124,7 @@ static Slice_(VkDeviceQueueCreateInfo) GPU_SelectVkQueueFamilies(VkPhysicalDevic
         .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
         .queueFamilyIndex = *dedicatedTransferQueue,
         .queueCount = 1,
-        .pQueuePriorities = &queuePriority,
+        .pQueuePriorities = queuePriority,
     }));
 
     COL_AppendToList(&queueCreateInfos, ((VkDeviceQueueCreateInfo)
@@ -129,7 +132,7 @@ static Slice_(VkDeviceQueueCreateInfo) GPU_SelectVkQueueFamilies(VkPhysicalDevic
         .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
         .queueFamilyIndex = *asyncComputeQueue,
         .queueCount = 1,
-        .pQueuePriorities = &queuePriority,
+        .pQueuePriorities = queuePriority,
     }));
 
     return queueCreateInfos.slice;

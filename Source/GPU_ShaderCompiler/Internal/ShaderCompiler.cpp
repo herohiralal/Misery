@@ -125,27 +125,60 @@ namespace GPU_ShaderCompiler
         #else
         {
             std::mbstate_t state = { };
-            size_t requiredSize = std::mbsrtowcs(nullptr, (const char**) &(str.data),
-                0, &state);
 
-            if (requiredSize == (size_t) -1)
-                return nil;
+            size_t remaining = str.count;
+            const char* input = reinterpret_cast<const char*>(str.data);
 
-            wchar_t* output = (wchar_t*) MEM_Allocate(allocator, false,
-                sizeof(wchar_t) * (requiredSize + 1), alignof(wchar_t));
+            size_t outputSize = 0;
+
+            while (remaining)
+            {
+                wchar_t wc;
+                size_t converted = std::mbrtowc(&wc, input, remaining, &state);
+
+                if (converted == (size_t)-1 || converted == (size_t)-2)
+                    return nil;
+
+                if (converted == 0)
+                    break;
+
+                outputSize++;
+                input += converted;
+                remaining -= converted;
+            }
+
+            outputSize++; // for null terminator
+            wchar_t* output = (wchar_t*) MEM_Allocate(allocator, false, sizeof(wchar_t) * outputSize, alignof(wchar_t));
 
             if (!output)
                 return nil;
 
             state = std::mbstate_t { };
-            size_t convertedSize = std::mbsrtowcs(output, (const char**) &(str.data),
-                requiredSize + 1, &state);
+            remaining = str.count;
+            input = reinterpret_cast<const char*>(str.data);
 
-            if (convertedSize == (size_t) -1)
+            size_t outputIndex = 0;
+
+            while (remaining)
             {
-                MEM_Deallocate(allocator, output);
-                return nil;
+                wchar_t wc;
+                size_t converted = std::mbrtowc(&wc, input, remaining, &state);
+
+                if (converted == (size_t)-1 || converted == (size_t)-2)
+                {
+                    MEM_Deallocate(allocator, output);
+                    return nil;
+                }
+
+                if (converted == 0)
+                    break;
+
+                output[outputIndex++] = wc;
+                input += converted;
+                remaining -= converted;
             }
+
+            output[outputIndex] = L'\0';
 
             return output;
         }
