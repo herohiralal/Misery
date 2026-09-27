@@ -491,6 +491,17 @@ GPU_SwapChainFrameContext GPU_VkBeginSwapChainFrame(GPU_SwapChain* baseSwapChain
     };
 }
 
+/*
+doing this to treat suboptimal as success
+this is because suboptimal can happen when the window is resized, but the swapchain is still valid and can be used for rendering
+*/
+static VkResult GPU_VkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* presentInfo)
+{
+    VkResult result = vkQueuePresentKHR(queue, presentInfo);
+    if (result == VK_SUBOPTIMAL_KHR) result = VK_SUCCESS; // treat as success
+    return result;
+}
+
 void GPU_VkEndSwapChainFrame(GPU_SwapChain* baseSwapChain)
 {
     GPU_VkSwapChain* swapChain = GPU_ToVkSwapChain(baseSwapChain);
@@ -541,7 +552,7 @@ void GPU_VkEndSwapChainFrame(GPU_SwapChain* baseSwapChain)
     }, VK_NULL_HANDLE));
 
     // present
-    GPU_VK_CHECKED_CALL(vkQueuePresentKHR(swapChain->renderer->gfxQueue, &(VkPresentInfoKHR)
+    GPU_VK_CHECKED_CALL(GPU_VkQueuePresentKHR(swapChain->renderer->gfxQueue, &(VkPresentInfoKHR)
     {
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .pNext = nil,
