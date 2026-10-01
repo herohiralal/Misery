@@ -1,3 +1,4 @@
+#include "Core/Sync.h"
 #include "CorePrivate.h"
 
 #if MSR_WINDOWS
@@ -56,6 +57,28 @@
 #else
     #error "Unsupported platform."
 #endif
+
+// Spinlock ========================================================================
+
+void SYN_ResetSpinlock(SYN_Spinlock* obj)
+{
+    MSR_ASSERT(obj && "Spinlock pointer is null.");
+    ATM_StoreI64(&obj->lock, 0);
+}
+
+void SYN_LockSpinlock(SYN_Spinlock* obj)
+{
+    MSR_ASSERT(obj && "Spinlock pointer is null.");
+
+    while (!ATM_CmpXchgI64(&obj->lock, 0, 1))
+        MSR_YieldProcessor();
+}
+
+void SYN_UnlockSpinlock(SYN_Spinlock* obj)
+{
+    MSR_ASSERT(obj && "Spinlock pointer is null.");
+    ATM_StoreI64(&obj->lock, 0);
+}
 
 // Mutex ===========================================================================
 

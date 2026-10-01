@@ -1,6 +1,36 @@
 #pragma once
 #include <__init.h>
+#include "Atomics.h"
 EXTERN_C_BEGIN
+
+// Spinlock ========================================================================
+
+/**
+ * A simple spinlock synchronization primitive.
+ * It is a low-level primitive that can be used to protect shared resources from concurrent access.
+ * It is not recommended for general use, as it can lead to busy-waiting and high CPU usage.
+ */
+typedef struct alignas(MSR_PTR_SIZE) SYN_Spinlock
+{
+    ATM_i64 lock;
+} SYN_Spinlock;
+
+/**
+ * Resets a spinlock.
+ * Only really used for initialisation.
+ */
+void SYN_ResetSpinlock(SYN_Spinlock* spinlock);
+
+/**
+ * Locks a spinlock.
+ * If the spinlock is already locked, the calling thread will busy-wait until it becomes available.
+ */
+void SYN_LockSpinlock(SYN_Spinlock* spinlock);
+
+/**
+ * Unlocks a spinlock.
+ */
+void SYN_UnlockSpinlock(SYN_Spinlock* spinlock);
 
 // Mutex ===========================================================================
 

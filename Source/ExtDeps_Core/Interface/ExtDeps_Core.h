@@ -19,6 +19,15 @@ MSR_SUPPRESS_WARN
     #include <hidusage.h>
 #endif
 
+#if MSR_MSVC
+    #if MSR_X86 || MSR_X64 || MSR_ARM || MSR_ARM64
+        #include <intrin.h>
+    #endif
+    #if MSR_X86 || MSR_X64
+        #include <immintrin.h>
+    #endif
+#endif
+
 #if MSR_UNIX
 
     // since we're on C11

@@ -1,5 +1,6 @@
 #pragma once
 #include <__init.h>
+#include "Instructions.h"
 #include "Time.h"
 #include "Atomics.h"
 #include "Memory.h"
