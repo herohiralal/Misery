@@ -227,14 +227,6 @@ static_assert(MSR_MSVC + MSR_GCC + MSR_CLANG == 1, "Exactly one compiler must be
     #define MSR_REL 0
 #endif
 
-#if MSR_MSVC && MSR_DBG
-    #define MSR_ASSERT(expr) do { if (!(expr)) {   __debugbreak(); } } while (0)
-#elif (MSR_CLANG || MSR_GCC) && MSR_DBG
-    #define MSR_ASSERT(expr) do { if (!(expr)) { __builtin_trap(); } } while (0)
-#else
-    #define MSR_ASSERT(expr) ((void) 0)
-#endif
-
 static_assert(MSR_DBG + MSR_REL == 1, "Exactly one configuration must be defined.");
 
 enum MSR_Configurations

@@ -1,4 +1,5 @@
 #include "Core/Sync.h"
+#include "Core/Instructions.h"
 #include "CorePrivate.h"
 
 #if MSR_WINDOWS
@@ -70,8 +71,17 @@ void SYN_LockSpinlock(SYN_Spinlock* obj)
 {
     MSR_ASSERT(obj && "Spinlock pointer is null.");
 
-    while (!ATM_CmpXchgI64(&obj->lock, 0, 1))
+    while (true)
+    {
+        // doing the initial read because on x64, cmpxch will write unconditionally
+        // this causes cacheline invalidation traffic even if the lock is already held
+        // so we do a read first to avoid that if possible
+        if (ATM_LoadI64(&obj->lock) == 0)
+            if (ATM_CmpXchgI64(&obj->lock, 0, 1))
+                break; // acquired the lock
+
         MSR_YieldProcessor();
+    }
 }
 
 void SYN_UnlockSpinlock(SYN_Spinlock* obj)
