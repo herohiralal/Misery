@@ -24,16 +24,11 @@ enum GPU_GfxAPITypes
 };
 
 // declare an rhi-unspecific gpu object (with opaque padding)
-#define GPU_DECLARE_OBJECT(name, extensionPadding, ...) \
-    typedef struct GPU_##name##_Base \
+#define GPU_DECLARE_OBJECT(name, ...) \
+    typedef struct GPU_##name \
     { \
         GPU_GfxAPIType type; \
         __VA_ARGS__ \
-    } GPU_##name##_Base; \
-    typedef struct GPU_##name \
-    { \
-        GPU_##name##_Base base; \
-        u8 padding[extensionPadding]; \
     } GPU_##name; \
     COL_DECLARE_FOR(GPU_##name)
 
@@ -45,6 +40,8 @@ typedef struct
     GPU_GfxAPIType type;
     APP_Handle appHandle;
     utf8str appName;
+    MEM_Allocator allocator;
+    THR_Id mainThread, renderThread;
 
     union
     {
@@ -79,12 +76,14 @@ typedef struct
  * multiple GPU APIs active, it's more common to have just one. This object is used as the primary
  * entry point for creating other GPU objects.
  */
-GPU_DECLARE_OBJECT(Instance, 256);
+GPU_DECLARE_OBJECT(Instance,
+    THR_Id mainThread, renderThread;
+);
 
 /**
  * A command buffer for recording GPU commands.
  */
-GPU_DECLARE_OBJECT(CmdBuffer, 40);
+GPU_DECLARE_OBJECT(CmdBuffer);
 
 /**
  * Configuration structure for swap-chain creation.
@@ -95,6 +94,7 @@ typedef struct
     u16     height;
     b8      vSync;
     utf8str objectName;
+    MEM_Allocator allocator;
 } GPU_SwapChainCfg;
 
 #ifndef GPU_FRAMES_IN_FLIGHT
@@ -136,7 +136,7 @@ typedef struct
  * A swap-chain manages the images that are presented to the screen, and handles
  * synchronization between rendering and presentation.
  */
-GPU_DECLARE_OBJECT(SwapChain, 2048);
+GPU_DECLARE_OBJECT(SwapChain);
 
 /**
  * Defines the available memory types for GPU resources.
@@ -1140,6 +1140,15 @@ typedef struct
     static inline GPU_##name* GPU_From##gfxApi##name(GPU_##gfxApi##name* extended) \
     { \
         return (GPU_##name*) extended; \
+    } \
+    static inline const GPU_##gfxApi##name* GPU_ToConst##gfxApi##name(const GPU_##name* base) \
+    { \
+        MSR_ASSERT(!!base && base->base.type == GPU_GfxAPIType_##gfxApi && "Type mismatch!"); \
+        return (const GPU_##gfxApi##name*) base; \
+    } \
+    static inline const GPU_##name* GPU_FromConst##gfxApi##name(const GPU_##gfxApi##name* extended) \
+    { \
+        return (const GPU_##name*) extended; \
     }
 
 EXTERN_C_END

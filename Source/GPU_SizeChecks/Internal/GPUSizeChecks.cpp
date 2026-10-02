@@ -1,3 +1,4 @@
+#if 0
 #include <__init.h>
 
 template <b8 condition>
@@ -33,3 +34,4 @@ struct GPU_TNoValueOnFailure<true> { static constexpr const b8 VALUE = true; };
 
 #undef GPU_OBJ_SIZE_CHECK
 #undef GPU_OBJ_SIZE_CHECK_NAME
+#endif

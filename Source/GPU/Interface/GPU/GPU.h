@@ -12,7 +12,7 @@ EXTERN_C_BEGIN
  * MAIN_THREAD
  * Creates a renderer instance based on the provided configuration.
  */
-void GPU_Create(GPU_Instance* outInstance, GPU_InstanceCfg cfg);
+GPU_Instance* GPU_Create(GPU_InstanceCfg cfg);
 
 /**
  * MAIN_THREAD
@@ -27,7 +27,7 @@ void GPU_Destroy(GPU_Instance* renderer);
  *
  * Warning! - it won't necessarily account for work that gets submitted after this on other threads.
  */
-void GPU_WaitTillIdle(GPU_Instance* renderer);
+void GPU_WaitTillIdle(const GPU_Instance* renderer);
 
 // Swap-chain ==================================================================================================================
 
@@ -36,7 +36,7 @@ void GPU_WaitTillIdle(GPU_Instance* renderer);
  * Create a swap-chain for the given window, with the given renderer, for a custom number of frames in flight.
  * If width/height are uninitialised, they will be derived from the window.
  */
-void GPU_CreateSwapChainFromWindow(GPU_SwapChain* outSwapChain, GPU_Instance* renderer, WND_Handle windowHandle, GPU_SwapChainCfg cfg);
+GPU_SwapChain* GPU_CreateSwapChainFromWindow(const GPU_Instance* renderer, WND_Handle windowHandle, GPU_SwapChainCfg cfg);
 
 /**
  * MAIN_THREAD
@@ -55,7 +55,7 @@ void GPU_DestroySwapChain(GPU_SwapChain* swapChain);
  * MAIN_THREAD
  * Get the texture format of the swap-chain.
  */
-GPU_TextureFormat GPU_GetSwapChainTextureFormat(GPU_SwapChain* swapChain);
+GPU_TextureFormat GPU_GetSwapChainTextureFormat(const GPU_SwapChain* swapChain);
 
 /**
  * MAIN_THREAD
@@ -70,7 +70,7 @@ void GPU_IterateSwapChain(GPU_SwapChain* swapChain);
  * Begin rendering a given frame of the swap-chain.
  * Returns the context required to record commands for the current frame, and to present the current image.
  */
-GPU_SwapChainFrameContext GPU_BeginSwapChainFrame(GPU_SwapChain* swapChain);
+GPU_SwapChainFrameContext GPU_BeginSwapChainFrame(const GPU_SwapChain* swapChain);
 
 /**
  * RENDER_THREAD
@@ -78,7 +78,7 @@ GPU_SwapChainFrameContext GPU_BeginSwapChainFrame(GPU_SwapChain* swapChain);
  * Internally, submits the command buffer for execution, and signals the swap-chain to present the current image.
  * Note that this requires the command buffer to be in an "executable" state.
  */
-void GPU_EndSwapChainFrame(GPU_SwapChain* swapChain);
+void GPU_EndSwapChainFrame(const GPU_SwapChain* swapChain);
 
 // Buffers =====================================================================================================================
 
@@ -86,22 +86,22 @@ void GPU_EndSwapChainFrame(GPU_SwapChain* swapChain);
  * THREAD_SAFE
  * Create a buffer resource with the given configuration.
  */
-void GPU_NewBuffer(GPU_Buffer* outBuffer, GPU_Instance* renderer, GPU_BufferCfg cfg);
+GPU_Buffer* GPU_NewBuffer(GPU_Instance* renderer, GPU_BufferCfg cfg);
 
 /**
- * THREAD_SAFE
+ * MANUAL_SYNC
  * Destroy the given buffer resource, freeing up associated resources.
  */
 void GPU_DeleteBuffer(GPU_Buffer* buffer);
 
 /**
- * THREAD_SAFE
+ * MANUAL_SYNC
  * Returns a slice of the buffer's data mapped to the CPU's virtual address space.
  * This is only valid for buffers that are created with a memory type that allows CPU access.
  * Note that for readback, it is ideal to copy this memory to a CPU-side buffer at once, before reading.
  * Note that for writedown, it is ideal to copy to this memory at once, instead of in small chunks.
  */
-Slice_(u8) GPU_GetMappedBufferData(GPU_Buffer* buffer);
+Slice_(u8) GPU_GetMappedBufferData(const GPU_Buffer* buffer);
 
 // Textures ====================================================================================================================
 
@@ -109,16 +109,16 @@ Slice_(u8) GPU_GetMappedBufferData(GPU_Buffer* buffer);
  * THREAD_SAFE
  * Create a texture resource with the given configuration.
  */
-void GPU_NewTexture(GPU_Texture* outTexture, GPU_Instance* renderer, GPU_TextureCfg cfg);
+GPU_Texture* GPU_NewTexture(GPU_Instance* renderer, GPU_TextureCfg cfg);
 
 /**
- * THREAD_SAFE
+ * MANUAL_SYNC
  * Destroy the given texture resource, freeing up associated resources.
  */
 void GPU_DeleteTexture(GPU_Texture* texture);
 
 /**
- * THREAD_SAFE
+ * MANUAL_SYNC
  * Returns a slice of the texture's data mapped to the CPU's virtual address space.
  * This is only valid for textures that are created with a memory type that allows CPU access.
  * Note that for readback, it is ideal to copy this memory to a CPU-side buffer at once, before reading.
